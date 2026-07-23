@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} Fit Lens · Ferminator{% endblock %}
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb"><a href="/">Today</a><span>/</span>{{ job.title }}</nav>
+<header class="fit-hero">
+  <div>
+    <h1>{{ job.title }}</h1>
+    <p class="hero-copy">{{ job.company }} · {{ job.location }} · {{ job.compensation or "Compensation unknown" }} · {{ job.freshness }}</p>
+  </div>
+  <div class="fit-score"><strong>{{ job.score|round|int }}%</strong><span>alignment</span></div>
+  <div class="fit-components" aria-label="Score composition">
+    {% for label, value in components %}
+    <div><span>{{ label }}</span><strong>{{ value }}</strong></div>
+    {% endfor %}
+  </div>
+</header>
+<div class="fit-actions">
+  <a class="button button-primary" href="{{ job.apply_url }}" target="_blank" rel="noopener">Prepare application →</a>
+  <button class="button button-secondary" data-toast="Saved to your shortlist">Save</button>
+  <button class="button button-secondary" data-toast="Dismissed">Dismiss</button>
+</div>
+<section class="fit-layout">
+  <div>
+    <div class="section-heading fit-heading"><h2>Why this is here</h2></div>
+    <div class="trust-legend" aria-label="Evidence legend">
+      <span><i class="trust-user"></i>Your facts</span>
+      <span><i class="trust-listing"></i>Listing facts</span>
+      <span><i class="trust-inference"></i>Ferminator inference</span>
+      <span><i class="trust-unknown"></i>Unknown</span>
+    </div>
+    <div class="evidence-map">
+      {% for evidence in job.evidence %}
+      <div class="evidence-row">
+        <div><small>YOUR EVIDENCE</small><h3>{{ evidence }}</h3><p>User-confirmed profile evidence</p></div>
+        <div class="evidence-line" aria-hidden="true"><span></span></div>
+        <div><small>THEIR REQUIREMENT</small><h3>{{ requirements[loop.index0] }}</h3><p>Current listing requirement</p></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="gap-panel">
+      <div><p class="eyebrow">POTENTIAL GAP</p><h2>{{ job.concerns[0] if job.concerns else "No material gap detected from available listing facts." }}</h2></div>
+      <span>Inference · review before acting</span>
+    </div>
+  </div>
+  <aside class="why-now">
+    <h2>Why act now</h2>
+    <p><strong>First observed</strong><br>{{ job.freshness }}</p>
+    <p><strong>Source</strong><br>{{ job.provider|title }}</p>
+    <hr>
+    <h2>Best next move</h2>
+    <p>Lead with the strongest mapped evidence and address the named gap directly.</p>
+  </aside>
+</section>
+{% endblock %}

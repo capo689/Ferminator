@@ -10,8 +10,10 @@ from rich.console import Console
 from rich.table import Table
 
 from ferminator.adapters import ADAPTERS
+from ferminator.digest import compose_digest, send_smtp
 from ferminator.domain import ATSProvider, BoardRef
 from ferminator.ingestion import run_board_ingestion
+from ferminator.matching import score_job
 from ferminator.profiles import load_profile
 from ferminator.registry import load_registry
 from ferminator.repository import PostgresRepository
@@ -123,6 +125,15 @@ def scan(registry_path: Path, provider: str | None, company: str | None) -> None
     repository = PostgresRepository(database_url)
     failed = False
     try:
+        profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
+        profile_ids = {
+            profile.profile.slug: repository.sync_profile(
+                profile,
+                os.environ.get(profile.profile.email_env),
+            )
+            for profile in profiles
+            if profile.search.enabled
+        }
         for board in boards:
             try:
                 result = run_board_ingestion(board, repository)
@@ -135,7 +146,93 @@ def scan(registry_path: Path, provider: str | None, company: str | None) -> None
             except Exception as exc:
                 failed = True
                 console.print(f"[red]{board.company_name}: {exc}[/red]")
+        for career_profile in profiles:
+            if career_profile.profile.slug not in profile_ids:
+                continue
+            profile_id = profile_ids[career_profile.profile.slug]
+            profile_version = repository.profile_version(profile_id)
+            for job_id, revision_id, job in repository.active_jobs():
+                repository.store_match(
+                    profile_id=profile_id,
+                    profile_version=profile_version,
+                    job_id=job_id,
+                    revision_id=revision_id,
+                    match=score_job(career_profile, job),
+                )
+            console.print(f"[green]{career_profile.profile.display_name} matches refreshed[/green]")
     finally:
         repository.close()
     if failed:
         raise click.ClickException("One or more boards failed")
+
+
+@cli.command("digest")
+@click.option(
+    "--profile-path",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("profiles/adam-cagle.md"),
+)
+@click.option("--send", "send_message", is_flag=True, help="Send through configured SMTP.")
+def digest(profile_path: Path, send_message: bool) -> None:
+    """Preview or send a profile's ranked email digest."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    career_profile = load_profile(profile_path)
+    repository = PostgresRepository(database_url)
+    try:
+        profile_id = repository.sync_profile(
+            career_profile,
+            os.environ.get(career_profile.profile.email_env),
+        )
+        message = compose_digest(
+            career_profile.profile.display_name,
+            repository.top_matches(profile_id),
+        )
+    finally:
+        repository.close()
+    if not send_message:
+        console.print(message.text)
+        console.print(f"\nIdempotency: {message.idempotency_key}")
+        return
+    recipient = os.environ.get(career_profile.profile.email_env)
+    required = {
+        "recipient": recipient,
+        "SMTP_FROM": os.environ.get("SMTP_FROM"),
+        "SMTP_HOST": os.environ.get("SMTP_HOST"),
+    }
+    missing = [name for name, value in required.items() if not value]
+    if missing:
+        raise click.ClickException(f"Missing email settings: {', '.join(missing)}")
+    repository = PostgresRepository(database_url)
+    notification_id = repository.claim_notification(
+        profile_id=profile_id,
+        idempotency_key=message.idempotency_key,
+        subject=message.subject,
+        payload={"recipient": recipient, "match_count": message.text.count("% match")},
+    )
+    if notification_id is None:
+        repository.close()
+        console.print("[yellow]Digest already created for this profile and day[/yellow]")
+        return
+    try:
+        send_smtp(
+            message,
+            recipient=recipient or "",
+            sender=required["SMTP_FROM"] or "",
+            host=required["SMTP_HOST"] or "",
+            port=int(os.environ.get("SMTP_PORT", "587")),
+            username=os.environ.get("SMTP_USERNAME"),
+            password=os.environ.get("SMTP_PASSWORD"),
+        )
+        repository.finish_notification(notification_id, sent=True)
+    except Exception as exc:
+        repository.finish_notification(
+            notification_id,
+            sent=False,
+            error_code=type(exc).__name__,
+        )
+        raise click.ClickException("Digest delivery failed") from exc
+    finally:
+        repository.close()
+    console.print(f"[green]Digest sent to {recipient}[/green]")

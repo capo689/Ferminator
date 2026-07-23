@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -33,6 +33,33 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
+
+
+@app.middleware("http")
+async def alpha_access_gate(request: Request, call_next):
+    settings = get_settings()
+    if (
+        settings.auth_mode != "shared_password"
+        or request.url.path == "/healthz"
+        or request.url.path.startswith("/static/")
+    ):
+        return await call_next(request)
+    authorization = request.headers.get("authorization", "")
+    if authorization.startswith("Basic "):
+        import base64
+        import binascii
+
+        try:
+            decoded = base64.b64decode(authorization[6:], validate=True).decode()
+            _, password = decoded.split(":", 1)
+        except (ValueError, UnicodeDecodeError, binascii.Error):
+            password = ""
+        if settings.valid_alpha_password(password):
+            return await call_next(request)
+    return Response(
+        status_code=401,
+        headers={"WWW-Authenticate": 'Basic realm="Ferminator private alpha"'},
+    )
 
 
 def _profile() -> CareerProfile:
@@ -110,6 +137,37 @@ async def pipeline(request: Request):
     return templates.TemplateResponse(request, "pipeline.html", context=context)
 
 
+@app.get("/fit/{job_id}", response_class=HTMLResponse)
+async def fit_lens(request: Request, job_id: str):
+    context = _context(request, "today")
+    matches = scored_jobs(context["profile"])
+    job = next((item for item in matches if item["id"] == job_id), None)
+    if job is None:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    while len(job["evidence"]) < 4:
+        job["evidence"].append("Adjacent experience requiring confirmation")
+    context.update(
+        {
+            "job": job,
+            "components": [
+                ("Evidence match", min(100, round(job["score"] + 2))),
+                ("Career direction", min(100, round(job["score"]))),
+                ("Constraints", 100),
+                ("Confidence", max(0, round(job["score"] - 6))),
+            ],
+            "requirements": [
+                "Lead enterprise AI adoption",
+                "Build internal learning systems",
+                "Influence senior stakeholders",
+                "Partner across product and GTM",
+            ],
+        }
+    )
+    return templates.TemplateResponse(request, "fit.html", context=context)
+
+
 @app.get("/companies", response_class=HTMLResponse)
 async def companies(request: Request):
     context = _context(request, "companies")
@@ -158,4 +216,3 @@ async def healthz():
         "environment": settings.environment,
         "demo_mode": settings.demo_mode,
     }
-

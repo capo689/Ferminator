@@ -1,0 +1,66 @@
+{
+  "brand": [
+    "ferminator-mark-light.svg",
+    "ferminator-mark-dark.svg",
+    "ferminator-wordmark-light.svg",
+    "ferminator-wordmark-dark.svg"
+  ],
+  "signature": [
+    "horizon-dawn.svg",
+    "orbit-freshness.svg",
+    "radar-grid.svg",
+    "lens-focus.svg",
+    "momentum-streak.svg",
+    "empty-radar.svg"
+  ],
+  "trust": [
+    "trust-user-confirmed.svg",
+    "trust-listing-fact.svg",
+    "trust-inference.svg",
+    "trust-unknown.svg",
+    "signal-positive.svg",
+    "signal-concern.svg"
+  ],
+  "ats": [
+    "ats-greenhouse.svg",
+    "ats-lever.svg",
+    "ats-ashby.svg",
+    "ats-workday.svg",
+    "ats-smartrecruiters.svg",
+    "ats-workable.svg",
+    "ats-bamboohr.svg",
+    "ats-company-site.svg"
+  ],
+  "companies": [
+    "company-airtable.svg",
+    "company-notion.svg",
+    "company-webflow.svg",
+    "company-intercom.svg",
+    "company-asana.svg",
+    "company-zapier.svg",
+    "company-figma.svg",
+    "company-cohere.svg",
+    "company-scale.svg",
+    "company-datarobot.svg"
+  ],
+  "tokens": [
+    "design-tokens.json",
+    "design-tokens.css"
+  ],
+  "fonts": [
+    "Newsreader",
+    "Inter",
+    "IBM Plex Mono"
+  ],
+  "screens": [
+    "01-today-dashboard.png",
+    "02-discover.png",
+    "03-fit-lens.png",
+    "04-pipeline.png",
+    "05-companies.png",
+    "06-intelligence.png",
+    "07-profile.png",
+    "08-career-radar.png",
+    "09-mobile-today-fit-action.png"
+  ]
+}

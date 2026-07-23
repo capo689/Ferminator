@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from functools import lru_cache
 from pathlib import Path
 
@@ -15,6 +16,7 @@ class Settings(BaseModel):
     profile_path: Path = Path("profiles/adam-cagle.md")
     database_url: str | None = None
     auth_mode: str = "off"
+    alpha_password: str | None = None
     log_level: str = "INFO"
     public_base_url: str = "http://127.0.0.1:8000"
     smtp_host: str | None = None
@@ -34,6 +36,19 @@ class Settings(BaseModel):
             raise RuntimeError("FERMINATOR_AUTH_MODE=off is not allowed in production")
         if not self.demo_mode and not self.database_url:
             raise RuntimeError("DATABASE_URL is required when demo mode is disabled")
+        if (
+            self.environment not in {"development", "test"}
+            and not self.demo_mode
+            and self.auth_mode == "shared_password"
+            and not self.alpha_password
+        ):
+            raise RuntimeError("FERMINATOR_ALPHA_PASSWORD is required for shared_password")
+
+    def valid_alpha_password(self, candidate: str) -> bool:
+        return bool(self.alpha_password) and secrets.compare_digest(
+            candidate,
+            self.alpha_password,
+        )
 
 
 def _bool_env(name: str, default: bool) -> bool:
@@ -51,6 +66,7 @@ def get_settings() -> Settings:
         profile_path=Path(os.environ.get("FERMINATOR_PROFILE", "profiles/adam-cagle.md")),
         database_url=os.environ.get("DATABASE_URL"),
         auth_mode=os.environ.get("FERMINATOR_AUTH_MODE", "off"),
+        alpha_password=os.environ.get("FERMINATOR_ALPHA_PASSWORD"),
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
         public_base_url=os.environ.get("PUBLIC_BASE_URL", "http://127.0.0.1:8000"),
         smtp_host=os.environ.get("SMTP_HOST"),
@@ -59,4 +75,3 @@ def get_settings() -> Settings:
         smtp_password=os.environ.get("SMTP_PASSWORD"),
         smtp_from=os.environ.get("SMTP_FROM"),
     )
-
