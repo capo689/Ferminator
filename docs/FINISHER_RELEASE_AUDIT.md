@@ -9,14 +9,14 @@ Risk level: Level 1 private-alpha target
 Engineering readiness: **88/100**
 
 Local release candidate: **PASS**  
-Hosted private-alpha launch: **BLOCKED ON OWNER CONFIGURATION**
+Hosted private-alpha launch: **BLOCKED ON RENDER AND SMTP CONFIGURATION**
 
-The application, database migration, six ATS adapter families, deterministic
+The application, hosted Supabase database, six ATS adapter families, deterministic
 matching, dashboard, persisted pipeline, digest, scheduled workflow, container,
 security baseline, and operational documentation are implemented. It is not
 honest to call the hosted system finished until the dedicated Supabase project,
 Render account selection, SMTP secrets, and Adam's missing profile evidence are
-supplied and verified in their hosted environments.
+  supplied and verified in their hosted environments.
 
 ## Verified evidence
 
@@ -48,7 +48,7 @@ supplied and verified in their hosted environments.
 | Priority | Control | Status | Evidence / remaining work |
 |---|---|---|---|
 | P0 | Private access | Implemented | Constant-time shared-password gate; production refuses auth-off and demo mode |
-| P0 | Ownership controls | Implemented, hosted test pending | Ownership-aware schema, RLS policies, static tests; needs dedicated hosted project |
+| P0 | Ownership controls | Implemented | Dedicated free Supabase project, ownership-aware schema, RLS on all tables, zero security-advisor findings |
 | P0 | Backup and restore | Procedure ready, drill pending | Runbook exists; hosted recovery point cannot exist before project provisioning |
 | P0 | Safe deployment | Blueprint ready, hosted test pending | Docker and health gates pass; Render login/account selection is outstanding |
 | P1 | Job lifecycle | Passed | Removal, mass-removal, reactivation, revisions, and two-pass live idempotency |
@@ -77,14 +77,13 @@ supplied and verified in their hosted environments.
 
 ## Required owner inputs before hosted launch
 
-1. Confirm the Supabase organization and approve the quoted project cost.
-2. Choose the Render login account and complete the browser authorization.
-3. Supply the private-alpha password and SMTP sender credentials in provider
+1. Choose the Render login account and complete the browser authorization.
+2. Supply the private-alpha password and SMTP sender credentials in provider
    secret stores.
-4. Replace every `TODO:` evidence line in `profiles/adam-cagle.md` with verified
+3. Replace every `TODO:` evidence line in `profiles/adam-cagle.md` with verified
    career facts. Current behavior correctly returns no digest candidates above
    the configured 70-point threshold.
-5. After provisioning, execute and record the hosted RLS isolation test,
+4. After deployment, execute and record the hosted RLS isolation test,
    backup/restore drill, scheduled scan, real email delivery, and rollback drill.
 
 Workday, iCIMS, JazzHR, Recruitee, Personio, Teamtailor, Rippling, and bespoke
