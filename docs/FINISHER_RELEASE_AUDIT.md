@@ -38,6 +38,8 @@ supplied and verified in their hosted environments.
 - The production image builds from the hash-locked dependency file, runs as the
   `ferminator` user, reports healthy, rejects unauthenticated dashboard access,
   and returns the expected security headers.
+- Trivy 0.72 reports zero HIGH or CRITICAL findings in the patched runtime
+  image across Debian and Python packages.
 - Desktop and 390-pixel mobile layouts were exercised without horizontal
   overflow; the mobile menu and Fit Lens fixes were verified.
 

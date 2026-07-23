@@ -2,7 +2,7 @@
 
 # Both stages use the same pinned base image. Dependabot keeps the digest
 # fresh weekly via .github/dependabot.yml.
-FROM python:3.13-slim@sha256:a0779d7c12fc20be6ec6b4ddc901a4fd7657b8a6bc9def9d3fde89ed5efe0a3d AS builder
+FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91 AS builder
 
 WORKDIR /build
 
@@ -21,7 +21,7 @@ COPY profiles/ profiles/
 COPY config/ config/
 RUN pip install --prefix=/install --no-deps .
 
-FROM python:3.13-slim@sha256:a0779d7c12fc20be6ec6b4ddc901a4fd7657b8a6bc9def9d3fde89ed5efe0a3d
+FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
 
 WORKDIR /app
 COPY --from=builder /install /usr/local
