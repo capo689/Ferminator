@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ferminator-web
+    runtime: docker
+    plan: starter
+    branch: main
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: FERMINATOR_ENV
+        value: staging
+      - key: FERMINATOR_DEMO_MODE
+        value: "true"
+      - key: FERMINATOR_AUTH_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false

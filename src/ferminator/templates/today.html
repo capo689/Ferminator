@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Today · Ferminator{% endblock %}
+{% block content %}
+<header class="page-hero">
+  <div>
+    <p class="eyebrow">{{ now if now else "TODAY'S BRIEFING" }}</p>
+    <h1>Good morning, {{ display_name }}.</h1>
+    <p class="hero-copy">The market moved in your direction. Three opportunities deserve attention.</p>
+  </div>
+  <a class="button button-secondary" href="/discover">Open full search <span>→</span></a>
+</header>
+
+<section class="signal-strip" aria-label="Daily signals">
+  <div><strong>{{ stats.new_matches }}</strong><span>new matches</span></div>
+  <div><strong>{{ stats.exceptional }}</strong><span>exceptional fits</span></div>
+  <div><strong>{{ stats.changed }}</strong><span>saved roles changed</span></div>
+  <div><strong>{{ stats.followups }}</strong><span>follow-up due</span></div>
+</section>
+
+<section class="section-heading">
+  <div>
+    <p class="eyebrow">OPPORTUNITY CONSTELLATION</p>
+    <h2>Your strongest signal</h2>
+  </div>
+  <span class="quiet">Ranked against {{ profile.profile.display_name }}'s profile</span>
+</section>
+
+<article class="lead-opportunity">
+  <div class="opportunity-main">
+    <div class="company-row">
+      <span class="company-logo">{{ lead.company_initial }}</span>
+      <span>{{ lead.company }}</span>
+      <span class="new-pill">Just surfaced · {{ lead.freshness }}</span>
+    </div>
+    <h3>{{ lead.title }}</h3>
+    <p class="job-meta">
+      {{ lead.location }} · {{ lead.compensation or "Compensation not disclosed" }}
+    </p>
+    <div class="evidence-list">
+      {% for item in lead.evidence[:3] %}
+      <span>✓ {{ item }}</span>
+      {% endfor %}
+    </div>
+    {% if lead.concerns %}
+    <p class="concern"><strong>Worth checking:</strong> {{ lead.concerns[0] }}</p>
+    {% endif %}
+    <div class="actions">
+      <a class="button button-primary" href="/discover?q={{ lead.company }}">Explore fit</a>
+      <button class="button button-quiet" type="button" data-toast="Saved to your shortlist">Save</button>
+      <a class="text-action" href="{{ lead.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
+    </div>
+  </div>
+  <div class="score-orbit" aria-label="{{ lead.score }} percent match">
+    <div>
+      <strong>{{ lead.score|round|int }}</strong>
+      <span>% alignment</span>
+    </div>
+  </div>
+</article>
+
+<div class="secondary-grid">
+  {% for job in secondary %}
+  <article class="opportunity-card">
+    <div class="company-row">
+      <span class="company-logo small">{{ job.company_initial }}</span>
+      <span>{{ job.company }}</span>
+      <span class="score-chip">{{ job.score|round|int }}%</span>
+    </div>
+    <h3>{{ job.title }}</h3>
+    <p class="job-meta">{{ job.location }} · {{ job.compensation or "Salary open" }}</p>
+    <p>{{ job.evidence[0] if job.evidence else job.explanation }}</p>
+    <a href="/discover?q={{ job.company }}">Examine match <span>→</span></a>
+  </article>
+  {% endfor %}
+</div>
+
+<section class="market-pulse">
+  <div>
+    <p class="eyebrow">MARKET PULSE</p>
+    <h2>The signal behind the listings</h2>
+  </div>
+  <div class="pulse-metrics">
+    <span><strong>↑ 18%</strong> AI enablement roles</span>
+    <span><strong>↓ 7%</strong> remote leadership</span>
+    <span><strong>$192K</strong> median relevant salary</span>
+    <span><strong>11</strong> watched companies hiring</span>
+  </div>
+</section>
+
+<section class="focus-callout">
+  <div class="focus-icon">25</div>
+  <div>
+    <p class="eyebrow">BEST USE OF 25 MINUTES</p>
+    <h2>Prepare your {{ lead.company }} application while the role is fresh.</h2>
+    <p>Start with leadership evidence and the two strongest examples of AI adoption work.</p>
+  </div>
+  <a class="button button-primary" href="/pipeline">Start preparation</a>
+</section>
+{% endblock %}
+
