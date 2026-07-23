@@ -65,7 +65,7 @@ supplied and verified in their hosted environments.
 | Auth and permissions | 7 | Alpha gate and RLS exist; hosted multi-profile isolation drill pending |
 | Hosting and deployment | 7 | Reproducible image and Render blueprint; hosted rollout pending |
 | Cloud and compute | 8 | Bounded connections, job timeout, cadence, no AI-token cost |
-| CI/CD and version control | 9 | Gated CI, pinned runtime, SBOM/provenance request, Trivy |
+| CI/CD and version control | 9 | Gated CI, pinned runtime, CycloneDX SBOM artifact, Trivy |
 | Security and data protection | 8 | Non-root image, headers, no committed secrets, private-data runbook |
 | Rate limiting and cost controls | 8 | Curated boards, host-safe requests, retry and payload caps |
 | Caching and CDN | 5 | Not required for five-user alpha; no shared response cache |
