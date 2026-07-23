@@ -13,6 +13,7 @@ from psycopg_pool import ConnectionPool
 
 from ferminator.domain import BoardRef, NormalizedJob
 from ferminator.ingestion import IngestionResult, LifecyclePlan
+from ferminator.matching import MatchResult
 from ferminator.profiles import CareerProfile
 
 
@@ -77,6 +78,141 @@ class PostgresRepository:
                 ),
             ).fetchone()
         return str(row["id"])
+
+    def active_jobs(self) -> list[tuple[str, str, NormalizedJob]]:
+        """Return job and revision identities with their normalized payload."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select j.id as job_id, r.id as revision_id, r.normalized_payload
+                from public.jobs j
+                join public.job_revisions r on r.id = j.current_revision_id
+                where j.active
+                order by j.first_seen_at desc
+                """
+            ).fetchall()
+        return [
+            (
+                str(row["job_id"]),
+                str(row["revision_id"]),
+                NormalizedJob.model_validate(row["normalized_payload"]),
+            )
+            for row in rows
+        ]
+
+    def store_match(
+        self,
+        *,
+        profile_id: str,
+        profile_version: int,
+        job_id: str,
+        revision_id: str,
+        match: MatchResult,
+    ) -> None:
+        with self.connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                insert into public.job_matches (
+                  profile_id, job_id, job_revision_id, profile_version,
+                  eligible, score, component_scores, matched_evidence,
+                  concerns, explanation
+                )
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                on conflict (profile_id, job_id, profile_version, job_revision_id)
+                do update set
+                  eligible = excluded.eligible,
+                  score = excluded.score,
+                  component_scores = excluded.component_scores,
+                  matched_evidence = excluded.matched_evidence,
+                  concerns = excluded.concerns,
+                  explanation = excluded.explanation,
+                  updated_at = now()
+                """,
+                (
+                    profile_id,
+                    job_id,
+                    revision_id,
+                    profile_version,
+                    match.eligible,
+                    match.score,
+                    json.dumps(match.component_scores),
+                    json.dumps(match.matched_evidence),
+                    json.dumps(match.concerns),
+                    match.explanation,
+                ),
+            )
+
+    def profile_version(self, profile_id: str) -> int:
+        with self.connection() as conn:
+            row = conn.execute(
+                "select profile_version from public.profiles where id = %s",
+                (profile_id,),
+            ).fetchone()
+        if row is None:
+            raise LookupError("Profile not found")
+        return int(row["profile_version"])
+
+    def top_matches(self, profile_id: str, *, limit: int = 10) -> list[dict]:
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select j.title, j.company_name, j.job_url, j.apply_url,
+                       j.first_seen_at, m.score, m.matched_evidence, m.concerns
+                from public.job_matches m
+                join public.jobs j on j.id = m.job_id
+                where m.profile_id = %s and m.eligible and j.active
+                  and m.profile_version = (
+                    select profile_version from public.profiles where id = %s
+                  )
+                order by m.score desc, j.first_seen_at desc
+                limit %s
+                """,
+                (profile_id, profile_id, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def claim_notification(
+        self,
+        *,
+        profile_id: str,
+        idempotency_key: str,
+        subject: str,
+        payload: dict,
+    ) -> str | None:
+        """Atomically claim a notification; None means it was already created."""
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                insert into public.notifications (
+                  profile_id, channel, notification_type, idempotency_key,
+                  status, subject, payload, scheduled_for
+                )
+                values (%s, 'email', 'daily_digest', %s, 'sending', %s, %s, now())
+                on conflict (idempotency_key) do nothing
+                returning id
+                """,
+                (profile_id, idempotency_key, subject, json.dumps(payload)),
+            ).fetchone()
+        return str(row["id"]) if row else None
+
+    def finish_notification(
+        self,
+        notification_id: str,
+        *,
+        sent: bool,
+        error_code: str | None = None,
+    ) -> None:
+        with self.connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                update public.notifications
+                set status = %s, sent_at = case when %s then now() else sent_at end,
+                    attempt_count = attempt_count + 1,
+                    last_error_code = %s, updated_at = now()
+                where id = %s
+                """,
+                ("sent" if sent else "failed", sent, error_code, notification_id),
+            )
 
     def _ensure_board(self, conn: Connection, board: BoardRef) -> str:
         company = conn.execute(

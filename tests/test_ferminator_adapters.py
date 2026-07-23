@@ -147,3 +147,23 @@ def test_bamboohr_normalization():
     assert job.workplace_type == WorkplaceType.REMOTE
     assert job.description_text == "Teach customers."
 
+
+def test_bamboohr_structured_location_schema_drift():
+    job = BambooHRAdapter().normalize(
+        board(ATSProvider.BAMBOOHR),
+        {
+            "id": 43,
+            "jobOpeningName": "AI Operations Lead",
+            "description": "Build systems.",
+            "location": {
+                "city": "Saskatoon",
+                "addressRegion": "SK",
+                "addressCountry": "Canada",
+            },
+            "locationType": "On Site",
+        },
+    )
+
+    assert job.locations[0].label == "Saskatoon, SK, Canada"
+    assert job.locations[0].region == "SK"
+    assert job.locations[0].country == "Canada"

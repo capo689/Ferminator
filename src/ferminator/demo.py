@@ -171,6 +171,7 @@ def _job_view(job: NormalizedJob, match: MatchResult) -> dict[str, Any]:
         "id": job.source_job_id,
         "title": job.title,
         "company": job.company_name,
+        "company_slug": job.company_slug,
         "company_initial": job.company_name[0],
         "department": job.department,
         "location": job.locations[0].label if job.locations else "Location unspecified",
@@ -216,4 +217,3 @@ def demo_companies() -> list[dict[str, Any]]:
         {"name": "Asana", "initial": "A", "momentum": -4, "relevant": 4, "new": 0},
         {"name": "Linear", "initial": "L", "momentum": 31, "relevant": 3, "new": 2},
     ]
-

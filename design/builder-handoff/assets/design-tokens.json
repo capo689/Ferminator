@@ -1,0 +1,59 @@
+{
+  "color": {
+    "porcelain": "#F6F4EF",
+    "ink": "#16181D",
+    "midnight": "#172033",
+    "slate": "#687386",
+    "iris": "#735CFF",
+    "cyan": "#36C8D8",
+    "gold": "#E7A93B",
+    "green": "#46A878",
+    "coral": "#E97867",
+    "border": "#D8D4CC",
+    "surface": "#FFFEFB",
+    "focus": "#5B49E6"
+  },
+  "typography": {
+    "display": "Newsreader",
+    "interface": "Inter",
+    "data": "IBM Plex Mono",
+    "fallbacks": {
+      "display": "Georgia, serif",
+      "interface": "Arial, sans-serif",
+      "data": "monospace"
+    }
+  },
+  "radius": {
+    "sm": 8,
+    "md": 14,
+    "lg": 22,
+    "pill": 999
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    24,
+    32,
+    48,
+    64,
+    96
+  ],
+  "shadow": {
+    "soft": "0 12px 32px rgba(23,32,51,.08)",
+    "lift": "0 18px 48px rgba(23,32,51,.14)"
+  },
+  "motion": {
+    "fast": 140,
+    "standard": 220,
+    "lens": 420,
+    "reduced_motion": "remove translation and pulse; preserve opacity state change"
+  },
+  "breakpoints": {
+    "mobile": 0,
+    "tablet": 768,
+    "desktop": 1180,
+    "wide": 1440
+  }
+}

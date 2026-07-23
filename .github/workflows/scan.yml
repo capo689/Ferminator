@@ -36,3 +36,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
         run: ferminator scan
+
+      - name: Send ranked digests
+        if: ${{ secrets.FERMINATOR_SMTP_HOST != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
+          FERMINATOR_ADAM_EMAIL: ${{ secrets.FERMINATOR_ADAM_EMAIL }}
+          SMTP_HOST: ${{ secrets.FERMINATOR_SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.FERMINATOR_SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.FERMINATOR_SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.FERMINATOR_SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.FERMINATOR_SMTP_FROM }}
+        run: ferminator digest --send

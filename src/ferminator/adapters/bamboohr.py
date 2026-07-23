@@ -38,19 +38,25 @@ class BambooHRAdapter(BaseAdapter):
         return jobs
 
     def normalize(self, board: BoardRef, row: dict[str, Any]) -> NormalizedJob:
-        ats_location = row.get("atsLocation") or {}
+        ats_location = row.get("atsLocation") or row.get("location") or {}
         if isinstance(ats_location, str):
             label = ats_location
             ats_location = {}
         else:
+            country = ats_location.get("country") or ats_location.get("addressCountry")
+            region = ats_location.get("state") or ats_location.get("addressRegion")
             label = ", ".join(
-                str(ats_location.get(key))
-                for key in ("city", "state", "country")
-                if ats_location.get(key)
+                str(value)
+                for value in (ats_location.get("city"), region, country)
+                if value
             )
-        label = label or row.get("location") or "Remote"
+        label = label or "Remote"
         location_type = str(row.get("locationType", "")).casefold()
-        remote = bool(row.get("isRemote")) or location_type in {"1", "remote"}
+        remote = bool(row.get("isRemote")) or location_type in {
+            "1",
+            "remote",
+            "fully remote",
+        }
         workplace = (
             WorkplaceType.REMOTE if remote
             else WorkplaceType.HYBRID if location_type in {"2", "hybrid"}
@@ -79,8 +85,8 @@ class BambooHRAdapter(BaseAdapter):
                 JobLocation(
                     label=label,
                     city=ats_location.get("city"),
-                    region=ats_location.get("state"),
-                    country=ats_location.get("country"),
+                    region=ats_location.get("state") or ats_location.get("addressRegion"),
+                    country=ats_location.get("country") or ats_location.get("addressCountry"),
                     is_primary=True,
                     is_remote=remote,
                 )
@@ -90,4 +96,3 @@ class BambooHRAdapter(BaseAdapter):
             apply_url=job_url,
             published_at=parse_datetime(row.get("datePosted")),
         )
-

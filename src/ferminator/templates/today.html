@@ -7,7 +7,7 @@
     <h1>Good morning, {{ display_name }}.</h1>
     <p class="hero-copy">The market moved in your direction. Three opportunities deserve attention.</p>
   </div>
-  <a class="button button-secondary" href="/discover">Open full search <span>→</span></a>
+  <a class="button button-primary hero-action" href="#opportunities">Review today's briefing <span>→</span></a>
 </header>
 
 <section class="signal-strip" aria-label="Daily signals">
@@ -17,7 +17,7 @@
   <div><strong>{{ stats.followups }}</strong><span>follow-up due</span></div>
 </section>
 
-<section class="section-heading">
+<section class="section-heading" id="opportunities">
   <div>
     <p class="eyebrow">OPPORTUNITY CONSTELLATION</p>
     <h2>Your strongest signal</h2>
@@ -28,7 +28,11 @@
 <article class="lead-opportunity">
   <div class="opportunity-main">
     <div class="company-row">
-      <span class="company-logo">{{ lead.company_initial }}</span>
+      <span class="company-logo">
+        <img src="{{ url_for('static', path='/assets/svg/company-' ~ lead.company_slug ~ '.svg') }}"
+             alt="" width="42" height="42"
+             onerror="this.remove();this.parentElement.textContent='{{ lead.company_initial }}'">
+      </span>
       <span>{{ lead.company }}</span>
       <span class="new-pill">Just surfaced · {{ lead.freshness }}</span>
     </div>
@@ -45,8 +49,10 @@
     <p class="concern"><strong>Worth checking:</strong> {{ lead.concerns[0] }}</p>
     {% endif %}
     <div class="actions">
-      <a class="button button-primary" href="/discover?q={{ lead.company }}">Explore fit</a>
+      <a class="button button-primary" href="/fit/{{ lead.id }}">Explore fit</a>
       <button class="button button-quiet" type="button" data-toast="Saved to your shortlist">Save</button>
+      <a class="button button-quiet" href="/pipeline">Prepare application</a>
+      <button class="button button-quiet" type="button" data-toast="Dismissed from this briefing">Dismiss</button>
       <a class="text-action" href="{{ lead.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
     </div>
   </div>
@@ -62,14 +68,18 @@
   {% for job in secondary %}
   <article class="opportunity-card">
     <div class="company-row">
-      <span class="company-logo small">{{ job.company_initial }}</span>
+      <span class="company-logo small">
+        <img src="{{ url_for('static', path='/assets/svg/company-' ~ job.company_slug ~ '.svg') }}"
+             alt="" width="31" height="31"
+             onerror="this.remove();this.parentElement.textContent='{{ job.company_initial }}'">
+      </span>
       <span>{{ job.company }}</span>
       <span class="score-chip">{{ job.score|round|int }}%</span>
     </div>
     <h3>{{ job.title }}</h3>
     <p class="job-meta">{{ job.location }} · {{ job.compensation or "Salary open" }}</p>
     <p>{{ job.evidence[0] if job.evidence else job.explanation }}</p>
-    <a href="/discover?q={{ job.company }}">Examine match <span>→</span></a>
+    <a href="/fit/{{ job.id }}">Explore fit <span>→</span></a>
   </article>
   {% endfor %}
 </div>
@@ -97,4 +107,3 @@
   <a class="button button-primary" href="/pipeline">Start preparation</a>
 </section>
 {% endblock %}
-

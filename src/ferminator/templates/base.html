@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Ferminator personal career intelligence">
   <title>{% block title %}Ferminator{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/assets/fonts/font-face.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='/design-tokens.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
   <script src="{{ url_for('static', path='/app.js') }}" defer></script>
 </head>
@@ -13,8 +15,8 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary">
       <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">F</span>
-        <span>Ferminator</span>
+        <img src="{{ url_for('static', path='/assets/svg/ferminator-wordmark-dark.svg') }}"
+             alt="Ferminator" width="148" height="44">
       </a>
       <nav class="primary-nav">
         <a class="{{ 'active' if active == 'today' else '' }}" href="/">
@@ -43,7 +45,10 @@
       </a>
     </aside>
     <div class="mobile-bar">
-      <a class="brand" href="/"><span class="brand-mark">F</span> Ferminator</a>
+      <a class="brand" href="/">
+        <img src="{{ url_for('static', path='/assets/svg/ferminator-wordmark-light.svg') }}"
+             alt="Ferminator" width="140" height="42">
+      </a>
       <button class="menu-button" type="button" aria-label="Open navigation" aria-expanded="false">Menu</button>
     </div>
     <main id="main" class="main-content">
@@ -61,4 +66,3 @@
   </div>
 </body>
 </html>
-
