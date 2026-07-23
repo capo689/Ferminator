@@ -1,0 +1,57 @@
+schema_version: 1
+companies:
+  - slug: anthropic
+    name: Anthropic
+    website_url: https://www.anthropic.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: anthropic
+        source_url: https://boards.greenhouse.io/anthropic
+
+  - slug: openai
+    name: OpenAI
+    website_url: https://openai.com
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: OpenAI
+        source_url: https://jobs.ashbyhq.com/OpenAI
+
+  - slug: smartrecruiters
+    name: SmartRecruiters
+    website_url: https://www.smartrecruiters.com
+    priority: 20
+    boards:
+      - provider: smartrecruiters
+        board_key: SmartRecruiters
+        source_url: https://careers.smartrecruiters.com/SmartRecruiters
+
+  - slug: ometria
+    name: Ometria
+    website_url: https://ometria.com
+    priority: 20
+    boards:
+      - provider: workable
+        board_key: ometria
+        source_url: https://apply.workable.com/ometria
+
+  - slug: g2
+    name: G2
+    website_url: https://www.g2.com
+    priority: 20
+    boards:
+      - provider: bamboohr
+        board_key: g2
+        source_url: https://g2.bamboohr.com/careers
+
+  - slug: lever-demo
+    name: Lever Demo
+    website_url: https://www.lever.co
+    enabled: false
+    priority: -100
+    boards:
+      - provider: lever
+        board_key: leverdemo
+        source_url: https://jobs.lever.co/leverdemo
+

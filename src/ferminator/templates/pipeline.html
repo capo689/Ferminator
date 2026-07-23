@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Pipeline · Ferminator{% endblock %}
+{% block content %}
+<header class="page-hero compact">
+  <div>
+    <p class="eyebrow">YOUR CAMPAIGN</p>
+    <h1>Momentum, without the spreadsheet.</h1>
+    <p class="hero-copy">Every opportunity, task, and follow-up in one calm workspace.</p>
+  </div>
+  <a class="button button-primary" href="/discover">Find opportunities</a>
+</header>
+
+<section class="pipeline-board" aria-label="Application pipeline">
+  {% for stage, jobs in stages.items() %}
+  <div class="pipeline-column">
+    <header>
+      <h2>{{ stage }}</h2>
+      <span>{{ jobs|length }}</span>
+    </header>
+    {% for job in jobs %}
+    <article class="pipeline-card">
+      <div class="company-row">
+        <span class="company-logo small">{{ job.company_initial }}</span>
+        <span>{{ job.company }}</span>
+        <span class="score-chip">{{ job.score|round|int }}%</span>
+      </div>
+      <h3>{{ job.title }}</h3>
+      <p>{{ job.location }}</p>
+      {% if job.task %}
+      <div class="task-line">
+        <span>○</span>
+        <span>{{ job.task }}</span>
+        <strong>{{ job.due }}</strong>
+      </div>
+      {% endif %}
+    </article>
+    {% else %}
+    <div class="column-empty">Nothing here yet</div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}
+

@@ -38,7 +38,7 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def _db(company: str | None = None):
-    """Open a fresh sqlite connection for the given company (or the default), ensuring its schema exists."""
+    """Open a fresh database connection and ensure its schema exists."""
     slug = company or get_companies()[0]
     try:
         db_path = str(get_db_path(None, slug))

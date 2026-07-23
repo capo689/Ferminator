@@ -12,34 +12,27 @@ WORKDIR /build
 # lockfile. Regenerate with:
 #   uv pip compile pyproject.toml -o requirements.lock --generate-hashes
 COPY requirements.lock .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install --require-hashes -r requirements.lock
+RUN pip install --prefix=/install --require-hashes -r requirements.lock
 
 # Now install the package itself without re-resolving deps (they're locked).
 COPY pyproject.toml README.md ./
 COPY src/ src/
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --prefix=/install --no-deps .
+RUN pip install --prefix=/install --no-deps .
 
 FROM python:3.13-slim@sha256:a0779d7c12fc20be6ec6b4ddc901a4fd7657b8a6bc9def9d3fde89ed5efe0a3d
 
 WORKDIR /app
 COPY --from=builder /install /usr/local
 
-# Pin UID so bind-mounts (if ever used) match host ownership predictably.
-RUN useradd --create-home --uid 1000 --shell /bin/bash tracker \
-    && mkdir -p /data && chown tracker:tracker /data
-USER tracker
+# Pin the runtime UID and keep the image read-only compatible.
+RUN useradd --create-home --uid 1000 --shell /bin/bash ferminator
+USER ferminator
 
-VOLUME /data
-
-ENV TRACKER_DB=/data/tracker.db \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# HEALTHCHECK is intentionally NOT defined here. It only makes sense for
-# the long-running web service; CLI runs (fetch, dashboard, summary, etc.)
-# would fail it. Healthcheck lives in docker-compose.yml on the web service.
+EXPOSE 10000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:10000/healthz', timeout=3)"
 
-ENTRYPOINT ["tracker"]
-CMD ["fetch"]
+CMD ["uvicorn", "ferminator.web:app", "--host", "0.0.0.0", "--port", "10000"]

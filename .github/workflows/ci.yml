@@ -29,7 +29,7 @@ jobs:
         run: ruff check .
 
       - name: Test
-        run: pytest --cov=anthropic_tracker --cov-report=term-missing
+        run: pytest --cov=anthropic_tracker --cov=ferminator --cov-report=term-missing
 
   scan:
     runs-on: ubuntu-latest
@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          tags: anthropic-tracker:ci
+          tags: ferminator:ci
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -63,7 +63,7 @@ jobs:
       - name: Trivy image scan
         uses: aquasecurity/trivy-action@0.36.0
         with:
-          image-ref: anthropic-tracker:ci
+          image-ref: ferminator:ci
           severity: HIGH,CRITICAL
           exit-code: "1"
           ignore-unfixed: true
