@@ -187,7 +187,11 @@ def digest(profile_path: Path, send_message: bool) -> None:
         )
         message = compose_digest(
             career_profile.profile.display_name,
-            repository.top_matches(profile_id),
+            repository.top_matches(
+                profile_id,
+                minimum_score=career_profile.notifications.minimum_score,
+                limit=career_profile.notifications.max_daily_matches,
+            ),
         )
     finally:
         repository.close()

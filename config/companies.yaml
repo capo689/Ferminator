@@ -1,5 +1,86 @@
 schema_version: 1
 companies:
+  - slug: airtable
+    name: Airtable
+    website_url: https://airtable.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: airtable
+        source_url: https://job-boards.greenhouse.io/airtable
+
+  - slug: notion
+    name: Notion
+    website_url: https://www.notion.com
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: notion
+        source_url: https://jobs.ashbyhq.com/notion
+
+  - slug: zapier
+    name: Zapier
+    website_url: https://zapier.com
+    priority: 90
+    boards:
+      - provider: ashby
+        board_key: zapier
+        source_url: https://jobs.ashbyhq.com/zapier
+
+  - slug: cohere
+    name: Cohere
+    website_url: https://cohere.com
+    priority: 90
+    boards:
+      - provider: ashby
+        board_key: cohere
+        source_url: https://jobs.ashbyhq.com/cohere
+
+  - slug: figma
+    name: Figma
+    website_url: https://www.figma.com
+    priority: 80
+    boards:
+      - provider: greenhouse
+        board_key: figma
+        source_url: https://job-boards.greenhouse.io/figma
+
+  - slug: intercom
+    name: Intercom
+    website_url: https://www.intercom.com
+    priority: 70
+    boards:
+      - provider: greenhouse
+        board_key: intercom
+        source_url: https://job-boards.greenhouse.io/intercom
+
+  - slug: asana
+    name: Asana
+    website_url: https://asana.com
+    priority: 70
+    boards:
+      - provider: greenhouse
+        board_key: asana
+        source_url: https://job-boards.greenhouse.io/asana
+
+  - slug: webflow
+    name: Webflow
+    website_url: https://webflow.com
+    priority: 60
+    boards:
+      - provider: greenhouse
+        board_key: webflow
+        source_url: https://job-boards.greenhouse.io/webflow
+
+  - slug: scale-ai
+    name: Scale AI
+    website_url: https://scale.com
+    priority: 60
+    boards:
+      - provider: greenhouse
+        board_key: scaleai
+        source_url: https://job-boards.greenhouse.io/scaleai
+
   - slug: anthropic
     name: Anthropic
     website_url: https://www.anthropic.com
@@ -54,4 +135,3 @@ companies:
       - provider: lever
         board_key: leverdemo
         source_url: https://jobs.lever.co/leverdemo
-

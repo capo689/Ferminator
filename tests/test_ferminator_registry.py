@@ -12,7 +12,7 @@ from ferminator.registry import CompanyRegistry, load_registry
 def test_curated_registry_only_enables_real_boards() -> None:
     registry = load_registry(Path("config/companies.yaml"))
 
-    assert len(registry.enabled_boards) == 5
+    assert len(registry.enabled_boards) == 14
     assert {board.provider for board in registry.enabled_boards} == {
         ATSProvider.GREENHOUSE,
         ATSProvider.ASHBY,

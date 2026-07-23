@@ -20,3 +20,10 @@ document.querySelectorAll("[data-toast]").forEach((button) => {
   });
 });
 
+document.querySelectorAll(".company-logo[data-initial] img").forEach((image) => {
+  image.addEventListener("error", () => {
+    const parent = image.parentElement;
+    image.remove();
+    parent.textContent = parent.dataset.initial;
+  });
+});

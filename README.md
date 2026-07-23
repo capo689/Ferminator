@@ -64,3 +64,8 @@ docker build -t ferminator:local .
 Architecture, data model, decisions, build stages, and FINISHER readiness are in
 `docs/`. The legacy tracker remains temporarily available as `tracker` while
 Ferminator reaches data-parity and the migration is proven.
+
+The current evidence-based release decision is recorded in
+[FINISHER_RELEASE_AUDIT.md](docs/FINISHER_RELEASE_AUDIT.md). It distinguishes
+completed engineering from the hosted checks that require owner account and
+credential choices.

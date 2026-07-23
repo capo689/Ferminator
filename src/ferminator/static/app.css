@@ -527,6 +527,7 @@ footer { display: flex; justify-content: space-between; max-width: 1280px; margi
   .fit-components div:nth-child(2) { border-right: 0; }
   .fit-actions { flex-wrap: wrap; justify-content: flex-start; }
   .trust-legend { flex-wrap: wrap; justify-content: flex-start; }
+  .fit-heading { margin-bottom: 16px; }
   .evidence-row { grid-template-columns: 1fr; }
   .evidence-line { min-height: 34px; }
   .evidence-line::before, .evidence-line::after { top: auto; bottom: 8px; }
