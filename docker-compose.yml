@@ -1,0 +1,51 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-image: &image
+  build: .
+  image: anthropic-tracker:0.1.0
+  environment:
+    TRACKER_DB: /data/tracker.db
+    TRACKER_COMPANIES: anthropic
+  volumes:
+    - tracker-data:/data
+  logging: *default-logging
+
+services:
+  # Web dashboard (FastAPI + htmx). Long-running.
+  web:
+    <<: *image
+    container_name: anthropic-tracker-web
+    entrypoint: ["uvicorn", "anthropic_tracker.web:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "3710:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # CLI. Same image — Compose dedupes the build because the image tag matches.
+  # Usage: docker compose run --rm tracker <subcommand>
+  tracker:
+    <<: *image
+    profiles: [cli]
+    restart: "no"
+
+  # Daily fetch entrypoint (host cron triggers this).
+  # 0 10 * * * cd /home/pete/anthropic-tracker && docker compose run --rm tracker-fetch
+  tracker-fetch:
+    <<: *image
+    container_name: anthropic-tracker-fetch
+    command: ["fetch", "--with-salary"]
+    profiles: [cron]
+    restart: "no"
+
+volumes:
+  tracker-data:
+    name: anthropic-tracker-data

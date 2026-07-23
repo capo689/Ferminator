@@ -1,0 +1,31 @@
+{% if empty %}
+<p class="muted">Type to search across active roles.</p>
+{% elif jobs %}
+<div class="search-count">{{ jobs|length }} role{{ 's' if jobs|length != 1 else '' }} matching "{{ query }}"</div>
+<table class="search-results">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Department</th>
+      <th>Posted</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for j in jobs %}
+    <tr>
+      <td>
+        {% if j.url %}
+        <a href="{{ j.url }}" target="_blank">{{ j.title }}</a>
+        {% else %}
+        {{ j.title }}
+        {% endif %}
+      </td>
+      <td class="muted">{{ j.department }}</td>
+      <td class="muted">{{ j.first_seen }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="search-empty">No active roles matching "{{ query }}"</div>
+{% endif %}

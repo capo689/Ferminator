@@ -1,0 +1,36 @@
+{% if snap %}
+<div class="summary-cards">
+  <div class="stat-card stat-primary">
+    <div class="stat-icon">&#9679;</div>
+    <div class="stat-body">
+      <span class="stat-value">{{ snap["total_active_jobs"] }}</span>
+      <span class="stat-label">Active Roles</span>
+    </div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-icon">&#9650;</div>
+    <div class="stat-body">
+      <span class="stat-value">+{{ snap["jobs_added"] }}</span>
+      <span class="stat-label">Added Today</span>
+    </div>
+  </div>
+  <div class="stat-card stat-red">
+    <div class="stat-icon">&#9660;</div>
+    <div class="stat-body">
+      <span class="stat-value">-{{ snap["jobs_removed"] }}</span>
+      <span class="stat-label">Removed Today</span>
+    </div>
+  </div>
+  <div class="stat-card stat-neutral">
+    <div class="stat-icon">&#128197;</div>
+    <div class="stat-body">
+      <span class="stat-value">{{ snap["date"] }}</span>
+      <span class="stat-label">Last Snapshot</span>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No data yet. Run <code>tracker fetch</code> to get started.</p>
+</div>
+{% endif %}

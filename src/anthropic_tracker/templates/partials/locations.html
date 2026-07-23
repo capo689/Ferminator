@@ -1,0 +1,38 @@
+<h2>Locations</h2>
+{% if locations %}
+<div class="chart-container" style="height:260px">
+  <canvas id="locChart"></canvas>
+</div>
+<script>
+(function() {
+  const ctx = document.getElementById('locChart');
+  if (!ctx) return;
+  const all = {{ locations | tojson }};
+  const top10 = all.slice(0, 10);
+  const labels = top10.map(l => l.name);
+  const values = top10.map(l => l.count);
+  const colors = ['#7c6ef0','#4ecdc4','#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#845ec2','#d65db1','#00c9a7'];
+  if (window._locChart) window._locChart.destroy();
+  window._locChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 3 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      resizeDelay: 200,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { color: '#1e1e1e' } },
+        y: { ticks: { color: '#ccc', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+})();
+</script>
+{% else %}
+<p class="muted">No location data.</p>
+{% endif %}
