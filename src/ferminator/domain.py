@@ -111,6 +111,11 @@ class NormalizedJob(BaseModel):
             raise ValueError("job title cannot be empty")
         return value
 
+    @field_validator("published_at", "source_updated_at", "retrieved_at", mode="after")
+    @classmethod
+    def normalize_datetimes(cls, value: datetime | None) -> datetime | None:
+        return as_utc(value) if value is not None else None
+
     @property
     def source_key(self) -> str:
         return f"{self.provider.value}:{self.board_key}:{self.source_job_id}"
@@ -143,15 +148,22 @@ def html_to_text(value: str | None) -> str:
     return re.sub(r"\s+", " ", BeautifulSoup(value, "html.parser").get_text(" ", strip=True))
 
 
+def as_utc(value: datetime) -> datetime:
+    """Return an aware UTC datetime, interpreting naive provider values as UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def parse_datetime(value: Any) -> datetime | None:
     """Parse common ISO timestamps without failing an entire provider run."""
     if not value:
         return None
     if isinstance(value, datetime):
-        return value
+        return as_utc(value)
     text = str(value).strip().replace("Z", "+00:00")
     try:
-        return datetime.fromisoformat(text)
+        return as_utc(datetime.fromisoformat(text))
     except ValueError:
         try:
             return datetime.fromtimestamp(float(text) / 1000, tz=UTC)

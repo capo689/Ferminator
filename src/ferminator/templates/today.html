@@ -5,7 +5,10 @@
   <div>
     <p class="eyebrow">{{ now if now else "TODAY'S BRIEFING" }}</p>
     <h1>Good morning, {{ display_name }}.</h1>
-    <p class="hero-copy">The market moved in your direction. Three opportunities deserve attention.</p>
+    <p class="hero-copy">
+      {% if matches %}{{ matches|length }} profile-qualified opportunities deserve attention.
+      {% else %}The market scan is complete; no role currently clears your evidence threshold.{% endif %}
+    </p>
   </div>
   <a class="button button-primary hero-action" href="#opportunities">Review today's briefing <span>→</span></a>
 </header>
@@ -25,13 +28,13 @@
   <span class="quiet">Ranked against {{ profile.profile.display_name }}'s profile</span>
 </section>
 
+{% if lead %}
 <article class="lead-opportunity">
   <div class="opportunity-main">
     <div class="company-row">
-      <span class="company-logo">
+      <span class="company-logo" data-initial="{{ lead.company_initial }}">
         <img src="{{ url_for('static', path='/assets/svg/company-' ~ lead.company_slug ~ '.svg') }}"
-             alt="" width="42" height="42"
-             onerror="this.remove();this.parentElement.textContent='{{ lead.company_initial }}'">
+             alt="" width="42" height="42">
       </span>
       <span>{{ lead.company }}</span>
       <span class="new-pill">Just surfaced · {{ lead.freshness }}</span>
@@ -50,9 +53,9 @@
     {% endif %}
     <div class="actions">
       <a class="button button-primary" href="/fit/{{ lead.id }}">Explore fit</a>
-      <button class="button button-quiet" type="button" data-toast="Saved to your shortlist">Save</button>
-      <a class="button button-quiet" href="/pipeline">Prepare application</a>
-      <button class="button button-quiet" type="button" data-toast="Dismissed from this briefing">Dismiss</button>
+      <form method="post" action="/actions/{{ lead.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
+      <form method="post" action="/actions/{{ lead.id }}/preparing"><button class="button button-quiet" type="submit">Prepare application</button></form>
+      <form method="post" action="/actions/{{ lead.id }}/dismissed"><button class="button button-quiet" type="submit">Dismiss</button></form>
       <a class="text-action" href="{{ lead.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
     </div>
   </div>
@@ -68,10 +71,9 @@
   {% for job in secondary %}
   <article class="opportunity-card">
     <div class="company-row">
-      <span class="company-logo small">
+      <span class="company-logo small" data-initial="{{ job.company_initial }}">
         <img src="{{ url_for('static', path='/assets/svg/company-' ~ job.company_slug ~ '.svg') }}"
-             alt="" width="31" height="31"
-             onerror="this.remove();this.parentElement.textContent='{{ job.company_initial }}'">
+             alt="" width="31" height="31">
       </span>
       <span>{{ job.company }}</span>
       <span class="score-chip">{{ job.score|round|int }}%</span>
@@ -106,4 +108,12 @@
   </div>
   <a class="button button-primary" href="/pipeline">Start preparation</a>
 </section>
+{% else %}
+<section class="empty-state">
+  <span>⌕</span>
+  <h2>No profile-qualified opportunities yet.</h2>
+  <p>The scanner is healthy; complete the evidence sections in your profile or adjust its match threshold.</p>
+  <a class="button button-secondary" href="/profile">Review profile</a>
+</section>
+{% endif %}
 {% endblock %}

@@ -152,7 +152,13 @@ class PostgresRepository:
             raise LookupError("Profile not found")
         return int(row["profile_version"])
 
-    def top_matches(self, profile_id: str, *, limit: int = 10) -> list[dict]:
+    def top_matches(
+        self,
+        profile_id: str,
+        *,
+        minimum_score: float = 0,
+        limit: int = 10,
+    ) -> list[dict]:
         with self.connection() as conn:
             rows = conn.execute(
                 """
@@ -161,15 +167,169 @@ class PostgresRepository:
                 from public.job_matches m
                 join public.jobs j on j.id = m.job_id
                 where m.profile_id = %s and m.eligible and j.active
+                  and m.score >= %s
                   and m.profile_version = (
                     select profile_version from public.profiles where id = %s
                   )
                 order by m.score desc, j.first_seen_at desc
                 limit %s
                 """,
-                (profile_id, profile_id, limit),
+                (profile_id, minimum_score, profile_id, limit),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def web_matches(
+        self,
+        profile_slug: str,
+        *,
+        minimum_score: float = 0,
+        limit: int = 500,
+    ) -> list[dict]:
+        """Return current, eligible matches shaped for the server-rendered UI."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select j.id, j.title, j.company_name, c.slug as company_slug,
+                       j.department, j.workplace_type, j.salary_min, j.salary_max,
+                       j.salary_currency, j.job_url, j.apply_url, j.published_at,
+                       j.first_seen_at, b.provider, m.score, m.component_scores,
+                       m.matched_evidence, m.concerns, m.explanation,
+                       coalesce(l.label, 'Location unspecified') as location
+                from public.profiles p
+                join public.job_matches m on m.profile_id = p.id
+                join public.jobs j on j.id = m.job_id and j.active
+                join public.ats_boards b on b.id = j.ats_board_id
+                join public.companies c on c.id = b.company_id
+                left join lateral (
+                  select label from public.job_locations
+                  where job_id = j.id
+                  order by is_primary desc, is_remote desc, label
+                  limit 1
+                ) l on true
+                where p.slug = %s and m.eligible and m.score >= %s
+                  and m.profile_version = p.profile_version
+                  and m.job_revision_id = j.current_revision_id
+                order by m.score desc, j.first_seen_at desc
+                limit %s
+                """,
+                (profile_slug, minimum_score, limit),
+            ).fetchall()
+        now = datetime.now(UTC)
+        result = []
+        for row in rows:
+            item = dict(row)
+            published = item["published_at"] or item["first_seen_at"]
+            age_hours = max(0, int((now - published).total_seconds() / 3600))
+            salary = None
+            if item["salary_min"] is not None:
+                upper = item["salary_max"] or item["salary_min"]
+                symbol = (
+                    "$"
+                    if item["salary_currency"] in {None, "USD"}
+                    else item["salary_currency"]
+                )
+                lower_label = f"{symbol}{float(item['salary_min']) / 1000:,.0f}K"
+                upper_label = f"{symbol}{float(upper) / 1000:,.0f}K"
+                salary = f"{lower_label}–{upper_label}"
+            result.append(
+                {
+                    **item,
+                    "id": str(item["id"]),
+                    "company": item["company_name"],
+                    "company_initial": item["company_name"][0],
+                    "workplace": item["workplace_type"],
+                    "compensation": salary,
+                    "score": float(item["score"]),
+                    "evidence": item["matched_evidence"],
+                    "freshness": (
+                        f"{age_hours}h ago"
+                        if age_hours < 48
+                        else f"{age_hours // 24}d ago"
+                    ),
+                    "apply_url": item["apply_url"] or item["job_url"],
+                }
+            )
+        return result
+
+    def pipeline(self, profile_slug: str) -> dict[str, list[dict]]:
+        matches = {item["id"]: item for item in self.web_matches(profile_slug)}
+        stage_names = ("Considering", "Preparing", "Applied", "Interviewing", "Offer")
+        stages = {name: [] for name in stage_names}
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select a.job_id, a.state, a.notes, a.follow_up_at
+                from public.job_actions a
+                join public.profiles p on p.id = a.profile_id
+                where p.slug = %s and a.state not in ('closed', 'dismissed')
+                order by a.updated_at desc
+                """,
+                (profile_slug,),
+            ).fetchall()
+        for row in rows:
+            job = matches.get(str(row["job_id"]))
+            if job:
+                job = {**job, "task": row["notes"], "due": row["follow_up_at"]}
+                stages[row["state"].title()].append(job)
+        return stages
+
+    def company_stats(self, profile_slug: str) -> list[dict]:
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select j.company_name as name, count(*) filter (where m.eligible) as relevant,
+                       count(*) filter (
+                         where m.eligible and j.first_seen_at >= now() - interval '24 hours'
+                       ) as new
+                from public.profiles p
+                join public.job_matches m on m.profile_id = p.id
+                  and m.profile_version = p.profile_version
+                join public.jobs j on j.id = m.job_id and j.active
+                  and j.current_revision_id = m.job_revision_id
+                where p.slug = %s
+                group by j.company_name
+                order by relevant desc, name
+                """,
+                (profile_slug,),
+            ).fetchall()
+        return [
+            {
+                "name": row["name"],
+                "initial": row["name"][0],
+                "momentum": 0,
+                "relevant": row["relevant"],
+                "new": row["new"],
+            }
+            for row in rows
+        ]
+
+    def set_action(self, profile_slug: str, job_id: str, state: str) -> None:
+        allowed = {"considering", "preparing", "applied", "interviewing", "offer", "dismissed"}
+        if state not in allowed:
+            raise ValueError("Unsupported pipeline state")
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                insert into public.job_actions (profile_id, job_id, state)
+                select p.id, j.id, %s::public.pipeline_state
+                from public.profiles p, public.jobs j
+                where p.slug = %s and j.id = %s and j.active
+                on conflict (profile_id, job_id) do update
+                  set state = excluded.state, updated_at = now()
+                returning id, profile_id, job_id
+                """,
+                (state, profile_slug, job_id),
+            ).fetchone()
+            if row is None:
+                raise LookupError("Profile or job not found")
+            conn.execute(
+                """
+                insert into public.action_events (
+                  profile_id, job_id, action_id, event_type, to_state
+                ) values (%s, %s, %s, 'state_changed', %s::public.pipeline_state)
+                """,
+                (row["profile_id"], row["job_id"], row["id"], state),
+            )
 
     def claim_notification(
         self,
@@ -424,6 +584,17 @@ class PostgresRepository:
                           is_primary, is_remote, normalized_key
                         )
                         values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        on conflict (job_id, normalized_key) do update set
+                          label = excluded.label,
+                          city = coalesce(excluded.city, job_locations.city),
+                          region = coalesce(excluded.region, job_locations.region),
+                          country = coalesce(excluded.country, job_locations.country),
+                          country_code = coalesce(
+                            excluded.country_code,
+                            job_locations.country_code
+                          ),
+                          is_primary = job_locations.is_primary or excluded.is_primary,
+                          is_remote = job_locations.is_remote or excluded.is_remote
                         """,
                         (
                             job_row["id"],

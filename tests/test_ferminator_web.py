@@ -10,6 +10,9 @@ def test_healthz():
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["demo_mode"] is True
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-request-id"]
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
 
 def test_today_renders_personal_briefing():

@@ -51,7 +51,7 @@
       </div>
       {% if job.concerns %}<p class="concern">{{ job.concerns[0] }}</p>{% endif %}
       <div class="actions">
-        <button class="button button-quiet" type="button" data-toast="Saved to your shortlist">Save</button>
+        <form method="post" action="/actions/{{ job.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
         <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
       </div>
     </div>
@@ -70,4 +70,3 @@
   {% endfor %}
 </div>
 {% endblock %}
-
