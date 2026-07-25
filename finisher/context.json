@@ -1,0 +1,21 @@
+{
+  "_comment": "FINISHER 1.1.0 baseline context. Full audit of the hosted private-alpha system on 2026-07-25.",
+  "has_users": true,
+  "is_public": true,
+  "is_multi_tenant": true,
+  "has_admin": false,
+  "has_pii": true,
+  "has_payments": false,
+  "has_uploads": false,
+  "has_ugc": false,
+  "has_ai": false,
+  "has_agents": false,
+  "has_third_party": true,
+  "has_jobs": true,
+  "has_email": true,
+  "has_mobile": false,
+  "eu_users": false,
+  "us_state_privacy": true,
+  "is_regulated": false,
+  "has_team": false
+}

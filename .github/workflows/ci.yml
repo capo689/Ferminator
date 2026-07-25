@@ -1,10 +1,14 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -30,6 +34,9 @@ jobs:
 
       - name: Test
         run: pytest --cov=anthropic_tracker --cov=ferminator --cov-report=term-missing
+
+      - name: Match-quality regression gate
+        run: ferminator quality-eval
 
   scan:
     runs-on: ubuntu-latest

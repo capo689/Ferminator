@@ -17,3 +17,7 @@ htmlcov/
 .pytest_cache/
 .claude/
 .local/
+.env
+.env.*
+!.env.example
+backups/

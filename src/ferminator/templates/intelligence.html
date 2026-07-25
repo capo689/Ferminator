@@ -36,6 +36,53 @@
   </div>
 </section>
 
+{% if quality %}
+<section class="intelligence-detail">
+  <div>
+    <p class="eyebrow">MATCH QUALITY</p>
+    <h2>{{ quality.reviewed }} recommendations reviewed</h2>
+    <p>
+      {% if quality.useful_rate is not none %}
+      {{ quality.useful_rate }}% were marked great or maybe.
+      {% else %}
+      Rate recommendations in Discover to establish an honest quality baseline.
+      {% endif %}
+    </p>
+  </div>
+  <div class="skill-bars">
+    <div><span>Great</span><strong>{{ quality.great }}</strong></div>
+    <div><span>Maybe</span><strong>{{ quality.maybe }}</strong></div>
+    <div><span>Wrong</span><strong>{{ quality.wrong }}</strong></div>
+  </div>
+</section>
+{% endif %}
+
+{% if source_health %}
+<section class="intelligence-detail">
+  <div>
+    <p class="eyebrow">SOURCE HEALTH</p>
+    <h2>Every board must prove it ran.</h2>
+    {% if source_health.latest_scan %}
+    <p>
+      Latest scan: {{ source_health.latest_scan.status }} ·
+      {{ source_health.latest_scan.succeeded_count }}/{{ source_health.latest_scan.board_count }}
+      boards succeeded · {{ source_health.latest_scan.scored_job_count }} jobs scored.
+    </p>
+    {% else %}
+    <p>No full scan has been recorded yet.</p>
+    {% endif %}
+  </div>
+  <div class="skill-bars">
+    {% for board in source_health.boards %}
+    <div>
+      <span>{{ board.company }} · {{ board.provider|title }}</span>
+      <strong>{{ board.validation_status }}</strong>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="editorial-insight">
   <span class="insight-number">01</span>
   <div>
@@ -46,4 +93,3 @@
   </div>
 </section>
 {% endblock %}
-
