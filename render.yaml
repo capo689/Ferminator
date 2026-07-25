@@ -8,9 +8,9 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - key: FERMINATOR_ENV
-        value: staging
+        value: production
       - key: FERMINATOR_DEMO_MODE
-        value: "true"
+        value: "false"
       - key: FERMINATOR_AUTH_MODE
         value: shared_password
       - key: FERMINATOR_ALPHA_PASSWORD
