@@ -24,9 +24,13 @@
     <label>
       Minimum fit
       <select name="min_score">
-        {% for value in [0, 60, 70, 80, 90] %}
+        {% for value in [0, 58, 70, 80, 90] %}
         <option value="{{ value }}" {{ "selected" if min_score == value else "" }}>
-          {{ "Any score" if value == 0 else value ~ "%+" }}
+          {% if value == 0 %}Any eligible
+          {% elif value == 58 %}Worth reviewing (58%+)
+          {% elif value == 70 %}Strong matches (70%+)
+          {% else %}{{ value }}%+
+          {% endif %}
         </option>
         {% endfor %}
       </select>
@@ -42,7 +46,10 @@
     <div class="result-body">
       <div class="result-topline">
         <span>{{ job.company }} · {{ job.provider|title }}</span>
-        <span class="new-pill">{{ job.freshness }}</span>
+        <span class="new-pill">
+          {{ "Strong match" if job.score >= strong_minimum else "Worth reviewing" }}
+          · {{ job.freshness }}
+        </span>
       </div>
       <h2>{{ job.title }}</h2>
       <p class="job-meta">{{ job.location }} · {{ job.compensation or "Compensation not disclosed" }}</p>

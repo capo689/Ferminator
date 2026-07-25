@@ -25,7 +25,17 @@ search:
   target_titles:
     high:
       - AI Enablement
+      - Generative AI Enablement
+      - AI Transformation
       - AI Operations
+      - Generative AI Operations
+      - AI Program
+      - AI Implementation
+      - AI Solutions
+      - Applied AI
+      - AI Governance
+      - AI Innovation
+      - AI Product Operations
       - Marketing AI Operations
       - AI Adoption
       - Knowledge Operations
@@ -34,16 +44,35 @@ search:
       - AI Content Operations
       - AI Marketing Engineer
       - Creative Technologist
+      - Creative AI
+      - AI Creative
       - Agent Architect
+      - Agentic AI
       - Applied AI Consultant
       - AI Workflow Automation
+      - AI Automation
       - AI Search Strategist
+      - AI Content Strategy
+      - AI Content Design
+      - AI Education
+      - AI Customer Education
+      - Conversation Design
+      - Prompt Design
+      - LLM Operations
     adjacent:
       - Developer Advocacy
+      - Developer Relations
+      - Developer Education
       - Technical Content
       - Enablement
+      - Customer Education
+      - Implementation Consultant
+      - Solutions Consultant
+      - Digital Transformation
       - Knowledge Management
       - Content Operations
+      - Content Strategy
+      - Content Design
       - Prompt Engineering
       - Brand Voice
       - Technical Writer, AI
@@ -104,10 +133,15 @@ search:
       - Research Scientist
       - MLOps Engineer
       - Backend Engineer
+      - Software Engineer
+      - Forward Deployed Engineer
+      - Applied AI Engineer
+      - Agentic AI Engineer
       - Salesforce Administrator
 notifications:
   dashboard: true
   email: true
+  review_minimum_score: 58
   minimum_score: 70
   exceptional_score: 88
   max_daily_matches: 12

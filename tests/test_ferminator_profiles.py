@@ -13,6 +13,9 @@ def test_adam_profile_is_valid():
     assert profile.search.scan_interval_hours == 12
     assert sum(profile.scoring.values()) == 100
     assert "AI Enablement" in profile.high_titles
+    assert "AI Transformation" in profile.high_titles
+    assert "Customer Education" in profile.adjacent_titles
+    assert profile.notifications.review_minimum_score == 58
 
 
 def test_profile_requires_weights_to_total_100(tmp_path):
@@ -42,4 +45,3 @@ def test_profile_requires_front_matter(tmp_path):
 
     with pytest.raises(ValueError, match="missing YAML"):
         load_profile(path)
-

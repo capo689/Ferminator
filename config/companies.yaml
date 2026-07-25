@@ -126,6 +126,369 @@ companies:
         board_key: g2
         source_url: https://g2.bamboohr.com/careers
 
+  # AI-native product companies: verified public Ashby boards.
+  - slug: cognition
+    name: Cognition
+    website_url: https://cognition.ai
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: cognition
+        source_url: https://jobs.ashbyhq.com/cognition
+
+  - slug: cursor
+    name: Cursor
+    website_url: https://cursor.com
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: cursor
+        source_url: https://jobs.ashbyhq.com/cursor
+
+  - slug: decagon
+    name: Decagon
+    website_url: https://decagon.ai
+    priority: 90
+    boards:
+      - provider: ashby
+        board_key: decagon
+        source_url: https://jobs.ashbyhq.com/decagon
+
+  - slug: dust
+    name: Dust
+    website_url: https://dust.tt
+    priority: 90
+    boards:
+      - provider: ashby
+        board_key: dust
+        source_url: https://jobs.ashbyhq.com/dust
+
+  - slug: elevenlabs
+    name: ElevenLabs
+    website_url: https://elevenlabs.io
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: elevenlabs
+        source_url: https://jobs.ashbyhq.com/elevenlabs
+
+  - slug: gamma
+    name: Gamma
+    website_url: https://gamma.app
+    priority: 80
+    boards:
+      - provider: ashby
+        board_key: gamma
+        source_url: https://jobs.ashbyhq.com/gamma
+
+  - slug: granola
+    name: Granola
+    website_url: https://granola.ai
+    priority: 80
+    boards:
+      - provider: ashby
+        board_key: granola
+        source_url: https://jobs.ashbyhq.com/granola
+
+  - slug: harvey
+    name: Harvey
+    website_url: https://www.harvey.ai
+    priority: 90
+    boards:
+      - provider: ashby
+        board_key: harvey
+        source_url: https://jobs.ashbyhq.com/harvey
+
+  - slug: langchain
+    name: LangChain
+    website_url: https://www.langchain.com
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: langchain
+        source_url: https://jobs.ashbyhq.com/langchain
+
+  - slug: linear
+    name: Linear
+    website_url: https://linear.app
+    priority: 80
+    boards:
+      - provider: ashby
+        board_key: linear
+        source_url: https://jobs.ashbyhq.com/linear
+
+  - slug: midjourney
+    name: Midjourney
+    website_url: https://www.midjourney.com
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: midjourney
+        source_url: https://jobs.ashbyhq.com/midjourney
+
+  - slug: modal
+    name: Modal
+    website_url: https://modal.com
+    priority: 70
+    boards:
+      - provider: ashby
+        board_key: modal
+        source_url: https://jobs.ashbyhq.com/modal
+
+  - slug: mutiny
+    name: Mutiny
+    website_url: https://www.mutinyhq.com
+    priority: 80
+    boards:
+      - provider: ashby
+        board_key: mutiny
+        source_url: https://jobs.ashbyhq.com/mutiny
+
+  - slug: perplexity
+    name: Perplexity
+    website_url: https://www.perplexity.ai
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: perplexity
+        source_url: https://jobs.ashbyhq.com/perplexity
+
+  - slug: replit
+    name: Replit
+    website_url: https://replit.com
+    priority: 90
+    boards:
+      - provider: ashby
+        board_key: replit
+        source_url: https://jobs.ashbyhq.com/replit
+
+  - slug: runbook
+    name: Runbook
+    website_url: https://www.runbook.cloud
+    priority: 60
+    boards:
+      - provider: ashby
+        board_key: runbook
+        source_url: https://jobs.ashbyhq.com/runbook
+
+  - slug: sierra
+    name: Sierra
+    website_url: https://sierra.ai
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: sierra
+        source_url: https://jobs.ashbyhq.com/sierra
+
+  - slug: writer
+    name: Writer
+    website_url: https://writer.com
+    priority: 100
+    boards:
+      - provider: ashby
+        board_key: writer
+        source_url: https://jobs.ashbyhq.com/writer
+
+  # High-signal product and infrastructure companies: verified Greenhouse boards.
+  - slug: algolia
+    name: Algolia
+    website_url: https://www.algolia.com
+    priority: 80
+    boards:
+      - provider: greenhouse
+        board_key: algolia
+        source_url: https://job-boards.greenhouse.io/algolia
+
+  - slug: amplitude
+    name: Amplitude
+    website_url: https://amplitude.com
+    priority: 80
+    boards:
+      - provider: greenhouse
+        board_key: amplitude
+        source_url: https://job-boards.greenhouse.io/amplitude
+
+  - slug: braze
+    name: Braze
+    website_url: https://www.braze.com
+    priority: 70
+    boards:
+      - provider: greenhouse
+        board_key: braze
+        source_url: https://job-boards.greenhouse.io/braze
+
+  - slug: contentful
+    name: Contentful
+    website_url: https://www.contentful.com
+    priority: 90
+    boards:
+      - provider: greenhouse
+        board_key: contentful
+        source_url: https://job-boards.greenhouse.io/contentful
+
+  - slug: datadog
+    name: Datadog
+    website_url: https://www.datadoghq.com
+    priority: 60
+    boards:
+      - provider: greenhouse
+        board_key: datadog
+        source_url: https://job-boards.greenhouse.io/datadog
+
+  - slug: descript
+    name: Descript
+    website_url: https://www.descript.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: descript
+        source_url: https://job-boards.greenhouse.io/descript
+
+  - slug: elastic
+    name: Elastic
+    website_url: https://www.elastic.co
+    priority: 90
+    boards:
+      - provider: greenhouse
+        board_key: elastic
+        source_url: https://job-boards.greenhouse.io/elastic
+
+  - slug: gitlab
+    name: GitLab
+    website_url: https://about.gitlab.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: gitlab
+        source_url: https://job-boards.greenhouse.io/gitlab
+
+  - slug: glean
+    name: Glean
+    website_url: https://www.glean.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: gleanwork
+        source_url: https://job-boards.greenhouse.io/gleanwork
+
+  - slug: guidde
+    name: Guidde
+    website_url: https://www.guidde.com
+    priority: 70
+    boards:
+      - provider: greenhouse
+        board_key: guidde
+        source_url: https://job-boards.greenhouse.io/guidde
+
+  - slug: iterable
+    name: Iterable
+    website_url: https://iterable.com
+    priority: 80
+    boards:
+      - provider: greenhouse
+        board_key: iterable
+        source_url: https://job-boards.greenhouse.io/iterable
+
+  - slug: klaviyo
+    name: Klaviyo
+    website_url: https://www.klaviyo.com
+    priority: 80
+    boards:
+      - provider: greenhouse
+        board_key: klaviyo
+        source_url: https://job-boards.greenhouse.io/klaviyo
+
+  - slug: launchdarkly
+    name: LaunchDarkly
+    website_url: https://launchdarkly.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: launchdarkly
+        source_url: https://job-boards.greenhouse.io/launchdarkly
+
+  - slug: mixpanel
+    name: Mixpanel
+    website_url: https://mixpanel.com
+    priority: 80
+    boards:
+      - provider: greenhouse
+        board_key: mixpanel
+        source_url: https://job-boards.greenhouse.io/mixpanel
+
+  - slug: mongodb
+    name: MongoDB
+    website_url: https://www.mongodb.com
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: mongodb
+        source_url: https://job-boards.greenhouse.io/mongodb
+
+  - slug: omada-health
+    name: Omada Health
+    website_url: https://www.omadahealth.com
+    priority: 90
+    boards:
+      - provider: greenhouse
+        board_key: omadahealth
+        source_url: https://job-boards.greenhouse.io/omadahealth
+
+  - slug: twilio
+    name: Twilio
+    website_url: https://www.twilio.com
+    priority: 70
+    boards:
+      - provider: greenhouse
+        board_key: twilio
+        source_url: https://job-boards.greenhouse.io/twilio
+
+  - slug: typeface
+    name: Typeface
+    website_url: https://www.typeface.ai
+    priority: 100
+    boards:
+      - provider: greenhouse
+        board_key: typeface
+        source_url: https://job-boards.greenhouse.io/typeface
+
+  - slug: vercel
+    name: Vercel
+    website_url: https://vercel.com
+    priority: 90
+    boards:
+      - provider: greenhouse
+        board_key: vercel
+        source_url: https://job-boards.greenhouse.io/vercel
+
+  - slug: yext
+    name: Yext
+    website_url: https://www.yext.com
+    priority: 90
+    boards:
+      - provider: greenhouse
+        board_key: yext
+        source_url: https://job-boards.greenhouse.io/yext
+
+  # Lever boards that expose the same complete public-feed behavior.
+  - slug: aircall
+    name: Aircall
+    website_url: https://aircall.io
+    priority: 60
+    boards:
+      - provider: lever
+        board_key: aircall
+        source_url: https://jobs.lever.co/aircall
+
+  - slug: arcadia
+    name: Arcadia
+    website_url: https://arcadia.io
+    priority: 70
+    boards:
+      - provider: lever
+        board_key: arcadia
+        source_url: https://jobs.lever.co/arcadia
+
   - slug: lever-demo
     name: Lever Demo
     website_url: https://www.lever.co
