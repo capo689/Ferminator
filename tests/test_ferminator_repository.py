@@ -1,7 +1,8 @@
 from unittest.mock import MagicMock
 
+from ferminator.domain import ATSProvider, NormalizedJob
 from ferminator.matching import MatchResult
-from ferminator.repository import PostgresRepository
+from ferminator.repository import PostgresRepository, jobs_requiring_upsert
 
 
 def test_store_matches_uses_psycopg_cursor_executemany() -> None:
@@ -46,3 +47,31 @@ def test_match_feedback_is_upserted_against_current_revision() -> None:
     assert "match_feedback" in sql
     assert "job_revision_id" in sql
     assert params == ("wrong", "Wrong discipline", "job-id", "adam-cagle")
+
+
+def test_jobs_requiring_upsert_skips_unchanged_and_counts_updates() -> None:
+    unchanged = NormalizedJob(
+        provider=ATSProvider.GREENHOUSE,
+        board_key="example",
+        source_job_id="same",
+        company_slug="example",
+        company_name="Example",
+        title="Same",
+        job_url="https://example.com/same",
+    )
+    updated = unchanged.model_copy(
+        update={"source_job_id": "updated", "title": "Materially updated"}
+    )
+    new = unchanged.model_copy(update={"source_job_id": "new", "title": "New"})
+    current_hashes = {
+        unchanged.source_key: unchanged.content_hash,
+        updated.source_key: "old-hash",
+    }
+
+    changed, updated_count = jobs_requiring_upsert(
+        [unchanged, updated, new],
+        current_hashes,
+    )
+
+    assert [job.source_job_id for job in changed] == ["updated", "new"]
+    assert updated_count == 1

@@ -59,10 +59,19 @@ The scan now uses a bounded two-phase pipeline:
    mass-removal, revision, and transaction safeguards.
 3. A failed source is isolated and recorded without discarding successful
    sources.
-4. Matching is refreshed once after all ingestion work, rather than per board.
+4. Existing revision hashes are loaded once per board. Unchanged jobs receive
+   one set-based freshness update; only new or materially changed jobs execute
+   revision and location upserts.
+5. Matching is refreshed once after all ingestion work, rather than per board.
 
 The final 69-board source validation completed in 2.8 seconds. A separate live
 bulk test of all 113 enabled directory boards fetched and normalized 8,625 jobs
 in 10.4 seconds with eight workers and zero source failures. The production
 workflow retains its 30-minute ceiling as a performance guard; broadening the
 registry no longer consumes that budget linearly in network wait time.
+
+The initial 113-board production population completed successfully in 27m09s.
+Its log showed only 14.3 seconds in parallel ATS fetching; nearly all remaining
+time was row-by-row persistence of 8,625 jobs. The set-based unchanged-job path
+was added from that evidence so recurring scans do not repeat thousands of
+revision and location round trips.

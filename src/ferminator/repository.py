@@ -30,6 +30,18 @@ class ConcurrentScanError(RuntimeError):
     """Raised when another full scan is already active."""
 
 
+def jobs_requiring_upsert(
+    jobs: list[NormalizedJob],
+    current_hashes: dict[str, str | None],
+) -> tuple[list[NormalizedJob], int]:
+    """Select new/materially changed jobs and count updates without DB round trips."""
+    changed = [
+        job for job in jobs if current_hashes.get(job.source_key) != job.content_hash
+    ]
+    updated = sum(job.source_key in current_hashes for job in changed)
+    return changed, updated
+
+
 class PostgresRepository:
     """Small explicit SQL repository; service-role credentials stay server-side."""
 
@@ -1022,16 +1034,31 @@ class PostgresRepository:
                 (board_id, board.provider.value, idempotency_key, started),
             ).fetchone()
 
-            for job in jobs:
-                current = conn.execute(
-                    "select content_hash from public.job_revisions r "
-                    "join public.jobs j on j.current_revision_id = r.id "
-                    "where j.source_key = %s",
-                    (job.source_key,),
-                ).fetchone()
-                if current and current["content_hash"] != job.content_hash:
-                    updated_count += 1
+            current_rows = conn.execute(
+                """
+                select j.source_key, r.content_hash
+                from public.jobs j
+                left join public.job_revisions r on r.id = j.current_revision_id
+                where j.ats_board_id = %s
+                """,
+                (board_id,),
+            ).fetchall()
+            current_hashes = {
+                row["source_key"]: row["content_hash"] for row in current_rows
+            }
+            changed_jobs, updated_count = jobs_requiring_upsert(jobs, current_hashes)
 
+            if jobs:
+                conn.execute(
+                    """
+                    update public.jobs
+                    set last_seen_at = now(), active = true, removed_at = null
+                    where ats_board_id = %s and source_job_id = any(%s)
+                    """,
+                    (board_id, [job.source_job_id for job in jobs]),
+                )
+
+            for job in changed_jobs:
                 job_row = conn.execute(
                     """
                     insert into public.jobs (
