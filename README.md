@@ -69,3 +69,7 @@ The current evidence-based release decision is recorded in
 [FINISHER_RELEASE_AUDIT.md](docs/FINISHER_RELEASE_AUDIT.md). It distinguishes
 completed engineering from the hosted checks that require owner account and
 credential choices.
+
+## Acknowledgments
+
+Special thanks to **Fermin Romero III** for the idea that inspired Ferminator.
