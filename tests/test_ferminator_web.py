@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
-from ferminator.web import app
+from ferminator.settings import get_settings
+from ferminator.web import _failed_auth, app
 
 
 def test_healthz():
@@ -82,3 +83,39 @@ def test_fit_lens_returns_404_for_unknown_job():
         response = client.get("/fit/unknown")
 
     assert response.status_code == 404
+
+
+def test_shared_password_failures_keep_security_headers(monkeypatch):
+    monkeypatch.setenv("FERMINATOR_AUTH_MODE", "shared_password")
+    monkeypatch.setenv("FERMINATOR_ALPHA_PASSWORD", "correct-horse")
+    get_settings.cache_clear()
+    _failed_auth.clear()
+    try:
+        with TestClient(app) as client:
+            response = client.get("/")
+    finally:
+        get_settings.cache_clear()
+        _failed_auth.clear()
+
+    assert response.status_code == 401
+    assert response.headers["x-request-id"]
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["strict-transport-security"].startswith("max-age=")
+
+
+def test_shared_password_is_rate_limited(monkeypatch):
+    monkeypatch.setenv("FERMINATOR_AUTH_MODE", "shared_password")
+    monkeypatch.setenv("FERMINATOR_ALPHA_PASSWORD", "correct-horse")
+    get_settings.cache_clear()
+    _failed_auth.clear()
+    try:
+        with TestClient(app) as client:
+            for _ in range(5):
+                assert client.get("/").status_code == 401
+            response = client.get("/")
+    finally:
+        get_settings.cache_clear()
+        _failed_auth.clear()
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "300"

@@ -41,3 +41,13 @@ def test_migration_uses_indexes_for_search_and_active_jobs() -> None:
     assert "jobs_title_trgm_idx" in sql
     assert "job_revisions_search_idx" in sql
     assert "where active" in sql
+
+
+def test_alpha_hardening_migration_adds_observability_and_feedback() -> None:
+    sql = migration_sql().casefold()
+
+    assert "create table public.scan_runs" in sql
+    assert "create table public.match_feedback" in sql
+    assert "alter table public.scan_runs enable row level security" in sql
+    assert "alter table public.match_feedback enable row level security" in sql
+    assert "revoke all on public.scan_runs from anon, authenticated" in sql

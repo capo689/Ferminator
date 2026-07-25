@@ -3,10 +3,16 @@
 ## Service checks
 
 1. Check `GET /healthz`; confirm version, environment, and demo-mode state.
-2. Check the latest GitHub `Scheduled ATS scan` run.
-3. Query `ingestion_runs` for failed or long-running providers.
-4. Query `ats_boards` for consecutive failures and last success.
-5. Confirm the newest jobs and matches belong to the expected profile version.
+2. Check authenticated `GET /ops`; confirm the latest full scan completed and no
+   board is unexpectedly degraded.
+3. Check the latest GitHub `Scheduled ATS scan` and `Production health monitor`.
+4. Query `ingestion_runs` for failed or long-running providers.
+5. Query `ats_boards` for consecutive failures and last success.
+6. Confirm the newest jobs and matches belong to the expected profile version.
+
+An HTTP 200 containing an empty provider payload is not automatically healthy.
+Mass-removal protection, duplicate-ID validation, and per-board run records must
+all agree before treating zero jobs as a real source state.
 
 ## Adapter incident
 
@@ -28,25 +34,40 @@ one-off message if a resend is genuinely required.
 
 ## Rollback
 
-1. Select the last healthy Git commit and Docker artifact.
-2. Roll Render back to that commit.
-3. Do not roll database migrations backward destructively.
-4. Add a forward corrective migration when schema repair is required.
-5. Verify `/healthz`, one dashboard route, and one read-only database query.
+1. Record the current deploy ID and the last known-good deploy ID.
+2. In Render, select the last known-good deploy and choose **Rollback**.
+3. Do not roll database migrations backward destructively. The application must
+   remain compatible with additive migrations from the failed release.
+4. Run `python scripts/smoke_deployment.py https://ferminator-web.onrender.com
+   --password "$FERMINATOR_ALPHA_PASSWORD"`.
+5. Confirm `/healthz`, `/readyz`, `/`, and `/ops`; then inspect new error logs.
+6. Record duration, deploy IDs, result, and any corrective action in
+   `docs/recovery/`.
+7. Repair forward on a new commit and repeat the smoke test after redeployment.
 
 ## Backup and restore
 
-Supabase production backups are the system of record. Before private alpha:
+Free-tier Supabase projects do not receive automatic daily backups. Ferminator's
+logical export is therefore the recovery system of record:
 
-1. Confirm scheduled backups are enabled for the project plan.
-2. Create a dated recovery point.
-3. Restore into a non-production branch/project.
-4. Verify row counts for profiles, jobs, revisions, matches, actions, and events.
-5. Run a read-only dashboard smoke test against the restored database.
-6. Record the recovery-point identifier, duration, and result in
+1. Install Docker and the Supabase CLI.
+2. Run `DATABASE_URL="$DATABASE_URL" scripts/backup_database.sh backups`.
+3. Copy the dated directory to encrypted off-site storage; repository and CI
+   artifacts are not approved backup locations.
+4. Create a new isolated Supabase project or local Supabase environment.
+5. Run `RESTORE_DATABASE_URL="$RESTORE_DATABASE_URL"
+   scripts/restore_database.sh backups/ferminator-TIMESTAMP`.
+6. Verify row counts, current revisions, and match ownership using the automatic
+   verifier.
+7. Run a read-only dashboard smoke test against the restored database.
+8. Record the recovery point, checksum, duration, and result in
    `docs/recovery/`.
 
 Never overwrite production to test restoration.
+
+The restore script refuses the source URL when it is supplied as `DATABASE_URL`,
+requires checksum verification, and refuses a target that already contains
+Ferminator tables.
 
 ## Secret rotation
 

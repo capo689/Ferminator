@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -23,6 +24,44 @@ from ferminator.settings import get_settings
 PACKAGE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
 logger = logging.getLogger("ferminator.web")
+_failed_auth: dict[str, deque[float]] = defaultdict(deque)
+_AUTH_WINDOW_SECONDS = 300
+_AUTH_MAX_FAILURES = 5
+
+
+def _security_headers(response: Response, request_id: str) -> Response:
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+        "script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    )
+    return response
+
+
+def _alpha_password(request: Request) -> str:
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Basic "):
+        return ""
+    import base64
+    import binascii
+
+    try:
+        decoded = base64.b64decode(authorization[6:], validate=True).decode()
+        _, password = decoded.split(":", 1)
+        return password
+    except (ValueError, UnicodeDecodeError, binascii.Error):
+        return ""
+
+
+def _auth_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 
 @asynccontextmanager
@@ -56,6 +95,48 @@ async def request_observability(request: Request, call_next):
     request_id = safe_request_id(request.headers.get("x-request-id"))
     request.state.request_id = request_id
     started = time.perf_counter()
+    settings = get_settings()
+    public_path = (
+        request.url.path in {"/healthz", "/readyz"}
+        or request.url.path.startswith("/static/")
+    )
+    if settings.auth_mode == "shared_password" and not public_path:
+        key = _auth_key(request)
+        attempts = _failed_auth[key]
+        cutoff = time.monotonic() - _AUTH_WINDOW_SECONDS
+        while attempts and attempts[0] < cutoff:
+            attempts.popleft()
+        if len(attempts) >= _AUTH_MAX_FAILURES:
+            response = Response(status_code=429, headers={"Retry-After": "300"})
+            logger.warning(
+                "authentication_rate_limited",
+                extra={
+                    "event": "authentication_rate_limited",
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": 429,
+                },
+            )
+            return _security_headers(response, request_id)
+        if not settings.valid_alpha_password(_alpha_password(request)):
+            attempts.append(time.monotonic())
+            response = Response(
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="Ferminator private alpha"'},
+            )
+            logger.warning(
+                "authentication_failed",
+                extra={
+                    "event": "authentication_failed",
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": 401,
+                },
+            )
+            return _security_headers(response, request_id)
+        attempts.clear()
     try:
         response = await call_next(request)
     except Exception:
@@ -70,14 +151,7 @@ async def request_observability(request: Request, call_next):
             },
         )
         raise
-    response.headers["X-Request-ID"] = request_id
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
-        "script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-    )
+    _security_headers(response, request_id)
     logger.info(
         "request_complete",
         extra={
@@ -90,36 +164,6 @@ async def request_observability(request: Request, call_next):
         },
     )
     return response
-
-
-@app.middleware("http")
-async def alpha_access_gate(request: Request, call_next):
-    settings = get_settings()
-    if (
-        settings.auth_mode != "shared_password"
-        or request.url.path in {"/healthz", "/readyz"}
-        or request.url.path.startswith("/static/")
-    ):
-        return await call_next(request)
-    authorization = request.headers.get("authorization", "")
-    if authorization.startswith("Basic "):
-        import base64
-        import binascii
-
-        try:
-            decoded = base64.b64decode(authorization[6:], validate=True).decode()
-            _, password = decoded.split(":", 1)
-        except (ValueError, UnicodeDecodeError, binascii.Error):
-            password = ""
-        if settings.valid_alpha_password(password):
-            return await call_next(request)
-    return Response(
-        status_code=401,
-        headers={
-            "WWW-Authenticate": 'Basic realm="Ferminator private alpha"',
-            "X-Request-ID": getattr(request.state, "request_id", ""),
-        },
-    )
 
 
 @app.exception_handler(Exception)
@@ -339,11 +383,51 @@ async def update_action(request: Request, job_id: str, state: str):
     return RedirectResponse(destination, status_code=303)
 
 
+@app.post("/feedback/{job_id}/{verdict}")
+async def update_feedback(
+    request: Request,
+    job_id: str,
+    verdict: str,
+    reason: str | None = Query(default=None, max_length=500),
+):
+    if get_settings().demo_mode:
+        return RedirectResponse("/discover", status_code=303)
+    origin = request.headers.get("origin")
+    if origin and origin != str(request.base_url).rstrip("/"):
+        raise HTTPException(status_code=403, detail="Cross-origin feedback rejected")
+    repository = _repository()
+    try:
+        repository.set_match_feedback(
+            _profile().profile.slug,
+            job_id,
+            verdict,
+            reason=reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        repository.close()
+    return RedirectResponse("/discover", status_code=303)
+
+
 @app.get("/intelligence", response_class=HTMLResponse)
 async def intelligence(request: Request):
     context = _context(request, "intelligence")
+    quality = None
+    source_health = None
+    if not get_settings().demo_mode:
+        repository = _repository()
+        try:
+            quality = repository.match_quality(context["profile"].profile.slug)
+            source_health = repository.source_health()
+        finally:
+            repository.close()
     context.update(
         {
+            "quality": quality,
+            "source_health": source_health,
             "market": [
                 {"label": "AI enablement roles", "value": "+18%", "direction": "up"},
                 {"label": "Remote leadership roles", "value": "−7%", "direction": "down"},
@@ -360,6 +444,27 @@ async def intelligence(request: Request):
         }
     )
     return templates.TemplateResponse(request, "intelligence.html", context=context)
+
+
+@app.get("/ops")
+async def operations():
+    """Private machine-readable operational state for diagnosis and smoke tests."""
+    if get_settings().demo_mode:
+        return {"status": "demo", "latest_scan": None, "boards": []}
+    repository = _repository()
+    try:
+        health = repository.source_health()
+    finally:
+        repository.close()
+    boards = health["boards"]
+    degraded = sum(
+        board["validation_status"] not in {"healthy", "pending"} for board in boards
+    )
+    return {
+        "status": "degraded" if degraded else "ok",
+        "degraded_boards": degraded,
+        **health,
+    }
 
 
 @app.get("/profile", response_class=HTMLResponse)

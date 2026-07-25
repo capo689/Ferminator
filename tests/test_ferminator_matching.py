@@ -73,6 +73,15 @@ def test_ai_labeled_software_engineering_role_is_ineligible():
     assert "Software Engineer" in result.concerns[0]
 
 
+def test_reordered_excluded_engineering_title_is_ineligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+
+    result = score_job(profile, make_job(title="Engineer, Applied AI"))
+
+    assert not result.eligible
+    assert "Applied AI Engineer" in result.concerns[0]
+
+
 def test_description_only_keyword_overlap_is_ineligible():
     profile = load_profile(Path("profiles/adam-cagle.md"))
     job = make_job(
@@ -105,6 +114,19 @@ def test_us_remote_role_remains_eligible():
     result = score_job(profile, make_job())
 
     assert result.eligible
+
+
+def test_provider_fulltime_variants_match_profile_employment_type():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+
+    for employment_type in (
+        "FullTime",
+        "Permanent Full Time Employee",
+        "Full-time Remote",
+        "full-time",
+    ):
+        result = score_job(profile, make_job(employment_type=employment_type))
+        assert result.eligible, employment_type
 
 
 def test_profile_backed_technical_evidence_earns_career_credit():

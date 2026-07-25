@@ -61,6 +61,12 @@
         <form method="post" action="/actions/{{ job.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
         <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
       </div>
+      <div class="feedback-actions" aria-label="Rate this match">
+        <span>Teach the matcher:</span>
+        <form method="post" action="/feedback/{{ job.id }}/great"><button class="text-action" type="submit">Great</button></form>
+        <form method="post" action="/feedback/{{ job.id }}/maybe"><button class="text-action" type="submit">Maybe</button></form>
+        <form method="post" action="/feedback/{{ job.id }}/wrong"><button class="text-action" type="submit">Wrong</button></form>
+      </div>
     </div>
     <div class="result-score">
       <strong>{{ job.score|round|int }}</strong>
