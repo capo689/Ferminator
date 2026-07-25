@@ -172,14 +172,14 @@ def scan(registry_path: Path, provider: str | None, company: str | None) -> None
                 continue
             profile_id = profile_ids[career_profile.profile.slug]
             profile_version = repository.profile_version(profile_id)
-            for job_id, revision_id, job in repository.active_jobs():
-                repository.store_match(
-                    profile_id=profile_id,
-                    profile_version=profile_version,
-                    job_id=job_id,
-                    revision_id=revision_id,
-                    match=score_job(career_profile, job),
-                )
+            repository.store_matches(
+                profile_id=profile_id,
+                profile_version=profile_version,
+                matches=[
+                    (job_id, revision_id, score_job(career_profile, job))
+                    for job_id, revision_id, job in repository.active_jobs()
+                ],
+            )
             console.print(f"[green]{career_profile.profile.display_name} matches refreshed[/green]")
     finally:
         repository.close()

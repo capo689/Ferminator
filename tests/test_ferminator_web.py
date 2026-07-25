@@ -41,6 +41,15 @@ def test_today_renders_personal_briefing():
     assert "clearly labeled sample opportunities" in response.text
 
 
+def test_discover_defaults_to_controlled_review_tier():
+    with TestClient(app) as client:
+        response = client.get("/discover")
+
+    assert response.status_code == 200
+    assert "Worth reviewing (58%+)" in response.text
+    assert "Every role passed" not in response.text
+
+
 def test_discover_filters_results():
     with TestClient(app) as client:
         response = client.get("/discover", params={"q": "Notion", "min_score": 0})

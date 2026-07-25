@@ -63,6 +63,16 @@ def test_excluded_title_is_ineligible():
     assert "Account Executive" in result.concerns[0]
 
 
+def test_ai_labeled_software_engineering_role_is_ineligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+
+    result = score_job(profile, make_job(title="Senior Software Engineer, AI Transformation"))
+
+    assert not result.eligible
+    assert result.score == 0
+    assert "Software Engineer" in result.concerns[0]
+
+
 def test_description_only_keyword_overlap_is_ineligible():
     profile = load_profile(Path("profiles/adam-cagle.md"))
     job = make_job(
