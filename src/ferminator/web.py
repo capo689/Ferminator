@@ -212,10 +212,15 @@ async def discover(
     request: Request,
     q: str = Query(default=""),
     remote: bool = Query(default=False),
-    min_score: int = Query(default=0, ge=0, le=100),
+    min_score: int | None = Query(default=None, ge=0, le=100),
 ):
     context = _context(request, "discover")
-    matches = _matches(context["profile"])
+    effective_minimum = (
+        min_score
+        if min_score is not None
+        else int(context["profile"].notifications.minimum_score)
+    )
+    matches = _matches(context["profile"], minimum_score=effective_minimum)
     if q:
         needle = q.casefold()
         matches = [
@@ -224,13 +229,12 @@ async def discover(
         ]
     if remote:
         matches = [item for item in matches if item["workplace"] == "remote"]
-    matches = [item for item in matches if item["score"] >= min_score]
     context.update(
         {
             "matches": matches,
             "query": q,
             "remote": remote,
-            "min_score": min_score,
+            "min_score": effective_minimum,
         }
     )
     return templates.TemplateResponse(request, "discover.html", context=context)

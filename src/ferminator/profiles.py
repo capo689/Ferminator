@@ -29,6 +29,9 @@ class SearchRules(BaseModel):
     employment_types: list[str] = Field(default_factory=lambda: ["full-time"])
     target_seniority: list[str] = Field(default_factory=list)
     target_titles: TargetTitles = Field(default_factory=TargetTitles)
+    require_title_match: bool = True
+    enforce_default_geography: bool = True
+    adjacent_minimum_preferred_hits: int = Field(default=1, ge=0, le=20)
     required_any: list[str] = Field(default_factory=list)
     preferred: list[str] = Field(default_factory=list)
     exclude: dict[str, list[str]] = Field(default_factory=dict)
@@ -119,4 +122,3 @@ def load_profile(path: str | Path) -> CareerProfile:
             "source_hash": hashlib.sha256(raw.encode()).hexdigest(),
         }
     )
-

@@ -61,3 +61,37 @@ def test_excluded_title_is_ineligible():
     assert not result.eligible
     assert result.score == 0
     assert "Account Executive" in result.concerns[0]
+
+
+def test_description_only_keyword_overlap_is_ineligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    job = make_job(
+        title="PR Director, APAC",
+        description_text="Executive communication, AI adoption, and enablement programs.",
+        locations=[JobLocation(label="Singapore", is_primary=True, is_remote=True)],
+    )
+
+    result = score_job(profile, job)
+
+    assert not result.eligible
+    assert result.score == 0
+
+
+def test_foreign_remote_role_is_ineligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    job = make_job(
+        title="Director, AI Enablement",
+        locations=[JobLocation(label="India - Remote", is_primary=True, is_remote=True)],
+    )
+
+    result = score_job(profile, job)
+
+    assert not result.eligible
+    assert "outside the configured US search" in result.concerns[0]
+
+
+def test_us_remote_role_remains_eligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(profile, make_job())
+
+    assert result.eligible
