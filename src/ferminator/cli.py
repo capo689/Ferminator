@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
@@ -16,6 +18,7 @@ from ferminator.ingestion import run_board_ingestion
 from ferminator.ledger import parse_master_ledger
 from ferminator.matching import score_job
 from ferminator.profiles import load_profile
+from ferminator.quality import evaluate_quality
 from ferminator.registry import load_registry
 from ferminator.repository import PostgresRepository
 
@@ -121,6 +124,39 @@ def registry_validate(path: Path) -> None:
     console.print(table)
 
 
+@cli.command("quality-eval")
+@click.option(
+    "--profile-path",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("profiles/adam-cagle.md"),
+)
+@click.option(
+    "--fixtures",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("tests/golden/adam-match-quality.yaml"),
+)
+@click.option("--minimum-accuracy", default=80.0, type=click.FloatRange(0, 100))
+def quality_eval(profile_path: Path, fixtures: Path, minimum_accuracy: float) -> None:
+    """Evaluate ranking against human-labelled good, review, and wrong jobs."""
+    report = evaluate_quality(load_profile(profile_path), fixtures)
+    table = Table("Case", "Expected", "Predicted", "Score", "Result")
+    for case in report.cases:
+        table.add_row(
+            case["name"],
+            case["expected"],
+            case["predicted"],
+            f"{case['score']:.1f}",
+            "[green]pass[/green]" if case["correct"] else "[red]fail[/red]",
+        )
+    console.print(table)
+    console.print(
+        f"Accuracy {report.accuracy:.1f}% · false positives {report.false_positives} · "
+        f"false negatives {report.false_negatives}"
+    )
+    if report.accuracy < minimum_accuracy or report.false_positives:
+        raise click.ClickException("Match-quality gate failed")
+
+
 @cli.command("scan")
 @click.option(
     "--registry",
@@ -145,42 +181,82 @@ def scan(registry_path: Path, provider: str | None, company: str | None) -> None
         raise click.ClickException("No enabled boards match the filters")
     repository = PostgresRepository(database_url)
     failed = False
+    succeeded = 0
+    errors: list[str] = []
+    scored_jobs = 0
+    scan_identity = (
+        f"{datetime.now(UTC).strftime('%Y%m%d%H')}:"
+        f"{provider or 'all'}:{company or 'all'}"
+    )
+    scan_key = hashlib.sha256(scan_identity.encode()).hexdigest()
+    scan_id: str | None = None
     try:
-        profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
-        profile_ids = {
-            profile.profile.slug: repository.sync_profile(
-                profile,
-                os.environ.get(profile.profile.email_env),
-            )
-            for profile in profiles
-            if profile.search.enabled
-        }
-        for board in boards:
-            try:
-                result = run_board_ingestion(board, repository)
-                console.print(
-                    f"[green]{board.company_name}[/green] "
-                    f"{result.fetched} fetched, {result.added} added, "
-                    f"{result.updated} updated, {result.removed} removed, "
-                    f"{result.reactivated} reactivated"
+        with repository.scan_lock():
+            scan_id = repository.start_scan(scan_key, len(boards))
+            profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
+            profile_ids = {
+                profile.profile.slug: repository.sync_profile(
+                    profile,
+                    os.environ.get(profile.profile.email_env),
                 )
-            except Exception as exc:
-                failed = True
-                console.print(f"[red]{board.company_name}: {exc}[/red]")
-        for career_profile in profiles:
-            if career_profile.profile.slug not in profile_ids:
-                continue
-            profile_id = profile_ids[career_profile.profile.slug]
-            profile_version = repository.profile_version(profile_id)
-            repository.store_matches(
-                profile_id=profile_id,
-                profile_version=profile_version,
-                matches=[
-                    (job_id, revision_id, score_job(career_profile, job))
-                    for job_id, revision_id, job in repository.active_jobs()
-                ],
+                for profile in profiles
+                if profile.search.enabled
+            }
+            for board in boards:
+                try:
+                    result = run_board_ingestion(board, repository)
+                    succeeded += 1
+                    console.print(
+                        f"[green]{board.company_name}[/green] "
+                        f"{result.fetched} fetched, {result.added} added, "
+                        f"{result.updated} updated, {result.removed} removed, "
+                        f"{result.reactivated} reactivated"
+                    )
+                except Exception as exc:
+                    failed = True
+                    error_code = getattr(exc, "code", type(exc).__name__)
+                    errors.append(str(error_code))
+                    console.print(
+                        f"[red]{board.company_name}: provider failed "
+                        f"({error_code})[/red]"
+                    )
+            active_jobs = repository.active_jobs()
+            scored_jobs = len(active_jobs)
+            for career_profile in profiles:
+                if career_profile.profile.slug not in profile_ids:
+                    continue
+                profile_id = profile_ids[career_profile.profile.slug]
+                profile_version = repository.profile_version(profile_id)
+                repository.store_matches(
+                    profile_id=profile_id,
+                    profile_version=profile_version,
+                    matches=[
+                        (job_id, revision_id, score_job(career_profile, job))
+                        for job_id, revision_id, job in active_jobs
+                    ],
+                )
+                console.print(
+                    f"[green]{career_profile.profile.display_name} matches refreshed[/green]"
+                )
+            repository.finish_scan(
+                scan_id,
+                succeeded=succeeded,
+                failed=len(boards) - succeeded,
+                scored_jobs=scored_jobs,
+                error_codes=errors,
             )
-            console.print(f"[green]{career_profile.profile.display_name} matches refreshed[/green]")
+            scan_id = None
+    except Exception as exc:
+        if scan_id is not None:
+            errors.append(type(exc).__name__)
+            repository.finish_scan(
+                scan_id,
+                succeeded=succeeded,
+                failed=max(1, len(boards) - succeeded),
+                scored_jobs=scored_jobs,
+                error_codes=errors,
+            )
+        raise
     finally:
         repository.close()
     if failed:

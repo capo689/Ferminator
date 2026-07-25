@@ -1,0 +1,803 @@
+{
+  "_comment": "Evidence groups for the first FINISHER 1.1.0 baseline. Applied mechanically to state.json; every applicable check is represented exactly once.",
+  "assessments": [
+    {
+      "ids": ["AUTH-01"],
+      "score": 1,
+      "evidence": "Custom HTTP Basic shared-password middleware is implemented in src/ferminator/web.py; no managed or framework authentication provider establishes user identity.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTH-02"],
+      "score": 3,
+      "evidence": "The default-deny alpha gate wraps every route except health, readiness, and static assets. A live unauthenticated request to / returned 401.",
+      "artifact": "Live curl evidence recorded in finisher/evidence/2026-07-25-baseline.md; src/ferminator/web.py::alpha_access_gate",
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTHZ-01", "AUTHZ-02"],
+      "score": 1,
+      "evidence": "Queries are scoped to the configured profile slug and ownership-aware RLS policies exist, but the web application uses a privileged server database connection and no hosted User A/User B isolation drill exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTHZ-04"],
+      "score": 2,
+      "evidence": "Ownership and RLS intent are documented, but the documentation does not reconcile shared-password application access with the auth.uid()-based database policies.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTH-03", "AUTH-04", "AUTH-05", "AUTH-06", "AUTH-10"],
+      "score": 0,
+      "evidence": "The shared HTTP Basic gate has no server-side session, logout invalidation, cookie controls, reset/verification tokens, authentication throttling, or revocable token lifecycle.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTH-07"],
+      "score": 1,
+      "evidence": "A deployment password is supplied through Render, but no length, breach-list, or credential policy is enforced in code.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTH-09"],
+      "score": 0,
+      "evidence": "No OAuth/OIDC flow exists in the current application.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["AUTH-11"],
+      "score": 1,
+      "evidence": "Cascade deletion behavior is documented and represented in migrations, but no user-facing access/export/deletion workflow or end-to-end deletion artifact exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SEC-01"],
+      "score": 3,
+      "evidence": "The browser receives server-rendered HTML and static assets only; database and SMTP configuration remain server-side. Repository scanning found no known secret prefixes in client assets.",
+      "artifact": "rg secret-prefix scan documented in finisher/evidence/2026-07-25-baseline.md; src/ferminator/settings.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["SEC-02"],
+      "score": 2,
+      "evidence": "GitHub secret scanning and push protection are enabled, no .env history was found, and a working-tree prefix scan was clean. A dedicated full-history gitleaks/trufflehog artifact and rotation log are absent.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SEC-03"],
+      "score": 2,
+      "evidence": "Production database and password values are stored as Render/GitHub secrets and .env.example contains names only. There is no verified staging secret boundary.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SEC-04", "SEC-05"],
+      "score": 0,
+      "evidence": "GitHub Actions uses long-lived repository secrets, and the application database credential is a privileged server connection rather than a demonstrated least-privilege per-service role.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SEC-06"],
+      "score": 2,
+      "evidence": "Application logs use a controlled structured field set and do not log headers or request bodies. No centralized recursive redaction control or payload audit exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SEC-07"],
+      "score": 1,
+      "evidence": "docs/RUNBOOK.md describes rotation order, but no dated rehearsal or dual-credential rollover artifact exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-01"],
+      "score": 1,
+      "evidence": "Supabase is the production datastore and the runbook assumes provider backups, but backup configuration/retention was not demonstrated in this run.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-02"],
+      "score": 0,
+      "evidence": "No dated restore into a scratch project, row-count verification, or measured RTO/RPO artifact exists under docs/recovery/.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-03", "ENV-01"],
+      "score": 0,
+      "evidence": "Production is dedicated, but there is no separate hosted staging service/database. Local configuration can be pointed directly at the production connection string.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-04"],
+      "score": 0,
+      "evidence": "Owner and connected development tools retain standing production database write capability; no read-only default or time-boxed break-glass process was demonstrated.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-05"],
+      "score": 3,
+      "evidence": "All observed schema changes are versioned Supabase migration files, and hosted Postgres logs show their application through migration history.",
+      "artifact": "supabase/migrations/; tests/test_ferminator_migration.py; Supabase postgres logs reviewed 2026-07-25",
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-06"],
+      "score": 0,
+      "evidence": "CI contains no migration lock/destructive-operation linter such as Squawk or Atlas.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-07"],
+      "score": 2,
+      "evidence": "The runbook mandates roll-forward repair and prohibits destructive down migrations, but N-1 compatibility is not tested.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-08"],
+      "score": 3,
+      "evidence": "Migrations include foreign keys, uniqueness, checks, ownership indexes, and search indexes. Supabase security advisors returned zero findings; performance advisors returned informational unused-index notices only.",
+      "artifact": "supabase/migrations/20260723052001_initial_ferminator_schema.sql; Supabase advisors reviewed 2026-07-25",
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-10"],
+      "score": 2,
+      "evidence": "docs/SECURITY.md defines retention by data class, including profile deletion cascades and operational-data windows. No automated purge job was found.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-11"],
+      "score": 1,
+      "evidence": "Managed datastore encryption is assumed, but no field-level protection decision or evidence exists for profile email and compiled career evidence.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DATA-12"],
+      "score": 3,
+      "evidence": "Ingestion and notification side effects use unique idempotency keys and regression tests cover repeat execution.",
+      "artifact": "src/ferminator/ingestion.py; src/ferminator/digest.py; tests/test_ferminator_ingestion.py; tests/test_ferminator_digest.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["API-01"],
+      "score": 3,
+      "evidence": "State changes derive the active profile server-side, validate the requested state in the repository, and do not accept owner, role, or profile identity from the browser.",
+      "artifact": "src/ferminator/web.py::update_action; tests/test_ferminator_repository.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["API-02"],
+      "score": 2,
+      "evidence": "Pydantic validates profiles and normalized ATS records, FastAPI bounds query values, and repository methods parameterize inputs. There is no explicit complete trust-boundary inventory.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["API-03"],
+      "score": 3,
+      "evidence": "Unhandled exceptions are logged with a request ID and return generic HTML without internals; live health and readiness responses expose no secrets.",
+      "artifact": "src/ferminator/web.py::unhandled_exception; tests/test_ferminator_observability.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["API-04"],
+      "score": 3,
+      "evidence": "ATS adapters use a single bounded HTTP client with explicit timeouts, response caps, retry/backoff behavior, and typed failures; adapter tests exercise failure responses.",
+      "artifact": "src/ferminator/adapters/base.py; tests/test_ferminator_adapters.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["API-05"],
+      "score": 3,
+      "evidence": "All six ATS families implement the common adapter boundary and registry.",
+      "artifact": "src/ferminator/adapters/; tests/test_ferminator_adapters.py; tests/test_ferminator_registry.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["API-06"],
+      "score": 3,
+      "evidence": "Ingestion and digest work run in a bounded GitHub Actions job, not an HTTP request. The live scheduled scan completed successfully.",
+      "artifact": ".github/workflows/scan.yml; GitHub Actions run 30163735000",
+      "enforcement": null
+    },
+    {
+      "ids": ["API-07"],
+      "score": 2,
+      "evidence": "Scheduled jobs have a timeout, serialized concurrency, workflow history, and persisted ingestion records. No dead-man alert or phone notification was demonstrated.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["API-08"],
+      "score": 2,
+      "evidence": "FastAPI emits an OpenAPI contract for JSON routes, but no contract-conformance or breaking-change gate exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["API-09"],
+      "score": 3,
+      "evidence": "Web queries clamp scores and repository reads use fixed maximum limits; sorting is static and not constructed from user input.",
+      "artifact": "src/ferminator/web.py::discover; src/ferminator/repository.py::web_matches; tests/test_ferminator_web.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["FE-01"],
+      "score": 1,
+      "evidence": "Server-rendered pages contain success and several empty states, but explicit recoverable loading and dependency-error states are incomplete.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["FE-02"],
+      "score": 1,
+      "evidence": "A global server exception page exists, but independent page sections do not have isolated error boundaries or retry controls.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["FE-03"],
+      "score": 1,
+      "evidence": "Design artifacts include desktop and mobile screens and an older audit claims viewport testing, but no dated real-device/Safari/throttled-network matrix is reproducible.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["FE-04"],
+      "score": 2,
+      "evidence": "Query parameters are bounded and mutation choices are allowlisted; the complete hostile-input/manual-device script has not been executed.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["FE-05", "FE-06", "FE-07", "FE-08"],
+      "score": 0,
+      "evidence": "No automated accessibility artifact, keyboard/screen-reader report, real-user Core Web Vitals, or five-user unaided usability study exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-01"],
+      "score": 3,
+      "evidence": "Database calls use parameters, identifiers and action states are allowlisted, and repository scanning found no shell execution or string-built query sink.",
+      "artifact": "src/ferminator/repository.py; rg injection-pattern scan recorded in finisher/evidence/2026-07-25-baseline.md",
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-03"],
+      "score": 2,
+      "evidence": "Live responses contain CSP, nosniff, referrer, and permissions headers. HSTS, COOP/CORP, and X-Frame-Options are absent, CSP permits inline styles, and 401 responses bypass the header middleware.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-04"],
+      "score": 3,
+      "evidence": "The server-rendered application emits no permissive CORS headers and browser API access is same-origin only.",
+      "artifact": "Live curl response headers recorded in finisher/evidence/2026-07-25-baseline.md",
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-05"],
+      "score": 2,
+      "evidence": "The sole mutation verifies Origin when present, but requests without Origin are accepted and there is no explicit CSRF token or Sec-Fetch-Site enforcement.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-06"],
+      "score": 1,
+      "evidence": "Trivy filesystem and image scans block high/critical findings, but no source-code SAST engine runs on pull requests.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-07"],
+      "score": 3,
+      "evidence": "Users cannot supply fetch destinations; enabled boards and provider URL shapes come from the versioned curated registry and adapter implementations.",
+      "artifact": "config/companies.yaml; src/ferminator/adapters/; tests/test_ferminator_registry.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-08", "APPSEC-09"],
+      "score": 0,
+      "evidence": "No staging DAST report or hosted User A/User B authorization-tampering artifact exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-10"],
+      "score": 2,
+      "evidence": "docs/SECURITY.md identifies classifications, trust boundaries, threats, and mitigations, but lacks a maintained asset/threat/owner detection matrix.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["APPSEC-11"],
+      "score": 0,
+      "evidence": "No /.well-known/security.txt or monitored vulnerability-disclosure contact was found.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-01"],
+      "score": 1,
+      "evidence": "Python dependencies are hash-locked, but package build/install hooks are not independently disabled or allowlisted; dependency installation executes package build machinery.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-02"],
+      "score": 4,
+      "evidence": "requirements.lock contains hashes and both Docker and scheduled CI use --require-hashes without dependency resolution.",
+      "artifact": "requirements.lock; Dockerfile; .github/workflows/scan.yml",
+      "enforcement": "GitHub required status checks test (3.11), test (3.12), test (3.13), and scan on the Protect main ruleset"
+    },
+    {
+      "ids": ["SUP-03"],
+      "score": 0,
+      "evidence": "No minimum package age or dependency cooldown configuration was found.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-04"],
+      "score": 4,
+      "evidence": "Trivy dependency/image scans run in CI, Dependabot security updates are enabled, and required scan status is enforced before main updates.",
+      "artifact": ".github/workflows/ci.yml; .github/dependabot.yml; GitHub Actions run 30162960368",
+      "enforcement": "GitHub Protect main ruleset requires the scan status check; Dependabot security updates are enabled"
+    },
+    {
+      "ids": ["SUP-05"],
+      "score": 2,
+      "evidence": "The dependency set consists of established, resolvable packages and installed successfully from declared constraints; no per-dependency provenance review record exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-06"],
+      "score": 0,
+      "evidence": "GitHub Actions use mutable version tags such as actions/checkout@v4 rather than full commit SHAs.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-07"],
+      "score": 1,
+      "evidence": "Workflows do not interpolate obvious untrusted event text, but they omit an explicit least-privilege permissions floor.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-08"],
+      "score": 3,
+      "evidence": "The successful CI scan generated and uploaded a CycloneDX SBOM artifact.",
+      "artifact": ".github/workflows/ci.yml::Generate CycloneDX SBOM; GitHub Actions run 30162960368",
+      "enforcement": null
+    },
+    {
+      "ids": ["SUP-09"],
+      "score": 0,
+      "evidence": "No signed build provenance or attestation is generated for deployed artifacts.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["CI-01"],
+      "score": 4,
+      "evidence": "Ferminator is in a public GitHub repository. The active main ruleset blocks deletion and force pushes, requires pull requests, linear history, and strict status checks.",
+      "artifact": "https://github.com/capo689/Ferminator; GitHub ruleset Protect main reviewed 2026-07-25",
+      "enforcement": "GitHub Protect main ruleset 19735824"
+    },
+    {
+      "ids": ["CI-02"],
+      "score": 4,
+      "evidence": "Pull requests run lint, 131 tests with coverage on Python 3.11/3.12/3.13, image build, Trivy scans, and SBOM generation; all required statuses passed for the deployed source tree.",
+      "artifact": ".github/workflows/ci.yml; GitHub Actions run 30162960368",
+      "enforcement": "GitHub Protect main ruleset requires test (3.11), test (3.12), test (3.13), and scan"
+    },
+    {
+      "ids": ["CI-04"],
+      "score": 0,
+      "evidence": "No CODEOWNERS file exists and the main ruleset requires zero approving reviews.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["CI-05"],
+      "score": 1,
+      "evidence": "Render exposes rollback controls and the runbook describes rollback, but no dated deploy/rollback/recovery drill has been recorded.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["CI-06"],
+      "score": 0,
+      "evidence": "No Render preview environment or production-shaped staging deployment is configured.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["CI-07"],
+      "score": 3,
+      "evidence": "Render deploy history maps each successful deployment to a GitHub commit and shows small automatic deployments.",
+      "artifact": "https://dashboard.render.com/web/srv-d9i4jofavr4c73a516mg/events",
+      "enforcement": null
+    },
+    {
+      "ids": ["CI-08"],
+      "score": 0,
+      "evidence": "No feature-flag or runtime kill-switch mechanism was found for risky features.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["CI-09"],
+      "score": 1,
+      "evidence": "Health checks run after deploys, but no defined watch window or automated error/latency/product-funnel rollback trigger exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["ENV-02"],
+      "score": 3,
+      "evidence": "Production refuses demo mode, auth-off, missing shared password, and missing live database configuration; tests cover the fail-fast behavior.",
+      "artifact": "src/ferminator/settings.py::validate_runtime; tests/test_ferminator_settings.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["ENV-03"],
+      "score": 3,
+      "evidence": "Web infrastructure is declared in render.yaml, the image is reproducible from a digest and hash lock, and database changes are migrations.",
+      "artifact": "render.yaml; Dockerfile; supabase/migrations/",
+      "enforcement": null
+    },
+    {
+      "ids": ["ENV-04"],
+      "score": 2,
+      "evidence": "Render/Cloudflare provides HTTPS and automated certificates. Live responses lacked HSTS, and no independent certificate-expiry monitor was demonstrated.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["ENV-05"],
+      "score": 2,
+      "evidence": "The scan job has a 30-minute hard timeout and adapter calls are bounded. Platform limits and endpoint p95 values are not documented.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["ENV-06"],
+      "score": 0,
+      "evidence": "The product uses a Render subdomain; no owned domain, registrar inventory, lock, MFA, or expiry-monitor evidence applies to the current deployment.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["OBS-01"],
+      "score": 0,
+      "evidence": "No dedicated production error-tracking service is installed for backend or frontend.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["OBS-02"],
+      "score": 2,
+      "evidence": "Live application logs are JSON and healthy requests carry request IDs. Authentication failures bypass structured request logging and return an empty X-Request-ID.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["OBS-03"],
+      "score": 2,
+      "evidence": "The logger emits a controlled field set and retention is documented. There is no automated redaction test or verified Render retention setting.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["OBS-04"],
+      "score": 0,
+      "evidence": "No tested error-rate, latency, failed-scan, backup, or uptime alert reaching a human was demonstrated.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["OBS-05"],
+      "score": 1,
+      "evidence": "Render polls /healthz and /readyz verifies Postgres, but no external authenticated synthetic journey performs the core user action.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["OBS-06", "OBS-07"],
+      "score": 0,
+      "evidence": "No distributed tracing or product-funnel analytics instrumentation exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["REL-01"],
+      "score": 0,
+      "evidence": "No written, measured RTO/RPO pair is tied to verified backup configuration.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["REL-02"],
+      "score": 2,
+      "evidence": "docs/RUNBOOK.md covers app, adapter, digest, rollback, restore, rotation, and severity, but several procedures lack exact provider commands and measured results.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["REL-03"],
+      "score": 0,
+      "evidence": "No explicit on-call owner, notification route, response window, or written solo-maintainer coverage decision exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["REL-04"],
+      "score": 2,
+      "evidence": "Security and runbook documents define containment, preservation, severity, and notification intent. Applicable clocks, decision-maker, and counsel are not named.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["REL-05", "REL-06"],
+      "score": 0,
+      "evidence": "No incident post-mortem process/artifact or customer status communication channel was found.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["REL-07"],
+      "score": 1,
+      "evidence": "Adapter disablement and degraded operation are described, but black-hole/429 failure injection and alert behavior have not been verified.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PERF-01"],
+      "score": 3,
+      "evidence": "Production connects through the Supabase pooler and the web process caps its pool at two connections, appropriate to the single free Render instance.",
+      "artifact": "src/ferminator/web.py::_repository; live Render startup log showing aws-0-us-west-1.pooler.supabase.com",
+      "enforcement": null
+    },
+    {
+      "ids": ["PERF-02"],
+      "score": 1,
+      "evidence": "Indexes exist, but Supabase reported numerous unused indexes and a hosted job_matches upsert waited roughly 109 seconds on a ShareLock; the bottleneck has not been resolved or regression-tested.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PERF-03"],
+      "score": 2,
+      "evidence": "Static assets are served through Render/Cloudflare, but immutable content-hash cache headers and a cache-budget artifact were not verified.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PERF-04"],
+      "score": 3,
+      "evidence": "Live private responses are dynamic and unauthenticated dashboard responses return 401; no shared application cache stores profile-scoped pages.",
+      "artifact": "curl -I https://ferminator-web.onrender.com/",
+      "enforcement": null
+    },
+    {
+      "ids": ["PERF-05", "PERF-06"],
+      "score": 0,
+      "evidence": "No staging load test, breaking-point report, or explicit expensive-work cache/invalidation design exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PERF-07"],
+      "score": 1,
+      "evidence": "The five-user alpha boundary is documented, but the next three measured bottlenecks and responses are not.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["COST-03"],
+      "score": 0,
+      "evidence": "Public health/readiness/static endpoints and the authentication surface have no edge or application rate limits.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["COST-05"],
+      "score": 0,
+      "evidence": "No documented scraping, credential-guessing, or resource-exhaustion abuse test has been run.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["COST-07"],
+      "score": 1,
+      "evidence": "Free-tier boundaries and cost surfaces are listed, but no 90-day per-user forecast or provider budget-alert evidence exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["LEG-01"],
+      "score": 0,
+      "evidence": "No published privacy policy or terms of service was found in the application or repository.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["LEG-02"],
+      "score": 2,
+      "evidence": "docs/SECURITY.md classifies public/private/secret data and describes storage and retention, but it is not a complete element-by-vendor processor inventory.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["LEG-03"],
+      "score": 1,
+      "evidence": "Database cascades can remove profile-owned records, but access, correction, export, and complete deletion have not been exercised end to end.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["LEG-05", "LEG-09"],
+      "score": 0,
+      "evidence": "No documented US-state privacy threshold/GPC assessment or market-specific accessibility-obligation assessment exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-01"],
+      "score": 0,
+      "evidence": "Automated tests do not run an anonymous/other-user authorization matrix across every route; current web tests run with auth disabled.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-02"],
+      "score": 1,
+      "evidence": "Route-level TestClient tests render core pages, but no browser end-to-end suite performs the hosted login, discover, save, and pipeline journey.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-04"],
+      "score": 2,
+      "evidence": "131 tests contain substantive assertions and combined coverage is 67.88%, but CI enforces only a 50% global floor rather than changed-line coverage or mutation quality.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-05"],
+      "score": 0,
+      "evidence": "No Schemathesis or equivalent OpenAPI fuzzing artifact exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-06"],
+      "score": 1,
+      "evidence": "Migration text and repository unit tests exist, but CI does not rebuild and exercise the application against a real ephemeral Postgres database with RLS.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-07"],
+      "score": 2,
+      "evidence": "The local and hosted suites pass without configured retries or ignored failures; no formal flake quarantine ownership policy exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["TEST-08"],
+      "score": 1,
+      "evidence": "Security-critical code received this AI-assisted audit, but no independent named human review or CODEOWNERS approval exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DOC-01"],
+      "score": 2,
+      "evidence": "README explains purpose, setup, run, profile validation, tests, and build, but omits a complete environment-variable reference and executable deploy/rollback setup from zero.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DOC-02"],
+      "score": 2,
+      "evidence": "Architecture and data-model documents include topology and ownership, but no complete vendor map or roles/resources/actions permission matrix exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DOC-03"],
+      "score": 2,
+      "evidence": "The runbook describes deploy rollback and restore sequencing, but it lacks exact commands/account paths and has not been executed by a second operator.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["DOC-05"],
+      "score": 2,
+      "evidence": "README, ATS matrix, architecture decisions, and release audit identify V2 deferrals and alpha limitations; some hosted gaps are now stale.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PROD-01"],
+      "score": 2,
+      "evidence": "README clearly names the private career-intelligence user and job-discovery problem, but no single current success metric/value is part of that statement.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PROD-02"],
+      "score": 1,
+      "evidence": "docs/FINISHER_BASELINE.md lists intended outcome metrics but records them as unknown; no measured pre-change product baseline exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["PROD-03", "PROD-04"],
+      "score": 0,
+      "evidence": "No activation/retention/application outcome telemetry or monitored in-product support/feedback path was found.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["EMAIL-01"],
+      "score": 0,
+      "evidence": "The latest successful scheduled workflow skipped email delivery; no sending domain, SPF, DKIM, or enforcing DMARC evidence exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["EMAIL-02"],
+      "score": 3,
+      "evidence": "Email headers are constructed with EmailMessage, subject input is controlled by the application, HTML content is escaped, and digest tests cover composition.",
+      "artifact": "src/ferminator/digest.py; tests/test_ferminator_digest.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["EMAIL-03"],
+      "score": 3,
+      "evidence": "No HTTP route can trigger email. Scheduled profile digests are bounded and claimed through a unique per-profile/day idempotency key.",
+      "artifact": ".github/workflows/scan.yml; src/ferminator/digest.py; tests/test_ferminator_digest.py",
+      "enforcement": null
+    },
+    {
+      "ids": ["EMAIL-04"],
+      "score": 0,
+      "evidence": "No configured delivery provider, bounce/complaint webhook, suppression processing, or delivery alert exists.",
+      "artifact": null,
+      "enforcement": null
+    },
+    {
+      "ids": ["EMAIL-05"],
+      "score": 2,
+      "evidence": "The product emits transactional job digests only and contains no marketing campaign surface. No formal classification/guard or unsubscribe workflow exists.",
+      "artifact": null,
+      "enforcement": null
+    }
+  ]
+}

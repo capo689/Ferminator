@@ -1,5 +1,9 @@
+import httpx
+import pytest
+
 from ferminator.adapters.ashby import AshbyAdapter
 from ferminator.adapters.bamboohr import BambooHRAdapter
+from ferminator.adapters.base import AdapterError, BaseAdapter
 from ferminator.adapters.greenhouse import GreenhouseAdapter
 from ferminator.adapters.lever import LeverAdapter
 from ferminator.adapters.smartrecruiters import SmartRecruitersAdapter
@@ -15,6 +19,45 @@ def board(provider, key="example"):
         board_key=key,
         source_url="https://example.com/careers",
     )
+
+
+class FixtureAdapter(BaseAdapter):
+    provider = ATSProvider.GREENHOUSE
+    max_attempts = 1
+
+    def fetch_jobs(self, board):
+        return []
+
+
+def test_adapter_rejects_successful_non_json_response():
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda _request: httpx.Response(
+                200,
+                text="<html>maintenance</html>",
+                headers={"content-type": "text/html"},
+            )
+        )
+    )
+    adapter = FixtureAdapter(client)
+
+    with pytest.raises(AdapterError) as error:
+        adapter.get_json("https://example.com/jobs")
+
+    assert error.value.code == "unexpected_content_type"
+
+
+def test_adapter_error_does_not_expose_provider_url():
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(503))
+    )
+    adapter = FixtureAdapter(client)
+
+    with pytest.raises(AdapterError) as error:
+        adapter.get_json("https://example.com/private-board-token")
+
+    assert error.value.code == "provider_http_503"
+    assert "private-board-token" not in str(error.value)
 
 
 def test_greenhouse_normalization():

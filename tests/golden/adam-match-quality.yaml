@@ -1,0 +1,133 @@
+cases:
+  - name: ideal AI enablement leadership
+    expected: great
+    job:
+      provider: greenhouse
+      board_key: ideal
+      source_job_id: "1"
+      company_slug: ideal-ai
+      company_name: Ideal AI
+      title: Director, AI Enablement
+      description_text: >-
+        Lead enterprise AI adoption, enablement programs, workflow design,
+        executive communication, knowledge systems, guardrails, and AI agents.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote — United States", country_code: US, is_remote: true}]
+      compensation: {minimum: 180000, maximum: 220000, currency: USD, interval: year}
+      job_url: https://example.com/jobs/1
+  - name: strong AI content operations role
+    expected: great
+    job:
+      provider: lever
+      board_key: ideal
+      source_job_id: "2"
+      company_slug: ideal-ai
+      company_name: Ideal AI
+      title: Senior Manager, AI Content Operations
+      description_text: >-
+        Own brand voice, content systems, technical writing, workflow automation,
+        human approval, APIs, and cross-functional operations.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote - US", country_code: US, is_remote: true}]
+      compensation: {minimum: 150000, maximum: 190000, currency: USD, interval: year}
+      job_url: https://example.com/jobs/2
+  - name: plausible technical content adjacency
+    expected: maybe
+    job:
+      provider: ashby
+      board_key: plausible
+      source_job_id: "3"
+      company_slug: plausible
+      company_name: Plausible
+      title: Senior Technical Content Lead
+      description_text: Build technical writing and AI search programs for an API platform.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: Remote, is_remote: true}]
+      job_url: https://example.com/jobs/3
+  - name: plausible knowledge management adjacency
+    expected: maybe
+    job:
+      provider: greenhouse
+      board_key: plausible
+      source_job_id: "4"
+      company_slug: plausible
+      company_name: Plausible
+      title: Knowledge Management Lead
+      description_text: Build knowledge systems and workflow design across operations.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote — United States", country_code: US, is_remote: true}]
+      job_url: https://example.com/jobs/4
+  - name: sales enablement false friend
+    expected: wrong
+    job:
+      provider: lever
+      board_key: reject
+      source_job_id: "5"
+      company_slug: reject
+      company_name: Reject
+      title: Director, Sales Enablement
+      description_text: Lead enablement programs and executive communication.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote - US", country_code: US, is_remote: true}]
+      job_url: https://example.com/jobs/5
+  - name: software engineering keyword stuffing
+    expected: wrong
+    job:
+      provider: ashby
+      board_key: reject
+      source_job_id: "6"
+      company_slug: reject
+      company_name: Reject
+      title: Senior Software Engineer, AI Enablement Platform
+      description_text: AI adoption workflow design content systems technical writing.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote - US", country_code: US, is_remote: true}]
+      job_url: https://example.com/jobs/6
+  - name: reordered applied AI engineering title
+    expected: wrong
+    job:
+      provider: ashby
+      board_key: reject
+      source_job_id: "6b"
+      company_slug: reject
+      company_name: Reject
+      title: Engineer, Applied AI
+      description_text: Build production software and distributed model infrastructure.
+      employment_type: FullTime
+      workplace_type: remote
+      locations: [{label: NAMER, is_remote: true}]
+      job_url: https://example.com/jobs/6b
+  - name: foreign remote role
+    expected: wrong
+    job:
+      provider: workable
+      board_key: reject
+      source_job_id: "7"
+      company_slug: reject
+      company_name: Reject
+      title: Director, AI Operations
+      description_text: Lead enterprise AI adoption and workflow design.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote — London, UK", country_code: GB, is_remote: true}]
+      job_url: https://example.com/jobs/7
+  - name: quota carrying AI solutions sales
+    expected: wrong
+    job:
+      provider: smartrecruiters
+      board_key: reject
+      source_job_id: "8"
+      company_slug: reject
+      company_name: Reject
+      title: Director, AI Solutions
+      description_text: Quota-carrying seller responsible for commission and pipeline.
+      employment_type: Full-time
+      workplace_type: remote
+      locations: [{label: "Remote - US", country_code: US, is_remote: true}]
+      job_url: https://example.com/jobs/8

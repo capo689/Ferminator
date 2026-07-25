@@ -9,6 +9,9 @@ concurrency:
   group: ferminator-scan
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -36,6 +39,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
         run: ferminator scan
+
+      - name: Publish scan summary
+        if: always()
+        run: |
+          echo "## Ferminator scheduled scan" >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Send ranked digests
         if: ${{ env.SMTP_HOST != '' }}
