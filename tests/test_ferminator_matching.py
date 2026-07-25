@@ -95,3 +95,21 @@ def test_us_remote_role_remains_eligible():
     result = score_job(profile, make_job())
 
     assert result.eligible
+
+
+def test_profile_backed_technical_evidence_earns_career_credit():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    job = make_job(
+        title="Senior Manager, Marketing AI Operations",
+        description_text=(
+            "Build governed marketing systems using AI agents, RAG, APIs, "
+            "and human approval."
+        ),
+    )
+
+    result = score_job(profile, job)
+
+    assert result.eligible
+    assert result.score >= profile.notifications.minimum_score
+    assert result.component_scores["career_evidence"] >= 15
+    assert "Career evidence: AI agents" in result.matched_evidence

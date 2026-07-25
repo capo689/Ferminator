@@ -196,13 +196,15 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     components["skills"] = weights.get("skills", 0) * preferred_factor
     evidence.extend(f"Preferred evidence: {item}" for item in preferred_hits)
 
-    evidence_terms = [
-        line[2:].strip()
-        for line in profile.markdown_body.splitlines()
-        if line.startswith("- ") and "TODO:" not in line
+    # Preferred concepts only earn career-evidence credit when the profile's
+    # factual narrative also contains them. Matching full resume bullets
+    # verbatim made this component effectively unreachable.
+    career_hits = [
+        phrase
+        for phrase in preferred_hits
+        if _contains(profile.evidence_text, phrase)
     ]
-    career_hits = _matched(text, evidence_terms)
-    evidence_factor = min(1.0, len(career_hits) / max(1, min(4, len(evidence_terms))))
+    evidence_factor = min(1.0, len(career_hits) / 4)
     components["career_evidence"] = weights.get("career_evidence", 0) * evidence_factor
     evidence.extend(f"Career evidence: {item}" for item in career_hits[:5])
 
