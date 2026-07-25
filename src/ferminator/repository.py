@@ -13,6 +13,7 @@ from psycopg_pool import ConnectionPool
 
 from ferminator.domain import BoardRef, NormalizedJob
 from ferminator.ingestion import IngestionResult, LifecyclePlan
+from ferminator.ledger import ParsedLedger, job_fingerprint, normalize_job_part
 from ferminator.matching import MatchResult
 from ferminator.profiles import CareerProfile
 
@@ -168,6 +169,18 @@ class PostgresRepository:
                 join public.jobs j on j.id = m.job_id
                 where m.profile_id = %s and m.eligible and j.active
                   and m.score >= %s
+                  and not exists (
+                    select 1 from public.job_history h
+                    where h.profile_id = m.profile_id
+                      and (
+                        h.source_job_key = j.source_key
+                        or (
+                        h.fingerprint = public.normalize_job_part(j.company_name)
+                          || '::' || public.normalize_job_part(j.title)
+                          and (h.permanent or h.suppress_until > now())
+                        )
+                      )
+                  )
                   and m.profile_version = (
                     select profile_version from public.profiles where id = %s
                   )
@@ -184,6 +197,7 @@ class PostgresRepository:
         *,
         minimum_score: float = 0,
         limit: int = 500,
+        include_suppressed: bool = False,
     ) -> list[dict]:
         """Return current, eligible matches shaped for the server-rendered UI."""
         with self.connection() as conn:
@@ -209,10 +223,22 @@ class PostgresRepository:
                 where p.slug = %s and m.eligible and m.score >= %s
                   and m.profile_version = p.profile_version
                   and m.job_revision_id = j.current_revision_id
+                  and (%s or not exists (
+                    select 1 from public.job_history h
+                    where h.profile_id = p.id
+                      and (
+                        h.source_job_key = j.source_key
+                        or (
+                          h.fingerprint = public.normalize_job_part(j.company_name)
+                            || '::' || public.normalize_job_part(j.title)
+                          and (h.permanent or h.suppress_until > now())
+                        )
+                      )
+                  ))
                 order by m.score desc, j.first_seen_at desc
                 limit %s
                 """,
-                (profile_slug, minimum_score, limit),
+                (profile_slug, minimum_score, include_suppressed, limit),
             ).fetchall()
         now = datetime.now(UTC)
         result = []
@@ -252,7 +278,10 @@ class PostgresRepository:
         return result
 
     def pipeline(self, profile_slug: str) -> dict[str, list[dict]]:
-        matches = {item["id"]: item for item in self.web_matches(profile_slug)}
+        matches = {
+            item["id"]: item
+            for item in self.web_matches(profile_slug, include_suppressed=True)
+        }
         stage_names = ("Considering", "Preparing", "Applied", "Interviewing", "Offer")
         stages = {name: [] for name in stage_names}
         with self.connection() as conn:
@@ -322,6 +351,56 @@ class PostgresRepository:
             ).fetchone()
             if row is None:
                 raise LookupError("Profile or job not found")
+            if state == "applied":
+                job = conn.execute(
+                    """
+                    select company_name, title, source_key
+                    from public.jobs where id = %s
+                    """,
+                    (row["job_id"],),
+                ).fetchone()
+                fingerprint = job_fingerprint(job["company_name"], job["title"])
+                conn.execute(
+                    """
+                    update public.job_actions
+                    set applied_at = coalesce(applied_at, now())
+                    where id = %s
+                    """,
+                    (row["id"],),
+                )
+                conn.execute(
+                    """
+                    insert into public.job_history (
+                      profile_id, job_id, company_name, title, normalized_company,
+                      normalized_title, fingerprint, category, status, source,
+                      source_job_key, first_recorded_at, applied_at, suppress_until
+                    )
+                    values (
+                      %s, %s, %s, %s, %s, %s, %s, 'Applied', 'Applied',
+                      'dashboard', %s, now(), now(), now() + interval '183 days'
+                    )
+                    on conflict (profile_id, fingerprint) do update set
+                      job_id = excluded.job_id,
+                      category = 'Applied',
+                      status = 'Applied',
+                      source_job_key = excluded.source_job_key,
+                      applied_at = coalesce(job_history.applied_at, excluded.applied_at),
+                      suppress_until = greatest(
+                        job_history.suppress_until, excluded.suppress_until
+                      ),
+                      updated_at = now()
+                    """,
+                    (
+                        row["profile_id"],
+                        row["job_id"],
+                        job["company_name"],
+                        job["title"],
+                        normalize_job_part(job["company_name"]),
+                        normalize_job_part(job["title"]),
+                        fingerprint,
+                        job["source_key"],
+                    ),
+                )
             conn.execute(
                 """
                 insert into public.action_events (
@@ -330,6 +409,56 @@ class PostgresRepository:
                 """,
                 (row["profile_id"], row["job_id"], row["id"], state),
             )
+
+    def import_ledger(self, profile_slug: str, ledger: ParsedLedger) -> tuple[int, int]:
+        """Idempotently import suppression history and advisory company warnings."""
+        with self.connection() as conn, conn.transaction():
+            profile = conn.execute(
+                "select id from public.profiles where slug = %s",
+                (profile_slug,),
+            ).fetchone()
+            if profile is None:
+                raise LookupError("Profile not found")
+            for entry in ledger.entries:
+                conn.execute(
+                    """
+                    insert into public.job_history (
+                      profile_id, company_name, title, normalized_company,
+                      normalized_title, fingerprint, category, status, source,
+                      first_recorded_at, suppress_until, permanent, applied_at
+                    )
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, 'master-ledger',
+                            %s, %s, %s, case when %s = 'applied' then %s end)
+                    on conflict (profile_id, fingerprint) do update set
+                      category = excluded.category,
+                      status = excluded.status,
+                      suppress_until = case
+                        when job_history.permanent then null
+                        else greatest(job_history.suppress_until, excluded.suppress_until)
+                      end,
+                      permanent = job_history.permanent or excluded.permanent,
+                      updated_at = now()
+                    """,
+                    (
+                        profile["id"], entry.company, entry.title,
+                        normalize_job_part(entry.company), normalize_job_part(entry.title),
+                        entry.fingerprint, entry.category, entry.status,
+                        entry.first_recorded_at, entry.suppress_until, entry.permanent,
+                        entry.category.casefold(), entry.first_recorded_at,
+                    ),
+                )
+            for watch in ledger.company_watchlist:
+                conn.execute(
+                    """
+                    insert into public.company_watchlist (
+                      profile_id, company_name, normalized_company
+                    ) values (%s, %s, %s)
+                    on conflict (profile_id, normalized_company) do update set
+                      company_name = excluded.company_name, updated_at = now()
+                    """,
+                    (profile["id"], watch.company, watch.normalized_company),
+                )
+        return len(ledger.entries), len(ledger.company_watchlist)
 
     def claim_notification(
         self,

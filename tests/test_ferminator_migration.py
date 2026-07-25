@@ -2,13 +2,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
-MIGRATION = Path("supabase/migrations/20260723052001_initial_ferminator_schema.sql")
+MIGRATIONS = Path("supabase/migrations")
+
+
+def migration_sql() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(MIGRATIONS.glob("*.sql"))
+    )
 
 
 def test_migration_enables_rls_on_every_private_table() -> None:
-    sql = MIGRATION.read_text(encoding="utf-8").casefold()
+    sql = migration_sql().casefold()
     tables = [
         "profiles",
+        "job_history",
+        "company_watchlist",
         "companies",
         "ats_boards",
         "ingestion_runs",
@@ -27,7 +36,7 @@ def test_migration_enables_rls_on_every_private_table() -> None:
 
 
 def test_migration_uses_indexes_for_search_and_active_jobs() -> None:
-    sql = MIGRATION.read_text(encoding="utf-8").casefold()
+    sql = migration_sql().casefold()
 
     assert "jobs_title_trgm_idx" in sql
     assert "job_revisions_search_idx" in sql
