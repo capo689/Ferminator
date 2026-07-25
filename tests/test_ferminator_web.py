@@ -15,6 +15,22 @@ def test_healthz():
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
 
+def test_readyz_reports_demo_readiness():
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready", "database": "demo"}
+
+
+def test_request_id_is_sanitized():
+    with TestClient(app) as client:
+        response = client.get("/healthz", headers={"x-request-id": "x" * 129})
+
+    assert response.status_code == 200
+    assert response.headers["x-request-id"] != "x" * 129
+
+
 def test_today_renders_personal_briefing():
     with TestClient(app) as client:
         response = client.get("/")

@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import logging
 import time
-import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
-from ferminator.observability import configure_logging
+from ferminator.observability import configure_logging, safe_request_id
 from ferminator.profiles import CareerProfile, load_profile
 from ferminator.repository import PostgresRepository
 from ferminator.settings import get_settings
@@ -31,7 +31,16 @@ async def lifespan(_app: FastAPI):
     configure_logging(settings.log_level)
     settings.validate_runtime()
     load_profile(settings.profile_path)
+    database_host = urlsplit(settings.database_url).hostname if settings.database_url else None
+    logger.info(
+        "application_started",
+        extra={
+            "event": "startup",
+            "dependency": f"postgres:{database_host}" if database_host else "demo",
+        },
+    )
     yield
+    logger.info("application_stopped", extra={"event": "shutdown"})
 
 
 app = FastAPI(
@@ -44,14 +53,21 @@ app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="s
 
 @app.middleware("http")
 async def request_observability(request: Request, call_next):
-    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
+    request_id = safe_request_id(request.headers.get("x-request-id"))
+    request.state.request_id = request_id
     started = time.perf_counter()
     try:
         response = await call_next(request)
     except Exception:
         logger.exception(
             "request_failed",
-            extra={"request_id": request_id, "method": request.method, "path": request.url.path},
+            extra={
+                "event": "request_failed",
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
         )
         raise
     response.headers["X-Request-ID"] = request_id
@@ -66,6 +82,7 @@ async def request_observability(request: Request, call_next):
         "request_complete",
         extra={
             "request_id": request_id,
+            "event": "request_complete",
             "method": request.method,
             "path": request.url.path,
             "status_code": response.status_code,
@@ -80,7 +97,7 @@ async def alpha_access_gate(request: Request, call_next):
     settings = get_settings()
     if (
         settings.auth_mode != "shared_password"
-        or request.url.path == "/healthz"
+        or request.url.path in {"/healthz", "/readyz"}
         or request.url.path.startswith("/static/")
     ):
         return await call_next(request)
@@ -98,7 +115,36 @@ async def alpha_access_gate(request: Request, call_next):
             return await call_next(request)
     return Response(
         status_code=401,
-        headers={"WWW-Authenticate": 'Basic realm="Ferminator private alpha"'},
+        headers={
+            "WWW-Authenticate": 'Basic realm="Ferminator private alpha"',
+            "X-Request-ID": getattr(request.state, "request_id", ""),
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception(request: Request, exc: Exception):
+    request_id = getattr(request.state, "request_id", safe_request_id(None))
+    logger.exception(
+        "unhandled_exception",
+        exc_info=(type(exc), exc, exc.__traceback__),
+        extra={
+            "event": "unhandled_exception",
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": 500,
+        },
+    )
+    return HTMLResponse(
+        (
+            "<!doctype html><html><head><title>Ferminator needs a moment</title></head>"
+            "<body><main><h1>We hit a snag.</h1>"
+            "<p>The error has been logged. Try again in a moment.</p>"
+            f"<p>Support code: <code>{request_id}</code></p></main></body></html>"
+        ),
+        status_code=500,
+        headers={"X-Request-ID": request_id},
     )
 
 
@@ -318,4 +364,37 @@ async def healthz():
         "version": __version__,
         "environment": settings.environment,
         "demo_mode": settings.demo_mode,
+    }
+
+
+@app.get("/readyz")
+async def readyz():
+    """Verify that the app and its required live dependency can serve traffic."""
+    settings = get_settings()
+    if settings.demo_mode:
+        return {"status": "ready", "database": "demo"}
+    repository = _repository()
+    started = time.perf_counter()
+    try:
+        with repository.connection() as connection:
+            connection.execute("select 1").fetchone()
+    except Exception:
+        logger.exception(
+            "dependency_unavailable",
+            extra={
+                "event": "dependency_check",
+                "dependency": "postgres",
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        return JSONResponse(
+            {"status": "unavailable", "database": "unavailable"},
+            status_code=503,
+        )
+    finally:
+        repository.close()
+    return {
+        "status": "ready",
+        "database": "ok",
+        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
     }
