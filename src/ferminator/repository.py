@@ -169,26 +169,27 @@ class PostgresRepository:
             for job_id, revision_id, match in matches
         ]
         with self.connection() as conn, conn.transaction():
-            conn.executemany(
-                """
-                insert into public.job_matches (
-                  profile_id, job_id, job_revision_id, profile_version,
-                  eligible, score, component_scores, matched_evidence,
-                  concerns, explanation
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    insert into public.job_matches (
+                      profile_id, job_id, job_revision_id, profile_version,
+                      eligible, score, component_scores, matched_evidence,
+                      concerns, explanation
+                    )
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    on conflict (profile_id, job_id, profile_version, job_revision_id)
+                    do update set
+                      eligible = excluded.eligible,
+                      score = excluded.score,
+                      component_scores = excluded.component_scores,
+                      matched_evidence = excluded.matched_evidence,
+                      concerns = excluded.concerns,
+                      explanation = excluded.explanation,
+                      updated_at = now()
+                    """,
+                    parameters,
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                on conflict (profile_id, job_id, profile_version, job_revision_id)
-                do update set
-                  eligible = excluded.eligible,
-                  score = excluded.score,
-                  component_scores = excluded.component_scores,
-                  matched_evidence = excluded.matched_evidence,
-                  concerns = excluded.concerns,
-                  explanation = excluded.explanation,
-                  updated_at = now()
-                """,
-                parameters,
-            )
 
     def profile_version(self, profile_id: str) -> int:
         with self.connection() as conn:
