@@ -3,7 +3,7 @@ services:
     name: ferminator-web
     runtime: docker
     plan: free
-    branch: codex/dream-product
+    branch: main
     healthCheckPath: /healthz
     autoDeployTrigger: checksPass
     envVars:
