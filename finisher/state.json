@@ -276,9 +276,9 @@
       "notes": null
     },
     "DATA-02": {
-      "score": 0,
-      "evidence": "No dated restore into a scratch project, row-count verification, or measured RTO/RPO artifact exists under docs/recovery/.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "A dated logical backup/restore drill completed successfully against a disposable local Supabase stack with checksum, table-presence, broken-revision, and orphan checks. A hosted production-data restore is still outstanding.",
+      "artifact": "docs/recovery/2026-07-25-local-restore-drill.md; scripts/backup_database.sh; scripts/restore_database.sh; scripts/verify_restore.py",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -446,9 +446,9 @@
       "notes": null
     },
     "API-07": {
-      "score": 2,
-      "evidence": "Scheduled jobs have a timeout, serialized concurrency, workflow history, and persisted ingestion records. No dead-man alert or phone notification was demonstrated.",
-      "artifact": null,
+      "score": 3,
+      "evidence": "Scheduled scans have serialized concurrency, a timeout, GitHub failure notification, scan-level persisted status/metrics/error codes, per-source health, and a production-triggered end-to-end run.",
+      "artifact": ".github/workflows/scan.yml; public.scan_runs; src/ferminator/repository.py",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -576,9 +576,9 @@
       "notes": null
     },
     "APPSEC-03": {
-      "score": 2,
-      "evidence": "Live responses contain CSP, nosniff, referrer, and permissions headers. HSTS, COOP/CORP, and X-Frame-Options are absent, CSP permits inline styles, and 401 responses bypass the header middleware.",
-      "artifact": null,
+      "score": 3,
+      "evidence": "Production responses, including authentication failures, now carry request IDs plus CSP, HSTS, X-Frame-Options, COOP, CORP, nosniff, referrer, and permissions headers. Automated tests enforce the contract.",
+      "artifact": "src/ferminator/web.py; tests/test_web.py; live production curl on 2026-07-25",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -796,9 +796,9 @@
       "notes": null
     },
     "CI-05": {
-      "score": 1,
-      "evidence": "Render exposes rollback controls and the runbook describes rollback, but no dated deploy/rollback/recovery drill has been recorded.",
-      "artifact": null,
+      "score": 3,
+      "evidence": "A production rollback drill deployed known-good commit 36105c0, verified version 0.2.0 and database readiness, rolled forward to c6ace03/0.3.0, reverified health, and restored deploy-after-CI.",
+      "artifact": "docs/recovery/2026-07-25-render-rollback-drill.md",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -916,9 +916,9 @@
       "notes": null
     },
     "OBS-02": {
-      "score": 2,
-      "evidence": "Live application logs are JSON and healthy requests carry request IDs. Authentication failures bypass structured request logging and return an empty X-Request-ID.",
-      "artifact": null,
+      "score": 3,
+      "evidence": "Production Render logs are structured JSON with request IDs, status, path, and latency. Authentication failures pass through the same observability/security middleware and are regression-tested.",
+      "artifact": "src/ferminator/web.py; tests/test_web.py; Render production logs inspected 2026-07-25",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -936,9 +936,9 @@
       "notes": null
     },
     "OBS-04": {
-      "score": 0,
-      "evidence": "No tested error-rate, latency, failed-scan, backup, or uptime alert reaching a human was demonstrated.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "GitHub workflows now fail visibly for production health/readiness and scheduled scan failures, using repository notifications. A dedicated phone/pager route and tested alert delivery are still absent.",
+      "artifact": ".github/workflows/monitor.yml; .github/workflows/scan.yml",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -946,9 +946,9 @@
       "notes": null
     },
     "OBS-05": {
-      "score": 1,
-      "evidence": "Render polls /healthz and /readyz verifies Postgres, but no external authenticated synthetic journey performs the core user action.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "Render polls /healthz and GitHub independently checks both /healthz and database-backed /readyz every 30 minutes. The smoke harness can check authenticated dashboard and ops routes, but no stored production password is exposed to the monitor.",
+      "artifact": ".github/workflows/monitor.yml; scripts/smoke_deployment.py",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -1056,9 +1056,9 @@
       "notes": null
     },
     "PERF-02": {
-      "score": 1,
-      "evidence": "Indexes exist, but Supabase reported numerous unused indexes and a hosted job_matches upsert waited roughly 109 seconds on a ShareLock; the bottleneck has not been resolved or regression-tested.",
-      "artifact": null,
+      "score": 3,
+      "evidence": "Missing foreign-key indexes were identified through Supabase advisors and added. Full-scan and per-profile advisory locks prevent overlapping writes, match upserts skip unchanged rows, timeouts bound lock/query waits, and a competing scorer was rejected in 0.026 seconds.",
+      "artifact": "src/ferminator/repository.py; supabase/migrations/20260725204433_index_match_feedback_foreign_keys.sql; tests/test_repository_sql.py",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -1446,9 +1446,9 @@
       "notes": null
     },
     "TEST-02": {
-      "score": 1,
-      "evidence": "Route-level TestClient tests render core pages, but no browser end-to-end suite performs the hosted login, discover, save, and pipeline journey.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "Route tests, a reusable deployment smoke harness, and a manual browser pass cover authenticated Discover and feedback persistence. The hosted browser journey is not yet automated in CI.",
+      "artifact": "tests/test_web.py; scripts/smoke_deployment.py",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -1486,9 +1486,9 @@
       "notes": null
     },
     "TEST-06": {
-      "score": 1,
-      "evidence": "Migration text and repository unit tests exist, but CI does not rebuild and exercise the application against a real ephemeral Postgres database with RLS.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "The complete application was reset, migrated, scanned with 6,096 live ATS jobs, lock-tested, backed up, and restored against a real local Supabase/Postgres stack. This integration drill is not yet part of CI.",
+      "artifact": "docs/recovery/2026-07-25-local-restore-drill.md",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -1676,9 +1676,9 @@
       "notes": null
     },
     "PROD-02": {
-      "score": 1,
-      "evidence": "docs/FINISHER_BASELINE.md lists intended outcome metrics but records them as unknown; no measured pre-change product baseline exists.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "A labelled nine-case match-quality baseline and explicit pass thresholds now run in CI. The current golden-set result is 100% accuracy with zero false positives and zero false negatives; the sample remains small and single-user.",
+      "artifact": "tests/golden/adam-match-quality.yaml; src/ferminator/quality.py; docs/QUALITY_EVALUATION.md",
       "enforcement": null,
       "assessed": true,
       "na": false,
@@ -1686,9 +1686,9 @@
       "notes": null
     },
     "PROD-03": {
-      "score": 0,
-      "evidence": "No activation/retention/application outcome telemetry or monitored in-product support/feedback path was found.",
-      "artifact": null,
+      "score": 2,
+      "evidence": "Job-match verdicts persist score/component context and the Intelligence dashboard reports quality metrics that can tune future ranking. Downstream application/interview/hire outcomes are not yet connected.",
+      "artifact": "public.match_feedback; src/ferminator/repository.py; src/ferminator/web.py",
       "enforcement": null,
       "assessed": true,
       "na": false,
