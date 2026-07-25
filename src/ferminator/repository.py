@@ -18,6 +18,14 @@ from ferminator.matching import MatchResult
 from ferminator.profiles import CareerProfile
 
 
+class ConcurrentScoringError(RuntimeError):
+    """Raised when another scoring pass already owns the profile lock."""
+
+
+class ConcurrentScanError(RuntimeError):
+    """Raised when another full scan is already active."""
+
+
 class PostgresRepository:
     """Small explicit SQL repository; service-role credentials stay server-side."""
 
@@ -37,6 +45,24 @@ class PostgresRepository:
     def connection(self) -> Iterator[Connection]:
         with self.pool.connection() as connection:
             yield connection
+
+    @contextmanager
+    def scan_lock(self) -> Iterator[None]:
+        """Hold a session advisory lock for the complete ingest-and-score pass."""
+        with self.connection() as conn:
+            row = conn.execute(
+                "select pg_try_advisory_lock(hashtextextended(%s, 0)) as acquired",
+                ("ferminator:full-scan",),
+            ).fetchone()
+            if not row["acquired"]:
+                raise ConcurrentScanError("Another Ferminator scan is already running")
+            try:
+                yield
+            finally:
+                conn.execute(
+                    "select pg_advisory_unlock(hashtextextended(%s, 0))",
+                    ("ferminator:full-scan",),
+                )
 
     def sync_profile(self, profile: CareerProfile, email: str | None = None) -> str:
         compiled = profile.model_dump(
@@ -169,6 +195,16 @@ class PostgresRepository:
             for job_id, revision_id, match in matches
         ]
         with self.connection() as conn, conn.transaction():
+            conn.execute("set local lock_timeout = '5s'")
+            conn.execute("set local statement_timeout = '60s'")
+            lock = conn.execute(
+                "select pg_try_advisory_xact_lock(hashtextextended(%s, 0)) as acquired",
+                (f"ferminator:score:{profile_id}",),
+            ).fetchone()
+            if not lock["acquired"]:
+                raise ConcurrentScoringError(
+                    "Another scoring pass is already running for this profile"
+                )
             with conn.cursor() as cursor:
                 cursor.executemany(
                     """
@@ -187,6 +223,21 @@ class PostgresRepository:
                       concerns = excluded.concerns,
                       explanation = excluded.explanation,
                       updated_at = now()
+                    where (
+                      job_matches.eligible,
+                      job_matches.score,
+                      job_matches.component_scores,
+                      job_matches.matched_evidence,
+                      job_matches.concerns,
+                      job_matches.explanation
+                    ) is distinct from (
+                      excluded.eligible,
+                      excluded.score,
+                      excluded.component_scores,
+                      excluded.matched_evidence,
+                      excluded.concerns,
+                      excluded.explanation
+                    )
                     """,
                     parameters,
                 )
@@ -265,7 +316,11 @@ class PostgresRepository:
                 left join lateral (
                   select label from public.job_locations
                   where job_id = j.id
-                  order by is_primary desc, is_remote desc, label
+                  order by (
+                    country_code = 'US'
+                    or label ~* 'United States'
+                    or label ~* '(^|[^A-Za-z])(US|USA)([^A-Za-z]|$)'
+                  ) desc nulls last, is_primary desc, is_remote desc, label
                   limit 1
                 ) l on true
                 where p.slug = %s and m.eligible and m.score >= %s
@@ -458,6 +513,167 @@ class PostgresRepository:
                 (row["profile_id"], row["job_id"], row["id"], state),
             )
 
+    def set_match_feedback(
+        self,
+        profile_slug: str,
+        job_id: str,
+        verdict: str,
+        *,
+        reason: str | None = None,
+    ) -> None:
+        """Capture a durable quality verdict against the exact scored revision."""
+        if verdict not in {"great", "maybe", "wrong"}:
+            raise ValueError("Unsupported match verdict")
+        clean_reason = reason.strip()[:500] if reason and reason.strip() else None
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                insert into public.match_feedback (
+                  profile_id, job_id, job_revision_id, profile_version, verdict,
+                  reason, score_at_feedback, component_scores
+                )
+                select p.id, j.id, m.job_revision_id, m.profile_version, %s, %s,
+                       m.score, m.component_scores
+                from public.profiles p
+                join public.jobs j on j.id = %s
+                join public.job_matches m on m.profile_id = p.id
+                  and m.job_id = j.id
+                  and m.profile_version = p.profile_version
+                  and m.job_revision_id = j.current_revision_id
+                where p.slug = %s
+                on conflict (profile_id, job_id, profile_version, job_revision_id)
+                do update set verdict = excluded.verdict, reason = excluded.reason,
+                              score_at_feedback = excluded.score_at_feedback,
+                              component_scores = excluded.component_scores,
+                              updated_at = now()
+                returning id
+                """,
+                (verdict, clean_reason, job_id, profile_slug),
+            ).fetchone()
+            if row is None:
+                raise LookupError("Current profile match not found")
+
+    def match_quality(self, profile_slug: str) -> dict:
+        """Return transparent quality metrics from explicit human verdicts."""
+        with self.connection() as conn:
+            summary = conn.execute(
+                """
+                select count(*) as reviewed,
+                       count(*) filter (where f.verdict = 'great') as great,
+                       count(*) filter (where f.verdict = 'maybe') as maybe,
+                       count(*) filter (where f.verdict = 'wrong') as wrong,
+                       avg(f.score_at_feedback) filter (where f.verdict = 'great')
+                         as great_average,
+                       avg(f.score_at_feedback) filter (where f.verdict = 'wrong')
+                         as wrong_average
+                from public.match_feedback f
+                join public.profiles p on p.id = f.profile_id
+                where p.slug = %s
+                """,
+                (profile_slug,),
+            ).fetchone()
+            reasons = conn.execute(
+                """
+                select reason, count(*) as count
+                from public.match_feedback f
+                join public.profiles p on p.id = f.profile_id
+                where p.slug = %s and f.verdict = 'wrong' and reason is not null
+                group by reason
+                order by count(*) desc, reason
+                limit 8
+                """,
+                (profile_slug,),
+            ).fetchall()
+        reviewed = int(summary["reviewed"])
+        useful = int(summary["great"]) + int(summary["maybe"])
+        return {
+            **dict(summary),
+            "reviewed": reviewed,
+            "useful_rate": round(100 * useful / reviewed, 1) if reviewed else None,
+            "wrong_reasons": [dict(row) for row in reasons],
+        }
+
+    def source_health(self) -> dict:
+        """Summarize source and full-scan health without exposing provider payloads."""
+        with self.connection() as conn:
+            boards = conn.execute(
+                """
+                select c.name as company, b.provider, b.board_key,
+                       b.validation_status, b.consecutive_failures,
+                       b.last_success_at, b.last_validated_at, b.last_error_code
+                from public.ats_boards b
+                join public.companies c on c.id = b.company_id
+                where b.enabled
+                order by b.consecutive_failures desc, c.name
+                """
+            ).fetchall()
+            latest_scan = conn.execute(
+                """
+                select status, started_at, finished_at, board_count,
+                       succeeded_count, failed_count, scored_job_count, error_codes
+                from public.scan_runs
+                order by started_at desc
+                limit 1
+                """
+            ).fetchone()
+        return {
+            "latest_scan": dict(latest_scan) if latest_scan else None,
+            "boards": [dict(row) for row in boards],
+        }
+
+    def start_scan(self, idempotency_key: str, board_count: int) -> str:
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                insert into public.scan_runs (idempotency_key, status, board_count)
+                values (%s, 'running', %s)
+                on conflict (idempotency_key) do update set
+                  status = case
+                    when scan_runs.status = 'succeeded' then scan_runs.status
+                    else 'running'::public.run_status
+                  end,
+                  started_at = case
+                    when scan_runs.status = 'succeeded' then scan_runs.started_at
+                    else now()
+                  end,
+                  finished_at = case
+                    when scan_runs.status = 'succeeded' then scan_runs.finished_at
+                    else null
+                  end
+                returning id
+                """,
+                (idempotency_key, board_count),
+            ).fetchone()
+        return str(row["id"])
+
+    def finish_scan(
+        self,
+        scan_id: str,
+        *,
+        succeeded: int,
+        failed: int,
+        scored_jobs: int,
+        error_codes: list[str],
+    ) -> None:
+        with self.connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                update public.scan_runs
+                set status = %s::public.run_status, finished_at = now(),
+                    succeeded_count = %s, failed_count = %s,
+                    scored_job_count = %s, error_codes = %s
+                where id = %s and status = 'running'
+                """,
+                (
+                    "failed" if failed else "succeeded",
+                    succeeded,
+                    failed,
+                    scored_jobs,
+                    json.dumps(sorted(set(error_codes))),
+                    scan_id,
+                ),
+            )
+
     def import_ledger(self, profile_slug: str, ledger: ParsedLedger) -> tuple[int, int]:
         """Idempotently import suppression history and advisory company warnings."""
         with self.connection() as conn, conn.transaction():
@@ -585,6 +801,47 @@ class PostgresRepository:
             ),
         ).fetchone()
         return str(row["id"])
+
+    def record_ingestion_failure(
+        self,
+        board: BoardRef,
+        *,
+        idempotency_key: str,
+        error_code: str,
+    ) -> None:
+        """Record failures that happen before a provider payload can be ingested."""
+        safe_code = error_code[:120]
+        with self.connection() as conn, conn.transaction():
+            board_id = self._ensure_board(conn, board)
+            conn.execute(
+                """
+                insert into public.ingestion_runs (
+                  board_id, provider, idempotency_key, status, started_at,
+                  finished_at, failed_count, error_code, error_message
+                )
+                values (%s, %s, %s, 'failed', now(), now(), 1, %s,
+                        'Provider fetch or validation failed')
+                on conflict (idempotency_key) do update set
+                  status = 'failed', finished_at = now(), failed_count = 1,
+                  error_code = excluded.error_code,
+                  error_message = excluded.error_message
+                """,
+                (board_id, board.provider.value, idempotency_key, safe_code),
+            )
+            conn.execute(
+                """
+                update public.ats_boards
+                set validation_status = case
+                      when consecutive_failures + 1 >= 3 then 'failed'
+                      else 'degraded'
+                    end,
+                    consecutive_failures = consecutive_failures + 1,
+                    last_validated_at = now(), last_error_code = %s,
+                    updated_at = now()
+                where id = %s
+                """,
+                (safe_code, board_id),
+            )
 
     def active_source_ids(self, board: BoardRef) -> set[str]:
         with self.connection() as conn:

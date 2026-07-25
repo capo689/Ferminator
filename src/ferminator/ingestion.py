@@ -15,6 +15,10 @@ class UnsafeRemovalError(RuntimeError):
     """Raised when a provider response would remove an implausible job share."""
 
 
+class InvalidBoardResponseError(RuntimeError):
+    """Raised when a nominally successful board response is structurally unsafe."""
+
+
 @dataclass(frozen=True)
 class LifecyclePlan:
     added: frozenset[str]
@@ -50,6 +54,20 @@ class IngestionRepository(Protocol):
         plan: LifecyclePlan,
         idempotency_key: str,
     ) -> IngestionResult: ...
+    def record_ingestion_failure(
+        self,
+        board: BoardRef,
+        *,
+        idempotency_key: str,
+        error_code: str,
+    ) -> None: ...
+
+
+def ingestion_idempotency_key(board: BoardRef, at: datetime | None = None) -> str:
+    """Return a stable per-board key so retries cannot create duplicate runs."""
+    timestamp_bucket = (at or datetime.now(UTC)).strftime("%Y%m%d%H")
+    identity = f"{board.provider}:{board.board_key}:{board.region}:{timestamp_bucket}"
+    return hashlib.sha256(identity.encode()).hexdigest()
 
 
 def plan_lifecycle(
@@ -86,8 +104,26 @@ def run_board_ingestion(
     policy: IngestionPolicy | None = None,
 ) -> IngestionResult:
     """Fetch, normalize, safety-check, and atomically apply one ATS board."""
-    with ADAPTERS[board.provider]() as adapter:
-        jobs = adapter.fetch_jobs(board)
+    idempotency_key = ingestion_idempotency_key(board)
+    try:
+        with ADAPTERS[board.provider]() as adapter:
+            jobs = adapter.fetch_jobs(board)
+    except Exception as exc:
+        repository.record_ingestion_failure(
+            board,
+            idempotency_key=idempotency_key,
+            error_code=getattr(exc, "code", type(exc).__name__),
+        )
+        raise
+    source_ids = [job.source_job_id for job in jobs]
+    if len(source_ids) != len(set(source_ids)):
+        error = InvalidBoardResponseError("Provider returned duplicate job identifiers")
+        repository.record_ingestion_failure(
+            board,
+            idempotency_key=idempotency_key,
+            error_code="duplicate_source_job_id",
+        )
+        raise error
     incoming_ids = {job.source_job_id for job in jobs}
     plan = plan_lifecycle(
         active_ids=repository.active_source_ids(board),
@@ -95,8 +131,4 @@ def run_board_ingestion(
         incoming_ids=incoming_ids,
         policy=policy,
     )
-    timestamp_bucket = datetime.now(UTC).strftime("%Y%m%d%H")
-    identity = f"{board.provider}:{board.board_key}:{timestamp_bucket}"
-    idempotency_key = hashlib.sha256(identity.encode()).hexdigest()
     return repository.apply_ingestion(board, jobs, plan, idempotency_key)
-

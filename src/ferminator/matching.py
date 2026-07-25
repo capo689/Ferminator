@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -49,6 +50,38 @@ def _matched(text: str, phrases: list[str]) -> list[str]:
     return [phrase for phrase in phrases if _contains(text, phrase)]
 
 
+def _employment_matches(value: str, accepted: list[str]) -> bool:
+    """Normalize common ATS spelling and punctuation variants."""
+    compact_value = re.sub(r"[^a-z0-9]", "", value.casefold())
+    aliases = {
+        "permanentfulltimeemployee": "fulltime",
+        "permanentfulltime": "fulltime",
+        "regularfulltime": "fulltime",
+        "fulltimeemployee": "fulltime",
+        "fulltimeremote": "fulltime",
+        "temporarycontract": "contract",
+        "contractor": "contract",
+    }
+    compact_value = aliases.get(compact_value, compact_value)
+    accepted_values = {
+        aliases.get(compact, compact)
+        for item in accepted
+        if (compact := re.sub(r"[^a-z0-9]", "", item.casefold()))
+    }
+    return compact_value in accepted_values
+
+
+def _matched_title_exclusions(title: str, phrases: list[str]) -> list[str]:
+    """Catch punctuation and provider word-order variants in excluded titles."""
+    title_tokens = set(re.findall(r"[a-z0-9]+", title.casefold()))
+    matches = []
+    for phrase in phrases:
+        phrase_tokens = set(re.findall(r"[a-z0-9]+", phrase.casefold()))
+        if _contains(title, phrase) or (len(phrase_tokens) >= 2 and phrase_tokens <= title_tokens):
+            matches.append(phrase)
+    return matches
+
+
 def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
     """Accept explicit US roles and reject clearly foreign-only remote listings."""
     country_codes = {
@@ -88,7 +121,10 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
 
     excluded_phrases = profile.search.exclude.get("phrases", [])
     excluded_titles = profile.search.exclude.get("title_phrases", [])
-    blocked = _matched(text, excluded_phrases) + _matched(title, excluded_titles)
+    blocked = _matched(text, excluded_phrases) + _matched_title_exclusions(
+        title,
+        excluded_titles,
+    )
     if blocked:
         return MatchResult(
             eligible=False,
@@ -109,7 +145,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     if (
         job.employment_type
         and profile.search.employment_types
-        and not _matched(job.employment_type, profile.search.employment_types)
+        and not _employment_matches(job.employment_type, profile.search.employment_types)
     ):
         return MatchResult(
             eligible=False,
@@ -242,6 +278,11 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
         evidence.append("Newly published")
 
     score = round(min(100.0, sum(components.values())), 2)
+    # Adjacent titles have already passed the explicit supporting-evidence gate.
+    # Keep them visible in the controlled review tier without promoting them to
+    # the strong-match tier solely through a floor.
+    if adjacent and not high:
+        score = max(score, profile.notifications.review_minimum_score)
     strongest = ", ".join(item for item in evidence[:3]) or "limited direct evidence"
     explanation = f"Score {score:g}: strongest signals are {strongest}."
     return MatchResult(
