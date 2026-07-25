@@ -17,9 +17,18 @@ final validation ran:
 - `navtechnologies` returned a valid but empty Greenhouse feed and was excluded.
 - `transcarent` returned HTTP 404 and was excluded.
 
-The machine-readable evidence is
-`docs/board-validation-2026-07-25.json`. The directory now has 113 enabled
-boards across all supported V1 providers.
+The original evidence is `docs/board-validation-2026-07-25.json`. The expanded
+CSV sweep and corrected targeted retests are recorded in
+`docs/board-validation-2026-07-25-expanded.json` and
+`docs/board-validation-2026-07-25-corrected-retests.json`.
+
+The expanded source contained 411 company boards across nine named providers.
+Ferminator tested 384 no-key boards, rejected 47 empty, dead, malformed, or
+unsafe responses, and admitted 343 after corrected retests. Those results were
+merged with the prior curated set, producing 377 enabled boards across nine
+supported no-key providers. The 27 supplied Jobvite URLs redirected away from
+the named company and were excluded; Jobvite's documented feed also requires
+credentials.
 
 ## Keeping the directory current
 
@@ -36,7 +45,8 @@ Every twice-daily scan:
 6. restores a recovered source to healthy automatically after a successful
    scan.
 
-To evaluate an updated saved master list before changing the registry:
+To evaluate an updated saved HTML or CSV master list before changing the
+registry:
 
 ```bash
 ferminator directory-check path/to/master-list.html \
@@ -45,6 +55,7 @@ ferminator directory-check path/to/master-list.html \
 ```
 
 The command exits non-zero if any source is unreachable, malformed, or empty.
+Use `directory-merge` with its JSON evidence to add only successful sources.
 
 ## Bulk-ingestion design
 
@@ -91,3 +102,7 @@ rerun in a fresh idempotency window:
 
 This is a 93.9% runtime reduction from the 27m09s first-load baseline and leaves
 more than 28 minutes of headroom under the unchanged 30-minute workflow limit.
+
+The expanded pre-merge validation normalized more than 23,000 current
+postings. A complete hosted ingestion benchmark is required after deployment;
+the production workflow retains its 30-minute ceiling as a performance guard.

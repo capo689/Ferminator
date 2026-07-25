@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -82,6 +83,77 @@ def parse_seed_html(path: str | Path) -> list[DirectoryCandidate]:
                 ),
                 seed_job_url=url,
                 seed_job_title=_text(link_match.group(2)),
+            )
+    return sorted(
+        candidates.values(),
+        key=lambda item: (item.board.company_name.casefold(), item.board.provider.value),
+    )
+
+
+def parse_company_csv(path: str | Path) -> list[DirectoryCandidate]:
+    """Extract supported public ATS boards from company/ats/board_url CSV rows."""
+    candidates: dict[tuple[ATSProvider, str], DirectoryCandidate] = {}
+    with Path(path).open(newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        required = {"company", "ats", "board_url"}
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise ValueError("directory CSV must contain company, ats, and board_url")
+        for row in reader:
+            company_name = row["company"].strip()
+            url = row["board_url"].strip().rstrip("/")
+            parsed = urlsplit(url)
+            parts = [part for part in parsed.path.split("/") if part]
+            provider_name = row["ats"].strip().casefold()
+            region = "global"
+            if provider_name == "greenhouse" and parts:
+                provider = ATSProvider.GREENHOUSE
+                board_key = parts[0]
+                region = (
+                    "eu"
+                    if parsed.hostname and ".eu.greenhouse.io" in parsed.hostname
+                    else "global"
+                )
+            elif provider_name == "ashby" and parts:
+                provider = ATSProvider.ASHBY
+                board_key = parts[0]
+            elif provider_name == "lever" and parts:
+                provider = ATSProvider.LEVER
+                board_key = parts[0]
+                region = "eu" if parsed.hostname and ".eu.lever.co" in parsed.hostname else "global"
+            elif provider_name == "smartrecruiters" and parts:
+                provider = ATSProvider.SMARTRECRUITERS
+                board_key = parts[0]
+            elif provider_name == "workable" and parts:
+                provider = ATSProvider.WORKABLE
+                board_key = parts[0]
+            elif provider_name == "breezy" and parsed.hostname:
+                provider = ATSProvider.BREEZY
+                board_key = parsed.hostname.split(".")[0]
+            elif provider_name == "rippling" and parts:
+                provider = ATSProvider.RIPPLING
+                board_key = parts[0]
+            elif provider_name == "workday" and parsed.hostname and parts:
+                provider = ATSProvider.WORKDAY
+                tenant = parsed.hostname.split(".")[0]
+                site = parts[-1]
+                board_key = f"{tenant}/{site}"
+            else:
+                # Jobvite's no-key feed is not public and obsolete board URLs
+                # redirect away from the named company; other unknown ATS rows
+                # remain outside the executable registry.
+                continue
+            identity = (provider, board_key.casefold())
+            candidates[identity] = DirectoryCandidate(
+                board=BoardRef(
+                    provider=provider,
+                    company_slug=slugify(company_name),
+                    company_name=company_name,
+                    board_key=board_key,
+                    source_url=url,
+                    region=region,
+                ),
+                seed_job_url=url,
+                seed_job_title="",
             )
     return sorted(
         candidates.values(),

@@ -11,7 +11,8 @@ weighted evidence.
 
 ## V1 scope
 
-- ATS adapters: Greenhouse, Lever, Ashby, SmartRecruiters, Workable, BambooHR
+- ATS adapters: Greenhouse, Lever, Ashby, SmartRecruiters, Workable, BambooHR,
+  Workday, Breezy, and Rippling
 - Curated company registry; demo boards are disabled
 - Searchable live ATS directory with source-health tracking
 - Bounded parallel bulk ingestion for large registries
@@ -22,8 +23,9 @@ weighted evidence.
 - Supabase Postgres schema with RLS
 - Render web deployment and GitHub Actions scanning
 
-Workday and brittle/custom career-site extraction are intentionally deferred to
-V2. See [ATS_MATRIX.md](docs/architecture/ATS_MATRIX.md).
+Credentialed feeds such as Jobvite and brittle/custom career-site extraction
+remain outside the no-key release. See
+[ATS_MATRIX.md](docs/architecture/ATS_MATRIX.md).
 
 ## Local development
 
@@ -35,11 +37,19 @@ python -m venv .venv
 .venv/bin/uvicorn ferminator.web:app --reload
 ```
 
-Validate a saved Ashby/Greenhouse source list before adding its boards:
+Validate a saved HTML source list or `company,ats,board_url` CSV before adding
+its boards:
 
 ```bash
 ferminator directory-check master-list.html --workers 8 \
   --json-output docs/board-validation-YYYY-MM-DD.json
+```
+
+Merge only the successful results into the registry:
+
+```bash
+ferminator directory-merge docs/board-validation-YYYY-MM-DD.json \
+  --output config/companies.yaml
 ```
 
 The UI starts in clearly labeled demo mode. Live ingestion requires

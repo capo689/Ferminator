@@ -4,10 +4,13 @@ import pytest
 from ferminator.adapters.ashby import AshbyAdapter
 from ferminator.adapters.bamboohr import BambooHRAdapter
 from ferminator.adapters.base import AdapterError, BaseAdapter
+from ferminator.adapters.breezy import BreezyAdapter
 from ferminator.adapters.greenhouse import GreenhouseAdapter
 from ferminator.adapters.lever import LeverAdapter
+from ferminator.adapters.rippling import RipplingAdapter
 from ferminator.adapters.smartrecruiters import SmartRecruitersAdapter
 from ferminator.adapters.workable import WorkableAdapter
+from ferminator.adapters.workday import WorkdayAdapter
 from ferminator.domain import ATSProvider, BoardRef, WorkplaceType
 
 
@@ -210,3 +213,70 @@ def test_bamboohr_structured_location_schema_drift():
     assert job.locations[0].label == "Saskatoon, SK, Canada"
     assert job.locations[0].region == "SK"
     assert job.locations[0].country == "Canada"
+
+
+def test_breezy_normalization():
+    job = BreezyAdapter().normalize(
+        board(ATSProvider.BREEZY),
+        {
+            "id": "breezy-1",
+            "name": "AI Strategist",
+            "url": "https://example.breezy.hr/p/breezy-1",
+            "published_date": "2026-07-22T10:00:00Z",
+            "type": {"name": "Full-Time"},
+            "department": "Strategy",
+            "locations": [
+                {
+                    "name": "Atlanta, GA",
+                    "city": "Atlanta",
+                    "state": {"id": "GA"},
+                    "country": {"id": "US", "name": "United States"},
+                    "primary": True,
+                    "is_remote": True,
+                }
+            ],
+        },
+    )
+
+    assert job.workplace_type == WorkplaceType.REMOTE
+    assert job.locations[0].country_code == "US"
+
+
+def test_workday_uses_distinct_external_path_as_identity():
+    job = WorkdayAdapter().normalize(
+        board(ATSProvider.WORKDAY, "example/External"),
+        {
+            "title": "AI Program Lead",
+            "externalPath": "/job/Remote/AI-Program-Lead_REQ-1",
+            "locationsText": "Remote, United States",
+            "bulletFields": ["REQ-1"],
+            "timeType": "Full time",
+        },
+    )
+
+    assert job.source_job_id == "/job/Remote/AI-Program-Lead_REQ-1"
+    assert job.raw_metadata["requisition_id"] == "REQ-1"
+    assert job.workplace_type == WorkplaceType.REMOTE
+
+
+def test_rippling_normalization():
+    job = RipplingAdapter().normalize(
+        board(ATSProvider.RIPPLING),
+        {
+            "id": "rippling-1",
+            "name": "Content Operations Lead",
+            "url": "https://ats.rippling.com/example/jobs/rippling-1",
+            "department": {"name": "Marketing"},
+            "locations": [
+                {
+                    "name": "Remote (United States)",
+                    "country": "United States",
+                    "countryCode": "US",
+                    "workplaceType": "REMOTE",
+                }
+            ],
+        },
+    )
+
+    assert job.department == "Marketing"
+    assert job.workplace_type == WorkplaceType.REMOTE

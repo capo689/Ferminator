@@ -182,7 +182,7 @@ repository secrets and never commits credentials or generated user data.
 
 ## V2 boundaries
 
-V2 adapters include Workday and custom career-site extraction. They remain
-outside V1 because their contracts are tenant-specific, undocumented, or HTML
-dependent. The V1 adapter contract and fixtures are intentionally reusable by
-V2 implementations.
+Custom career-site extraction and credentialed ATS feeds remain outside V1
+because their contracts are company-specific, private, or HTML dependent. The
+adapter contract and fixtures are intentionally reusable by later
+implementations.

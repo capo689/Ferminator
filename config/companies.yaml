@@ -1,971 +1,3832 @@
 schema_version: 1
 companies:
-  - slug: airtable
-    name: Airtable
-    website_url: https://airtable.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: airtable
-        source_url: https://job-boards.greenhouse.io/airtable
-
-  - slug: notion
-    name: Notion
-    website_url: https://www.notion.com
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: notion
-        source_url: https://jobs.ashbyhq.com/notion
-
-  - slug: zapier
-    name: Zapier
-    website_url: https://zapier.com
-    priority: 90
-    boards:
-      - provider: ashby
-        board_key: zapier
-        source_url: https://jobs.ashbyhq.com/zapier
-
-  - slug: cohere
-    name: Cohere
-    website_url: https://cohere.com
-    priority: 90
-    boards:
-      - provider: ashby
-        board_key: cohere
-        source_url: https://jobs.ashbyhq.com/cohere
-
-  - slug: figma
-    name: Figma
-    website_url: https://www.figma.com
-    priority: 80
-    boards:
-      - provider: greenhouse
-        board_key: figma
-        source_url: https://job-boards.greenhouse.io/figma
-
-  - slug: intercom
-    name: Intercom
-    website_url: https://www.intercom.com
-    priority: 70
-    boards:
-      - provider: greenhouse
-        board_key: intercom
-        source_url: https://job-boards.greenhouse.io/intercom
-
-  - slug: asana
-    name: Asana
-    website_url: https://asana.com
-    priority: 70
-    boards:
-      - provider: greenhouse
-        board_key: asana
-        source_url: https://job-boards.greenhouse.io/asana
-
-  - slug: webflow
-    name: Webflow
-    website_url: https://webflow.com
-    priority: 60
-    boards:
-      - provider: greenhouse
-        board_key: webflow
-        source_url: https://job-boards.greenhouse.io/webflow
-
-  - slug: scale-ai
-    name: Scale AI
-    website_url: https://scale.com
-    priority: 60
-    boards:
-      - provider: greenhouse
-        board_key: scaleai
-        source_url: https://job-boards.greenhouse.io/scaleai
-
-  - slug: anthropic
-    name: Anthropic
-    website_url: https://www.anthropic.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: anthropic
-        source_url: https://boards.greenhouse.io/anthropic
-
-  - slug: openai
-    name: OpenAI
-    website_url: https://openai.com
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: OpenAI
-        source_url: https://jobs.ashbyhq.com/OpenAI
-
-  - slug: smartrecruiters
-    name: SmartRecruiters
-    website_url: https://www.smartrecruiters.com
-    priority: 20
-    boards:
-      - provider: smartrecruiters
-        board_key: SmartRecruiters
-        source_url: https://careers.smartrecruiters.com/SmartRecruiters
-
-  - slug: ometria
-    name: Ometria
-    website_url: https://ometria.com
-    priority: 20
-    boards:
-      - provider: workable
-        board_key: ometria
-        source_url: https://apply.workable.com/ometria
-
-  - slug: g2
-    name: G2
-    website_url: https://www.g2.com
-    priority: 20
-    boards:
-      - provider: bamboohr
-        board_key: g2
-        source_url: https://g2.bamboohr.com/careers
-
-  # AI-native product companies: verified public Ashby boards.
-  - slug: cognition
-    name: Cognition
-    website_url: https://cognition.ai
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: cognition
-        source_url: https://jobs.ashbyhq.com/cognition
-
-  - slug: cursor
-    name: Cursor
-    website_url: https://cursor.com
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: cursor
-        source_url: https://jobs.ashbyhq.com/cursor
-
-  - slug: decagon
-    name: Decagon
-    website_url: https://decagon.ai
-    priority: 90
-    boards:
-      - provider: ashby
-        board_key: decagon
-        source_url: https://jobs.ashbyhq.com/decagon
-
-  - slug: dust
-    name: Dust
-    website_url: https://dust.tt
-    priority: 90
-    boards:
-      - provider: ashby
-        board_key: dust
-        source_url: https://jobs.ashbyhq.com/dust
-
-  - slug: elevenlabs
-    name: ElevenLabs
-    website_url: https://elevenlabs.io
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: elevenlabs
-        source_url: https://jobs.ashbyhq.com/elevenlabs
-
-  - slug: gamma
-    name: Gamma
-    website_url: https://gamma.app
-    priority: 80
-    boards:
-      - provider: ashby
-        board_key: gamma
-        source_url: https://jobs.ashbyhq.com/gamma
-
-  - slug: granola
-    name: Granola
-    website_url: https://granola.ai
-    priority: 80
-    boards:
-      - provider: ashby
-        board_key: granola
-        source_url: https://jobs.ashbyhq.com/granola
-
-  - slug: harvey
-    name: Harvey
-    website_url: https://www.harvey.ai
-    priority: 90
-    boards:
-      - provider: ashby
-        board_key: harvey
-        source_url: https://jobs.ashbyhq.com/harvey
-
-  - slug: langchain
-    name: LangChain
-    website_url: https://www.langchain.com
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: langchain
-        source_url: https://jobs.ashbyhq.com/langchain
-
-  - slug: linear
-    name: Linear
-    website_url: https://linear.app
-    priority: 80
-    boards:
-      - provider: ashby
-        board_key: linear
-        source_url: https://jobs.ashbyhq.com/linear
-
-  - slug: midjourney
-    name: Midjourney
-    website_url: https://www.midjourney.com
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: midjourney
-        source_url: https://jobs.ashbyhq.com/midjourney
-
-  - slug: modal
-    name: Modal
-    website_url: https://modal.com
-    priority: 70
-    boards:
-      - provider: ashby
-        board_key: modal
-        source_url: https://jobs.ashbyhq.com/modal
-
-  - slug: mutiny
-    name: Mutiny
-    website_url: https://www.mutinyhq.com
-    priority: 80
-    boards:
-      - provider: ashby
-        board_key: mutiny
-        source_url: https://jobs.ashbyhq.com/mutiny
-
-  - slug: perplexity
-    name: Perplexity
-    website_url: https://www.perplexity.ai
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: perplexity
-        source_url: https://jobs.ashbyhq.com/perplexity
-
-  - slug: replit
-    name: Replit
-    website_url: https://replit.com
-    priority: 90
-    boards:
-      - provider: ashby
-        board_key: replit
-        source_url: https://jobs.ashbyhq.com/replit
-
-  - slug: runbook
-    name: Runbook
-    website_url: https://www.runbook.cloud
-    priority: 60
-    boards:
-      - provider: ashby
-        board_key: runbook
-        source_url: https://jobs.ashbyhq.com/runbook
-
-  - slug: sierra
-    name: Sierra
-    website_url: https://sierra.ai
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: sierra
-        source_url: https://jobs.ashbyhq.com/sierra
-
-  - slug: writer
-    name: Writer
-    website_url: https://writer.com
-    priority: 100
-    boards:
-      - provider: ashby
-        board_key: writer
-        source_url: https://jobs.ashbyhq.com/writer
-
-  # High-signal product and infrastructure companies: verified Greenhouse boards.
-  - slug: algolia
-    name: Algolia
-    website_url: https://www.algolia.com
-    priority: 80
-    boards:
-      - provider: greenhouse
-        board_key: algolia
-        source_url: https://job-boards.greenhouse.io/algolia
-
-  - slug: amplitude
-    name: Amplitude
-    website_url: https://amplitude.com
-    priority: 80
-    boards:
-      - provider: greenhouse
-        board_key: amplitude
-        source_url: https://job-boards.greenhouse.io/amplitude
-
-  - slug: braze
-    name: Braze
-    website_url: https://www.braze.com
-    priority: 70
-    boards:
-      - provider: greenhouse
-        board_key: braze
-        source_url: https://job-boards.greenhouse.io/braze
-
-  - slug: contentful
-    name: Contentful
-    website_url: https://www.contentful.com
-    priority: 90
-    boards:
-      - provider: greenhouse
-        board_key: contentful
-        source_url: https://job-boards.greenhouse.io/contentful
-
-  - slug: datadog
-    name: Datadog
-    website_url: https://www.datadoghq.com
-    priority: 60
-    boards:
-      - provider: greenhouse
-        board_key: datadog
-        source_url: https://job-boards.greenhouse.io/datadog
-
-  - slug: descript
-    name: Descript
-    website_url: https://www.descript.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: descript
-        source_url: https://job-boards.greenhouse.io/descript
-
-  - slug: elastic
-    name: Elastic
-    website_url: https://www.elastic.co
-    priority: 90
-    boards:
-      - provider: greenhouse
-        board_key: elastic
-        source_url: https://job-boards.greenhouse.io/elastic
-
-  - slug: gitlab
-    name: GitLab
-    website_url: https://about.gitlab.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: gitlab
-        source_url: https://job-boards.greenhouse.io/gitlab
-
-  - slug: glean
-    name: Glean
-    website_url: https://www.glean.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: gleanwork
-        source_url: https://job-boards.greenhouse.io/gleanwork
-
-  - slug: guidde
-    name: Guidde
-    website_url: https://www.guidde.com
-    priority: 70
-    boards:
-      - provider: greenhouse
-        board_key: guidde
-        source_url: https://job-boards.greenhouse.io/guidde
-
-  - slug: iterable
-    name: Iterable
-    website_url: https://iterable.com
-    priority: 80
-    boards:
-      - provider: greenhouse
-        board_key: iterable
-        source_url: https://job-boards.greenhouse.io/iterable
-
-  - slug: klaviyo
-    name: Klaviyo
-    website_url: https://www.klaviyo.com
-    priority: 80
-    boards:
-      - provider: greenhouse
-        board_key: klaviyo
-        source_url: https://job-boards.greenhouse.io/klaviyo
-
-  - slug: launchdarkly
-    name: LaunchDarkly
-    website_url: https://launchdarkly.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: launchdarkly
-        source_url: https://job-boards.greenhouse.io/launchdarkly
-
-  - slug: mixpanel
-    name: Mixpanel
-    website_url: https://mixpanel.com
-    priority: 80
-    boards:
-      - provider: greenhouse
-        board_key: mixpanel
-        source_url: https://job-boards.greenhouse.io/mixpanel
-
-  - slug: mongodb
-    name: MongoDB
-    website_url: https://www.mongodb.com
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: mongodb
-        source_url: https://job-boards.greenhouse.io/mongodb
-
-  - slug: omada-health
-    name: Omada Health
-    website_url: https://www.omadahealth.com
-    priority: 90
-    boards:
-      - provider: greenhouse
-        board_key: omadahealth
-        source_url: https://job-boards.greenhouse.io/omadahealth
-
-  - slug: twilio
-    name: Twilio
-    website_url: https://www.twilio.com
-    priority: 70
-    boards:
-      - provider: greenhouse
-        board_key: twilio
-        source_url: https://job-boards.greenhouse.io/twilio
-
-  - slug: typeface
-    name: Typeface
-    website_url: https://www.typeface.ai
-    priority: 100
-    boards:
-      - provider: greenhouse
-        board_key: typeface
-        source_url: https://job-boards.greenhouse.io/typeface
-
-  - slug: vercel
-    name: Vercel
-    website_url: https://vercel.com
-    priority: 90
-    boards:
-      - provider: greenhouse
-        board_key: vercel
-        source_url: https://job-boards.greenhouse.io/vercel
-
-  - slug: yext
-    name: Yext
-    website_url: https://www.yext.com
-    priority: 90
-    boards:
-      - provider: greenhouse
-        board_key: yext
-        source_url: https://job-boards.greenhouse.io/yext
-
-  # Lever boards that expose the same complete public-feed behavior.
-  - slug: aircall
-    name: Aircall
-    website_url: https://aircall.io
-    priority: 60
-    boards:
-      - provider: lever
-        board_key: aircall
-        source_url: https://jobs.lever.co/aircall
-      - provider: greenhouse
-        board_key: aircallioinc
-        source_url: https://job-boards.greenhouse.io/aircallioinc
-
-  - slug: arcadia
-    name: Arcadia
-    website_url: https://arcadia.io
-    priority: 70
-    boards:
-      - provider: lever
-        board_key: arcadia
-        source_url: https://jobs.lever.co/arcadia
-
-  - slug: lever-demo
-    name: Lever Demo
-    website_url: https://www.lever.co
-    enabled: false
-    priority: -100
-    boards:
-      - provider: lever
-        board_key: leverdemo
-        source_url: https://jobs.lever.co/leverdemo
-
-  # Verified 2026-07-25 from the user-supplied Ashby/Greenhouse master list.
-  # Every board below returned a structurally valid public feed with live jobs.
-  - slug: answerrocket
-    name: AnswerRocket
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: answerrocket
-        source_url: https://job-boards.greenhouse.io/answerrocket
-
-  - slug: apartmentiq
-    name: ApartmentIQ
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: apartmentiq
-        source_url: https://job-boards.greenhouse.io/apartmentiq
-
-  - slug: ashley-digital-resident
-    name: Ashley Digital (Resident)
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: residenthome
-        source_url: https://job-boards.greenhouse.io/residenthome
-
-  - slug: assured
-    name: Assured
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: assured
-        source_url: https://jobs.ashbyhq.com/assured
-
-  - slug: backblaze
-    name: Backblaze
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: backblaze
-        source_url: https://job-boards.greenhouse.io/backblaze
-
-  - slug: builder-prime
-    name: Builder Prime
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: builder-prime
-        source_url: https://jobs.ashbyhq.com/builder-prime
-
-  - slug: chainguard
-    name: Chainguard
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: chainguard
-        source_url: https://job-boards.greenhouse.io/chainguard
-
-  - slug: commvault
-    name: Commvault
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: commvault
-        source_url: https://job-boards.greenhouse.io/commvault
-
-  - slug: counterpart-health
-    name: Counterpart Health
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: counterparthealth
-        source_url: https://job-boards.greenhouse.io/counterparthealth
-
-  - slug: cresta
-    name: Cresta
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: cresta
-        source_url: https://job-boards.greenhouse.io/cresta
-
-  - slug: deepgram
-    name: Deepgram
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: deepgram
-        source_url: https://jobs.ashbyhq.com/deepgram
-
-  - slug: degreed
-    name: Degreed
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: degreed
-        source_url: https://job-boards.greenhouse.io/degreed
-
-  - slug: dept
-    name: DEPT®
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: dept
-        source_url: https://job-boards.greenhouse.io/dept
-
-  - slug: doordash
-    name: DoorDash
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: doordashusa
-        source_url: https://job-boards.greenhouse.io/doordashusa
-
-  - slug: eleos-health
-    name: Eleos Health
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: eleoshealth
-        source_url: https://job-boards.greenhouse.io/eleoshealth
-
-  - slug: ethos-life
-    name: Ethos Life
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: ethoslife
-        source_url: https://job-boards.greenhouse.io/ethoslife
-
-  - slug: evertune
-    name: Evertune
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: evertune
-        source_url: https://jobs.ashbyhq.com/evertune
-
-  - slug: forgd
-    name: forgd
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: forgd-ai
-        source_url: https://jobs.ashbyhq.com/forgd-ai
-
-  - slug: glossgenius
-    name: GlossGenius
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: glossgenius
-        source_url: https://job-boards.greenhouse.io/glossgenius
-
-  - slug: gruns
-    name: Grüns
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: gruns
-        source_url: https://job-boards.greenhouse.io/gruns
-
-  - slug: headspace
-    name: Headspace
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: hs
-        source_url: https://job-boards.greenhouse.io/hs
-
-  - slug: hightouch
-    name: Hightouch
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: hightouch
-        source_url: https://job-boards.greenhouse.io/hightouch
-
-  - slug: highwire
-    name: Highwire
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: highwire
-        source_url: https://job-boards.greenhouse.io/highwire
-
-  - slug: hims-hers
-    name: Hims & Hers
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: hims-and-hers
-        source_url: https://jobs.ashbyhq.com/hims-and-hers
-
-  - slug: hook
-    name: Hook
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: hook
-        source_url: https://job-boards.greenhouse.io/hook
-
-  - slug: huntress
-    name: Huntress
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: huntress
-        source_url: https://job-boards.greenhouse.io/huntress
-
-  - slug: id-me
-    name: ID.me
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: idme
-        source_url: https://job-boards.greenhouse.io/idme
-
-  - slug: intradiem
-    name: Intradiem
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: intradiem
-        source_url: https://job-boards.greenhouse.io/intradiem
-
-  - slug: jerry-ai
-    name: Jerry.ai
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: jerry.ai
-        source_url: https://jobs.ashbyhq.com/jerry.ai
-
-  - slug: legion-intelligence
-    name: Legion Intelligence
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: yurtsai
-        source_url: https://job-boards.greenhouse.io/yurtsai
-
-  - slug: lockwood
-    name: Lockwood (The Lockwood Group)
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: lockwood
-        source_url: https://job-boards.greenhouse.io/lockwood
-
-  - slug: loka
-    name: Loka
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: lokainc
-        source_url: https://job-boards.greenhouse.io/lokainc
-
-  - slug: maximus-health
-    name: Maximus Health, Inc.
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: maximustribe
-        source_url: https://jobs.ashbyhq.com/maximustribe
-
-  - slug: mercury
-    name: Mercury
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: mercury
-        source_url: https://job-boards.greenhouse.io/mercury
-
-  - slug: mesh
-    name: Mesh
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: mesh
-        source_url: https://job-boards.greenhouse.io/mesh
-
-  - slug: newsela
-    name: Newsela
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: newsela
-        source_url: https://job-boards.greenhouse.io/newsela
-
-  - slug: nimble-gravity
-    name: Nimble Gravity
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: nimblegravity
-        source_url: https://job-boards.greenhouse.io/nimblegravity
-
-  - slug: polyai
-    name: PolyAI
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: polyai
-        source_url: https://job-boards.eu.greenhouse.io/polyai
-        region: eu
-
-  - slug: poppy-ai
-    name: Poppy AI (GetPoppy AI)
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: getpoppyai
-        source_url: https://jobs.ashbyhq.com/getpoppyai
-
-  - slug: precision-aq
-    name: Precision AQ (Precision Medicine Group)
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: precisionaq
-        source_url: https://job-boards.greenhouse.io/precisionaq
-
-  - slug: ramp
-    name: Ramp
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: ramp
-        source_url: https://jobs.ashbyhq.com/ramp
-
-  - slug: render
-    name: Render
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: render
-        source_url: https://jobs.ashbyhq.com/render
-
-  - slug: seed
-    name: Seed
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: seed
-        source_url: https://job-boards.greenhouse.io/seed
-
-  - slug: aiedu
-    name: The AI Education Project (aiEDU)
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: aiedu
-        source_url: https://job-boards.greenhouse.io/aiedu
-
-  - slug: tilt
-    name: Tilt (formerly Empower)
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: tilthq
-        source_url: https://jobs.ashbyhq.com/tilthq
-
-  - slug: vanta
-    name: Vanta
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: vanta
-        source_url: https://jobs.ashbyhq.com/vanta
-
-  - slug: weedmaps
-    name: Weedmaps
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: weedmaps77
-        source_url: https://job-boards.greenhouse.io/weedmaps77
-
-  - slug: zeely
-    name: Zeely
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: zeely
-        source_url: https://jobs.ashbyhq.com/zeely
-
-  # Appended to the living source and verified 2026-07-25.
-  - slug: audiohook
-    name: Audiohook
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: audiohook
-        source_url: https://jobs.ashbyhq.com/audiohook
-
-  - slug: evolve
-    name: Evolve
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: evolvevacationrental
-        source_url: https://job-boards.greenhouse.io/evolvevacationrental
-
-  - slug: mostest
-    name: Mostest
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: mostest
-        source_url: https://jobs.ashbyhq.com/mostest
-
-  - slug: movement-strategy
-    name: Movement Strategy
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: movementstrategy
-        source_url: https://job-boards.greenhouse.io/movementstrategy
-
-  - slug: openrouter
-    name: OpenRouter
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: openrouter
-        source_url: https://jobs.ashbyhq.com/openrouter
-
-  - slug: ridgeline
-    name: Ridgeline
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: ridgeline
-        source_url: https://job-boards.greenhouse.io/ridgeline
-
-  - slug: rwazi
-    name: Rwazi
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: rwazi
-        source_url: https://jobs.ashbyhq.com/rwazi
-
-  - slug: smalls
-    name: Smalls
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: smalls
-        source_url: https://jobs.ashbyhq.com/smalls
-
-  - slug: talkdesk
-    name: Talkdesk
-    priority: 50
-    boards:
-      - provider: greenhouse
-        board_key: talkdesk2
-        source_url: https://job-boards.greenhouse.io/talkdesk2
-
-  - slug: zoe
-    name: ZOE
-    priority: 50
-    boards:
-      - provider: ashby
-        board_key: zoe
-        source_url: https://jobs.ashbyhq.com/zoe
+- slug: 2k
+  name: 2K
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: 2k
+    source_url: https://job-boards.greenhouse.io/2k
+    region: global
+    enabled: true
+- slug: abercrombie-fitch
+  name: Abercrombie & Fitch
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: AbercrombieAndFitchCo
+    source_url: https://jobs.smartrecruiters.com/AbercrombieAndFitchCo
+    region: global
+    enabled: true
+- slug: absorb
+  name: Absorb
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: absorblms
+    source_url: https://jobs.ashbyhq.com/absorblms
+    region: global
+    enabled: true
+- slug: actian
+  name: Actian
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: actian
+    source_url: https://jobs.lever.co/actian
+    region: global
+    enabled: true
+- slug: afar-media
+  name: AFAR Media
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: AfarMedia
+    source_url: https://jobs.lever.co/AfarMedia
+    region: global
+    enabled: true
+- slug: aimpoint-digital
+  name: Aimpoint Digital
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: aimpoint-digital
+    source_url: https://aimpoint-digital.breezy.hr/
+    region: global
+    enabled: true
+- slug: aircall
+  name: Aircall
+  website_url: https://aircall.io/
+  enabled: true
+  priority: 60
+  boards:
+  - provider: lever
+    board_key: aircall
+    source_url: https://jobs.lever.co/aircall
+    region: global
+    enabled: true
+  - provider: greenhouse
+    board_key: aircallioinc
+    source_url: https://job-boards.greenhouse.io/aircallioinc
+    region: global
+    enabled: true
+- slug: airtable
+  name: Airtable
+  website_url: https://airtable.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: airtable
+    source_url: https://job-boards.greenhouse.io/airtable
+    region: global
+    enabled: true
+- slug: aisle
+  name: Aisle
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: aisle
+    source_url: https://jobs.ashbyhq.com/aisle
+    region: global
+    enabled: true
+- slug: akasa
+  name: AKASA
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: akasa
+    source_url: https://jobs.ashbyhq.com/akasa
+    region: global
+    enabled: true
+- slug: aledade
+  name: Aledade
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: aledade
+    source_url: https://jobs.lever.co/aledade
+    region: global
+    enabled: true
+- slug: algolia
+  name: Algolia
+  website_url: https://www.algolia.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: greenhouse
+    board_key: algolia
+    source_url: https://job-boards.greenhouse.io/algolia
+    region: global
+    enabled: true
+- slug: american-cancer-society
+  name: American Cancer Society
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: acs/acscareers
+    source_url: https://acs.wd5.myworkdayjobs.com/acscareers
+    region: global
+    enabled: true
+- slug: amplitude
+  name: Amplitude
+  website_url: https://amplitude.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: greenhouse
+    board_key: amplitude
+    source_url: https://job-boards.greenhouse.io/amplitude
+    region: global
+    enabled: true
+- slug: answerrocket
+  name: AnswerRocket
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: answerrocket
+    source_url: https://job-boards.greenhouse.io/answerrocket
+    region: global
+    enabled: true
+- slug: anthropic
+  name: Anthropic
+  website_url: https://www.anthropic.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: anthropic
+    source_url: https://boards.greenhouse.io/anthropic
+    region: global
+    enabled: true
+- slug: apartmentiq
+  name: ApartmentIQ
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: apartmentiq
+    source_url: https://job-boards.greenhouse.io/apartmentiq
+    region: global
+    enabled: true
+- slug: arcadia
+  name: Arcadia
+  website_url: https://arcadia.io/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: lever
+    board_key: arcadia
+    source_url: https://jobs.lever.co/arcadia
+    region: global
+    enabled: true
+- slug: arctic-wolf
+  name: Arctic Wolf
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: arcticwolf/External
+    source_url: https://arcticwolf.wd1.myworkdayjobs.com/en-US/External
+    region: global
+    enabled: true
+- slug: arista-networks
+  name: Arista Networks
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: AristaNetworks
+    source_url: https://jobs.smartrecruiters.com/AristaNetworks
+    region: global
+    enabled: true
+- slug: asana
+  name: Asana
+  website_url: https://asana.com/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: greenhouse
+    board_key: asana
+    source_url: https://job-boards.greenhouse.io/asana
+    region: global
+    enabled: true
+- slug: ashley-digital-resident
+  name: Ashley Digital (Resident)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: residenthome
+    source_url: https://job-boards.greenhouse.io/residenthome
+    region: global
+    enabled: true
+- slug: assured
+  name: Assured
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: assured
+    source_url: https://jobs.ashbyhq.com/assured
+    region: global
+    enabled: true
+- slug: astera-labs
+  name: Astera Labs
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: asteralabs
+    source_url: https://job-boards.greenhouse.io/asteralabs
+    region: global
+    enabled: true
+- slug: ataccama
+  name: Ataccama
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: ataccama
+    source_url: https://jobs.lever.co/ataccama
+    region: global
+    enabled: true
+- slug: athenahealth
+  name: athenahealth
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: athenahealth/external
+    source_url: https://athenahealth.wd1.myworkdayjobs.com/external
+    region: global
+    enabled: true
+- slug: atlantic-coast-mortgage
+  name: Atlantic Coast Mortgage
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: atlantic-coast-mortgage
+    source_url: https://ats.rippling.com/atlantic-coast-mortgage/jobs
+    region: global
+    enabled: true
+- slug: audiohook
+  name: Audiohook
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: audiohook
+    source_url: https://jobs.ashbyhq.com/audiohook
+    region: global
+    enabled: true
+- slug: autodesk
+  name: Autodesk
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: autodesk/Ext
+    source_url: https://autodesk.wd1.myworkdayjobs.com/Ext
+    region: global
+    enabled: true
+- slug: azul
+  name: Azul
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: azul
+    source_url: https://jobs.lever.co/azul
+    region: global
+    enabled: true
+- slug: backblaze
+  name: Backblaze
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: backblaze
+    source_url: https://job-boards.greenhouse.io/backblaze
+    region: global
+    enabled: true
+- slug: begin
+  name: Begin
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: begin-careers
+    source_url: https://ats.rippling.com/begin-careers/jobs
+    region: global
+    enabled: true
+- slug: blackbird-interactive
+  name: Blackbird Interactive
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: blackbirdinteractive
+    source_url: https://jobs.lever.co/blackbirdinteractive
+    region: global
+    enabled: true
+- slug: blank-metal
+  name: Blank Metal
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: blank-metal
+    source_url: https://jobs.ashbyhq.com/blank-metal
+    region: global
+    enabled: true
+- slug: blink-ux
+  name: Blink UX
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: blinkux
+    source_url: https://jobs.lever.co/blinkux
+    region: global
+    enabled: true
+- slug: bloom-poppy-peonies
+  name: Bloom — Poppy & Peonies
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: bloom
+    source_url: https://jobs.lever.co/bloom
+    region: global
+    enabled: true
+- slug: bloomforth
+  name: Bloomforth
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: BloomforthCorp
+    source_url: https://jobs.smartrecruiters.com/BloomforthCorp
+    region: global
+    enabled: true
+- slug: bluehost
+  name: Bluehost
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: web/externalcareersite
+    source_url: https://web.wd1.myworkdayjobs.com/externalcareersite
+    region: global
+    enabled: true
+- slug: boomi
+  name: Boomi
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: boomilp
+    source_url: https://job-boards.greenhouse.io/boomilp
+    region: global
+    enabled: true
+- slug: bradshaw-home
+  name: Bradshaw Home
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: bradshaw-home
+    source_url: https://bradshaw-home.breezy.hr/
+    region: global
+    enabled: true
+- slug: brafton
+  name: Brafton
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: brafton
+    source_url: https://jobs.lever.co/brafton
+    region: global
+    enabled: true
+- slug: brandtech
+  name: Brandtech+
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: brandtechplus
+    source_url: https://job-boards.greenhouse.io/brandtechplus
+    region: global
+    enabled: true
+- slug: braze
+  name: Braze
+  website_url: https://www.braze.com/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: greenhouse
+    board_key: braze
+    source_url: https://job-boards.greenhouse.io/braze
+    region: global
+    enabled: true
+- slug: bretton-ai
+  name: Bretton AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: brettonai
+    source_url: https://jobs.ashbyhq.com/brettonai
+    region: global
+    enabled: true
+- slug: broadridge
+  name: Broadridge
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: broadridge/Careers
+    source_url: https://broadridge.wd5.myworkdayjobs.com/en-US/Careers
+    region: global
+    enabled: true
+- slug: builder-prime
+  name: Builder Prime
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: builder-prime
+    source_url: https://jobs.ashbyhq.com/builder-prime
+    region: global
+    enabled: true
+- slug: bullseye-strategy
+  name: Bullseye Strategy
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: bullseye-strategy
+    source_url: https://bullseye-strategy.breezy.hr/
+    region: global
+    enabled: true
+- slug: buxton
+  name: Buxton
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: buxtoncocareers
+    source_url: https://ats.rippling.com/buxtoncocareers/jobs
+    region: global
+    enabled: true
+- slug: caper-ai-instacart
+  name: Caper AI (Instacart)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: instacart
+    source_url: https://job-boards.greenhouse.io/instacart
+    region: global
+    enabled: true
+- slug: cengage
+  name: Cengage
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: cengage/cengagenorthamericacareers
+    source_url: https://cengage.wd5.myworkdayjobs.com/cengagenorthamericacareers
+    region: global
+    enabled: true
+- slug: chainguard
+  name: Chainguard
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: chainguard
+    source_url: https://job-boards.greenhouse.io/chainguard
+    region: global
+    enabled: true
+- slug: character-ai
+  name: Character.AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: character
+    source_url: https://jobs.ashbyhq.com/character
+    region: global
+    enabled: true
+- slug: chess-com
+  name: Chess.com
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: chess
+    source_url: https://ats.rippling.com/chess/jobs
+    region: global
+    enabled: true
+- slug: circle
+  name: Circle
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: circle/Circle
+    source_url: https://circle.wd1.myworkdayjobs.com/en-US/Circle
+    region: global
+    enabled: true
+- slug: circle-so
+  name: Circle.so
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: circleso
+    source_url: https://job-boards.greenhouse.io/circleso
+    region: global
+    enabled: true
+- slug: cisco
+  name: Cisco
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: cisco/Cisco_Careers
+    source_url: https://cisco.wd5.myworkdayjobs.com/Cisco_Careers
+    region: global
+    enabled: true
+- slug: cloud-chamber
+  name: Cloud Chamber
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: cloudchamberen
+    source_url: https://job-boards.greenhouse.io/cloudchamberen
+    region: global
+    enabled: true
+- slug: cloudbeds
+  name: Cloudbeds
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: cloudbeds
+    source_url: https://job-boards.greenhouse.io/cloudbeds
+    region: global
+    enabled: true
+- slug: coalfire
+  name: Coalfire
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: coalfire
+    source_url: https://jobs.lever.co/coalfire
+    region: global
+    enabled: true
+- slug: cognition
+  name: Cognition
+  website_url: https://cognition.ai/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: cognition
+    source_url: https://jobs.ashbyhq.com/cognition
+    region: global
+    enabled: true
+- slug: cohere
+  name: Cohere
+  website_url: https://cohere.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: ashby
+    board_key: cohere
+    source_url: https://jobs.ashbyhq.com/cohere
+    region: global
+    enabled: true
+- slug: comcast
+  name: Comcast
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: comcast/Comcast_Careers
+    source_url: https://comcast.wd5.myworkdayjobs.com/Comcast_Careers
+    region: global
+    enabled: true
+- slug: commvault
+  name: Commvault
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: commvault
+    source_url: https://job-boards.greenhouse.io/commvault
+    region: global
+    enabled: true
+- slug: compose-ly
+  name: Compose.ly
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: compose-ly
+    source_url: https://compose-ly.breezy.hr/
+    region: global
+    enabled: true
+- slug: conagra
+  name: Conagra
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: conagrabrands/Careers_US
+    source_url: https://conagrabrands.wd1.myworkdayjobs.com/Careers_US
+    region: global
+    enabled: true
+- slug: concentrix
+  name: Concentrix
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: cnx/external_global
+    source_url: https://cnx.wd1.myworkdayjobs.com/en-US/external_global
+    region: global
+    enabled: true
+- slug: contentful
+  name: Contentful
+  website_url: https://www.contentful.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: greenhouse
+    board_key: contentful
+    source_url: https://job-boards.greenhouse.io/contentful
+    region: global
+    enabled: true
+- slug: coreweave
+  name: CoreWeave
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: coreweave
+    source_url: https://job-boards.greenhouse.io/coreweave
+    region: global
+    enabled: true
+- slug: counterpart-health
+  name: Counterpart Health
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: counterparthealth
+    source_url: https://job-boards.greenhouse.io/counterparthealth
+    region: global
+    enabled: true
+- slug: creative-cove
+  name: Creative Cove
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: CreativeCoveInc
+    source_url: https://jobs.smartrecruiters.com/CreativeCoveInc
+    region: global
+    enabled: true
+- slug: cresta
+  name: Cresta
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: cresta
+    source_url: https://job-boards.greenhouse.io/cresta
+    region: global
+    enabled: true
+- slug: cruva
+  name: Cruva
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: cruva
+    source_url: https://jobs.ashbyhq.com/cruva
+    region: global
+    enabled: true
+- slug: csi
+  name: CSI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: csiweb/CSI_Careers
+    source_url: https://csiweb.wd1.myworkdayjobs.com/CSI_Careers
+    region: global
+    enabled: true
+- slug: cursor
+  name: Cursor
+  website_url: https://cursor.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: cursor
+    source_url: https://jobs.ashbyhq.com/cursor
+    region: global
+    enabled: true
+- slug: d-matrix
+  name: d-Matrix
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: d-Matrix
+    source_url: https://jobs.ashbyhq.com/d-Matrix
+    region: global
+    enabled: true
+- slug: datadog
+  name: Datadog
+  website_url: https://www.datadoghq.com/
+  enabled: true
+  priority: 60
+  boards:
+  - provider: greenhouse
+    board_key: datadog
+    source_url: https://job-boards.greenhouse.io/datadog
+    region: global
+    enabled: true
+- slug: decagon
+  name: Decagon
+  website_url: https://decagon.ai/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: ashby
+    board_key: decagon
+    source_url: https://jobs.ashbyhq.com/decagon
+    region: global
+    enabled: true
+- slug: deckers
+  name: Deckers
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: deckers/Deckers
+    source_url: https://deckers.wd5.myworkdayjobs.com/en-US/Deckers
+    region: global
+    enabled: true
+- slug: deepgram
+  name: Deepgram
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: deepgram
+    source_url: https://jobs.ashbyhq.com/deepgram
+    region: global
+    enabled: true
+- slug: degreed
+  name: Degreed
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: degreed
+    source_url: https://job-boards.greenhouse.io/degreed
+    region: global
+    enabled: true
+- slug: dentsu
+  name: Dentsu
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: dentsuaegis/DAN_GLOBAL
+    source_url: https://dentsuaegis.wd3.myworkdayjobs.com/DAN_GLOBAL
+    region: global
+    enabled: true
+- slug: dept
+  name: DEPT®
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: dept
+    source_url: https://job-boards.greenhouse.io/dept
+    region: global
+    enabled: true
+- slug: descript
+  name: Descript
+  website_url: https://www.descript.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: descript
+    source_url: https://job-boards.greenhouse.io/descript
+    region: global
+    enabled: true
+- slug: devoted-health
+  name: Devoted Health
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: devoted/Devoted
+    source_url: https://devoted.wd1.myworkdayjobs.com/en-US/Devoted
+    region: global
+    enabled: true
+- slug: directive
+  name: Directive
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: directive
+    source_url: https://jobs.ashbyhq.com/directive
+    region: global
+    enabled: true
+- slug: disruptive-advertising
+  name: Disruptive Advertising
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: disruptive-advertising
+    source_url: https://disruptive-advertising.breezy.hr/
+    region: global
+    enabled: true
+- slug: dnanexus
+  name: DNAnexus
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: DNAnexus
+    source_url: https://jobs.smartrecruiters.com/DNAnexus
+    region: global
+    enabled: true
+- slug: doordash
+  name: DoorDash
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: doordashusa
+    source_url: https://job-boards.greenhouse.io/doordashusa
+    region: global
+    enabled: true
+- slug: dust
+  name: Dust
+  website_url: https://dust.tt/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: ashby
+    board_key: dust
+    source_url: https://jobs.ashbyhq.com/dust
+    region: global
+    enabled: true
+- slug: elastic
+  name: Elastic
+  website_url: https://www.elastic.co/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: greenhouse
+    board_key: elastic
+    source_url: https://job-boards.greenhouse.io/elastic
+    region: global
+    enabled: true
+- slug: eleos-health
+  name: Eleos Health
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: eleoshealth
+    source_url: https://job-boards.greenhouse.io/eleoshealth
+    region: global
+    enabled: true
+- slug: elevenlabs
+  name: ElevenLabs
+  website_url: https://elevenlabs.io/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: elevenlabs
+    source_url: https://jobs.ashbyhq.com/elevenlabs
+    region: global
+    enabled: true
+- slug: eleventh-hour-games
+  name: Eleventh Hour Games
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: eleventhhourgames
+    source_url: https://job-boards.greenhouse.io/eleventhhourgames
+    region: global
+    enabled: true
+- slug: empower
+  name: Empower
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: empower/empower
+    source_url: https://empower.wd12.myworkdayjobs.com/empower
+    region: global
+    enabled: true
+- slug: empowerly
+  name: Empowerly
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: empowerly
+    source_url: https://jobs.lever.co/empowerly
+    region: global
+    enabled: true
+- slug: enable
+  name: Enable
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: enable
+    source_url: https://jobs.lever.co/enable
+    region: global
+    enabled: true
+- slug: engine
+  name: Engine
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: engine
+    source_url: https://job-boards.greenhouse.io/engine
+    region: global
+    enabled: true
+- slug: ensemble-health-partners
+  name: Ensemble Health Partners
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: ensemblehp/ensemblehealthpartnerscareers
+    source_url: https://ensemblehp.wd5.myworkdayjobs.com/ensemblehealthpartnerscareers
+    region: global
+    enabled: true
+- slug: equinox
+  name: Equinox
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: Equinox
+    source_url: https://jobs.smartrecruiters.com/Equinox
+    region: global
+    enabled: true
+- slug: erupt-group
+  name: Erupt Group
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: erupt-inc
+    source_url: https://erupt-inc.breezy.hr/
+    region: global
+    enabled: true
+- slug: ethernovia
+  name: Ethernovia
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: ethernovia
+    source_url: https://job-boards.greenhouse.io/ethernovia
+    region: global
+    enabled: true
+- slug: ethos-life
+  name: Ethos Life
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: ethoslife
+    source_url: https://job-boards.greenhouse.io/ethoslife
+    region: global
+    enabled: true
+- slug: etsy
+  name: Etsy
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: etsy/etsy_careers
+    source_url: https://etsy.wd5.myworkdayjobs.com/etsy_careers
+    region: global
+    enabled: true
+- slug: eversana
+  name: EVERSANA
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: EVERSANA1
+    source_url: https://jobs.smartrecruiters.com/EVERSANA1
+    region: global
+    enabled: true
+- slug: evertune
+  name: Evertune
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: evertune
+    source_url: https://jobs.ashbyhq.com/evertune
+    region: global
+    enabled: true
+- slug: evolve
+  name: Evolve
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: evolvevacationrental
+    source_url: https://job-boards.greenhouse.io/evolvevacationrental
+    region: global
+    enabled: true
+- slug: fairsquare
+  name: FairSquare
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: fairsquare
+    source_url: https://fairsquare.breezy.hr/
+    region: global
+    enabled: true
+- slug: familiar-machines-magic
+  name: Familiar Machines & Magic
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: familiarmachines
+    source_url: https://jobs.ashbyhq.com/familiarmachines
+    region: global
+    enabled: true
+- slug: figma
+  name: Figma
+  website_url: https://www.figma.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: greenhouse
+    board_key: figma
+    source_url: https://job-boards.greenhouse.io/figma
+    region: global
+    enabled: true
+- slug: figure-ai
+  name: Figure AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: figureai
+    source_url: https://job-boards.greenhouse.io/figureai
+    region: global
+    enabled: true
+- slug: fireworks-ai
+  name: Fireworks AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: fireworksai
+    source_url: https://job-boards.greenhouse.io/fireworksai
+    region: global
+    enabled: true
+- slug: first-american
+  name: First American
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: firstam/firstamericancareers
+    source_url: https://firstam.wd1.myworkdayjobs.com/en-US/firstamericancareers
+    region: global
+    enabled: true
+- slug: forbes-advisor
+  name: Forbes Advisor
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: forbes-advisor
+    source_url: https://ats.rippling.com/forbes-advisor/jobs
+    region: global
+    enabled: true
+- slug: forgd
+  name: forgd
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: forgd-ai
+    source_url: https://jobs.ashbyhq.com/forgd-ai
+    region: global
+    enabled: true
+- slug: fortune
+  name: Fortune
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: fortune/Fortune
+    source_url: https://fortune.wd108.myworkdayjobs.com/en-US/Fortune
+    region: global
+    enabled: true
+- slug: framework
+  name: Framework
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: framework
+    source_url: https://ats.rippling.com/framework/jobs
+    region: global
+    enabled: true
+- slug: front
+  name: Front
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: frontcareers
+    source_url: https://jobs.ashbyhq.com/frontcareers
+    region: global
+    enabled: true
+- slug: frontify
+  name: Frontify
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: frontify
+    source_url: https://jobs.lever.co/frontify
+    region: global
+    enabled: true
+- slug: g2
+  name: G2
+  website_url: https://www.g2.com/
+  enabled: true
+  priority: 20
+  boards:
+  - provider: bamboohr
+    board_key: g2
+    source_url: https://g2.bamboohr.com/careers
+    region: global
+    enabled: true
+- slug: gamma
+  name: Gamma
+  website_url: https://gamma.app/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: ashby
+    board_key: gamma
+    source_url: https://jobs.ashbyhq.com/gamma
+    region: global
+    enabled: true
+- slug: ghost-story-games
+  name: Ghost Story Games
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: gsgcareers
+    source_url: https://job-boards.greenhouse.io/gsgcareers
+    region: global
+    enabled: true
+- slug: gitlab
+  name: GitLab
+  website_url: https://about.gitlab.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: gitlab
+    source_url: https://job-boards.greenhouse.io/gitlab
+    region: global
+    enabled: true
+- slug: glean
+  name: Glean
+  website_url: https://www.glean.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: gleanwork
+    source_url: https://job-boards.greenhouse.io/gleanwork
+    region: global
+    enabled: true
+- slug: glossgenius
+  name: GlossGenius
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: glossgenius
+    source_url: https://job-boards.greenhouse.io/glossgenius
+    region: global
+    enabled: true
+- slug: gn-jabra
+  name: GN (Jabra)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: gn/JabraCareers
+    source_url: https://gn.wd3.myworkdayjobs.com/JabraCareers
+    region: global
+    enabled: true
+- slug: gong
+  name: Gong
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: gongio
+    source_url: https://job-boards.greenhouse.io/gongio
+    region: global
+    enabled: true
+- slug: goodwin
+  name: Goodwin
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: goodwinprocter/External_Careers
+    source_url: https://goodwinprocter.wd5.myworkdayjobs.com/en-US/External_Careers
+    region: global
+    enabled: true
+- slug: gopro
+  name: GoPro
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: goprocareers
+    source_url: https://job-boards.greenhouse.io/goprocareers
+    region: global
+    enabled: true
+- slug: granola
+  name: Granola
+  website_url: https://granola.ai/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: ashby
+    board_key: granola
+    source_url: https://jobs.ashbyhq.com/granola
+    region: global
+    enabled: true
+- slug: graphite
+  name: Graphite
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: Graphitehq
+    source_url: https://jobs.ashbyhq.com/Graphitehq
+    region: global
+    enabled: true
+- slug: greenlight-financial-technology
+  name: Greenlight Financial Technology
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: greenlight
+    source_url: https://jobs.lever.co/greenlight
+    region: global
+    enabled: true
+- slug: gruns
+  name: Grüns
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: gruns
+    source_url: https://job-boards.greenhouse.io/gruns
+    region: global
+    enabled: true
+- slug: guidde
+  name: Guidde
+  website_url: https://www.guidde.com/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: greenhouse
+    board_key: guidde
+    source_url: https://job-boards.greenhouse.io/guidde
+    region: global
+    enabled: true
+- slug: guidehouse
+  name: Guidehouse
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: guidehouse/External
+    source_url: https://guidehouse.wd1.myworkdayjobs.com/en-US/External
+    region: global
+    enabled: true
+- slug: gurobi-optimization
+  name: Gurobi Optimization
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: GurobiOptimization
+    source_url: https://jobs.lever.co/GurobiOptimization
+    region: global
+    enabled: true
+- slug: happyrobot
+  name: Happyrobot
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: happyrobot.ai
+    source_url: https://jobs.ashbyhq.com/happyrobot.ai
+    region: global
+    enabled: true
+- slug: harris-computer
+  name: Harris Computer
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: harriscomputer/1
+    source_url: https://harriscomputer.wd3.myworkdayjobs.com/en-US/1
+    region: global
+    enabled: true
+- slug: harris-computer-northstar
+  name: Harris Computer (NorthStar)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: harriscomputer/HTN
+    source_url: https://harriscomputer.wd3.myworkdayjobs.com/HTN
+    region: global
+    enabled: true
+- slug: harvey
+  name: Harvey
+  website_url: https://www.harvey.ai/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: ashby
+    board_key: harvey
+    source_url: https://jobs.ashbyhq.com/harvey
+    region: global
+    enabled: true
+- slug: hatch
+  name: Hatch
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hatchcareers
+    source_url: https://job-boards.greenhouse.io/hatchcareers
+    region: global
+    enabled: true
+- slug: havas
+  name: Havas
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: havas/GroupExternalCareerSite
+    source_url: https://havas.wd3.myworkdayjobs.com/en-US/GroupExternalCareerSite
+    region: global
+    enabled: true
+- slug: headspace
+  name: Headspace
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hs
+    source_url: https://job-boards.greenhouse.io/hs
+    region: global
+    enabled: true
+- slug: helm-ai
+  name: Helm.ai
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: helm-ai
+    source_url: https://jobs.ashbyhq.com/helm-ai
+    region: global
+    enabled: true
+- slug: helpware
+  name: Helpware
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: helpware-inc
+    source_url: https://helpware-inc.breezy.hr/
+    region: global
+    enabled: true
+- slug: henry-schein
+  name: Henry Schein
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: henryschein/External_Careers
+    source_url: https://henryschein.wd1.myworkdayjobs.com/External_Careers
+    region: global
+    enabled: true
+- slug: heygen
+  name: HeyGen
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: heygen
+    source_url: https://job-boards.greenhouse.io/heygen
+    region: global
+    enabled: true
+- slug: hi-altitude-brands
+  name: Hi-Altitude Brands
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: hialtitudebrands
+    source_url: https://apply.workable.com/hialtitudebrands
+    region: global
+    enabled: true
+- slug: hightouch
+  name: Hightouch
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hightouch
+    source_url: https://job-boards.greenhouse.io/hightouch
+    region: global
+    enabled: true
+- slug: highwire
+  name: Highwire
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: highwire
+    source_url: https://job-boards.greenhouse.io/highwire
+    region: global
+    enabled: true
+- slug: hims-hers
+  name: Hims & Hers
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: hims-and-hers
+    source_url: https://jobs.ashbyhq.com/hims-and-hers
+    region: global
+    enabled: true
+- slug: hiya
+  name: Hiya
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: hiya
+    source_url: https://jobs.ashbyhq.com/hiya
+    region: global
+    enabled: true
+- slug: hometap
+  name: Hometap
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hometap
+    source_url: https://job-boards.greenhouse.io/hometap
+    region: global
+    enabled: true
+- slug: hook
+  name: Hook
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hook
+    source_url: https://job-boards.greenhouse.io/hook
+    region: global
+    enabled: true
+- slug: hos247
+  name: HOS247
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: HOS247LLC
+    source_url: https://jobs.smartrecruiters.com/HOS247LLC
+    region: global
+    enabled: true
+- slug: hovercraft
+  name: Hovercraft
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hovercraft
+    source_url: https://job-boards.greenhouse.io/hovercraft
+    region: global
+    enabled: true
+- slug: huckleberry-labs
+  name: Huckleberry Labs
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: Huckleberrylabs
+    source_url: https://jobs.lever.co/Huckleberrylabs
+    region: global
+    enabled: true
+- slug: hudson-rouge
+  name: Hudson Rouge
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: hudsonrouge
+    source_url: https://job-boards.greenhouse.io/hudsonrouge
+    region: global
+    enabled: true
+- slug: human-agency
+  name: Human Agency
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: humanagency
+    source_url: https://job-boards.greenhouse.io/humanagency
+    region: global
+    enabled: true
+- slug: humana
+  name: Humana
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: humana/Humana_External_Career_Site
+    source_url: https://humana.wd5.myworkdayjobs.com/en-US/Humana_External_Career_Site
+    region: global
+    enabled: true
+- slug: huntress
+  name: Huntress
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: huntress
+    source_url: https://job-boards.greenhouse.io/huntress
+    region: global
+    enabled: true
+- slug: huron
+  name: Huron
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: huron/huroncareers
+    source_url: https://huron.wd1.myworkdayjobs.com/en-US/huroncareers
+    region: global
+    enabled: true
+- slug: icf
+  name: ICF
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: icf/ICFExternal_Career_Site
+    source_url: https://icf.wd5.myworkdayjobs.com/ICFExternal_Career_Site
+    region: global
+    enabled: true
+- slug: id-me
+  name: ID.me
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: idme
+    source_url: https://job-boards.greenhouse.io/idme
+    region: global
+    enabled: true
+- slug: inflection-ai
+  name: Inflection AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: inflectionai
+    source_url: https://job-boards.greenhouse.io/inflectionai
+    region: global
+    enabled: true
+- slug: infuse
+  name: INFUSE
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: infuse
+    source_url: https://job-boards.greenhouse.io/infuse
+    region: global
+    enabled: true
+- slug: insomniac-games
+  name: Insomniac Games
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: insomniac
+    source_url: https://job-boards.greenhouse.io/insomniac
+    region: global
+    enabled: true
+- slug: intapp
+  name: Intapp
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: intapp/Intapp
+    source_url: https://intapp.wd1.myworkdayjobs.com/Intapp
+    region: global
+    enabled: true
+- slug: intel
+  name: Intel
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: intel/External
+    source_url: https://intel.wd1.myworkdayjobs.com/External
+    region: global
+    enabled: true
+- slug: intercom
+  name: Intercom
+  website_url: https://www.intercom.com/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: greenhouse
+    board_key: intercom
+    source_url: https://job-boards.greenhouse.io/intercom
+    region: global
+    enabled: true
+- slug: intradiem
+  name: Intradiem
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: intradiem
+    source_url: https://job-boards.greenhouse.io/intradiem
+    region: global
+    enabled: true
+- slug: iterable
+  name: Iterable
+  website_url: https://iterable.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: greenhouse
+    board_key: iterable
+    source_url: https://job-boards.greenhouse.io/iterable
+    region: global
+    enabled: true
+- slug: j-d-power
+  name: J.D. Power
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: jdpa/JDPower
+    source_url: https://jdpa.wd501.myworkdayjobs.com/en-US/JDPower
+    region: global
+    enabled: true
+- slug: jam-city
+  name: Jam City
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: jamcity
+    source_url: https://jobs.lever.co/jamcity
+    region: global
+    enabled: true
+- slug: january
+  name: January
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: january
+    source_url: https://jobs.ashbyhq.com/january
+    region: global
+    enabled: true
+- slug: jasper-ai
+  name: Jasper AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: Jasper%20AI
+    source_url: https://jobs.ashbyhq.com/Jasper%20AI
+    region: global
+    enabled: true
+- slug: jerry-ai
+  name: Jerry.ai
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: jerry.ai
+    source_url: https://jobs.ashbyhq.com/jerry.ai
+    region: global
+    enabled: true
+- slug: jll
+  name: JLL
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: jll/jllcareers
+    source_url: https://jll.wd1.myworkdayjobs.com/en-US/jllcareers
+    region: global
+    enabled: true
+- slug: k-health
+  name: K Health
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: khealthcareers
+    source_url: https://job-boards.greenhouse.io/khealthcareers
+    region: global
+    enabled: true
+- slug: kayak
+  name: KAYAK
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: kayak
+    source_url: https://jobs.ashbyhq.com/kayak
+    region: global
+    enabled: true
+- slug: keybank
+  name: KeyBank
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: keybank/External_Career_Site
+    source_url: https://keybank.wd5.myworkdayjobs.com/en-US/External_Career_Site
+    region: global
+    enabled: true
+- slug: kindercare
+  name: KinderCare
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: kindercare/externalcareersite
+    source_url: https://kindercare.wd5.myworkdayjobs.com/en-us/externalcareersite
+    region: global
+    enabled: true
+- slug: kisi
+  name: Kisi
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: kisi-jobs
+    source_url: https://ats.rippling.com/kisi-jobs/jobs
+    region: global
+    enabled: true
+- slug: klaviyo
+  name: Klaviyo
+  website_url: https://www.klaviyo.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: greenhouse
+    board_key: klaviyo
+    source_url: https://job-boards.greenhouse.io/klaviyo
+    region: global
+    enabled: true
+- slug: klick
+  name: Klick
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: Klick1
+    source_url: https://jobs.smartrecruiters.com/Klick1
+    region: global
+    enabled: true
+- slug: kraken
+  name: Kraken
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: kraken.com
+    source_url: https://jobs.ashbyhq.com/kraken.com
+    region: global
+    enabled: true
+- slug: langchain
+  name: LangChain
+  website_url: https://www.langchain.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: langchain
+    source_url: https://jobs.ashbyhq.com/langchain
+    region: global
+    enabled: true
+- slug: launchdarkly
+  name: LaunchDarkly
+  website_url: https://launchdarkly.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: launchdarkly
+    source_url: https://job-boards.greenhouse.io/launchdarkly
+    region: global
+    enabled: true
+- slug: legion-intelligence
+  name: Legion Intelligence
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: yurtsai
+    source_url: https://job-boards.greenhouse.io/yurtsai
+    region: global
+    enabled: true
+- slug: lever-demo
+  name: Lever Demo
+  website_url: https://www.lever.co/
+  enabled: false
+  priority: -100
+  boards:
+  - provider: lever
+    board_key: leverdemo
+    source_url: https://jobs.lever.co/leverdemo
+    region: global
+    enabled: true
+- slug: levi-strauss-co
+  name: Levi Strauss & Co.
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: levistraussandco/External
+    source_url: https://levistraussandco.wd5.myworkdayjobs.com/en-US/External
+    region: global
+    enabled: true
+- slug: lexisnexis-relx
+  name: LexisNexis (RELX)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: relx/lexisnexislegal
+    source_url: https://relx.wd3.myworkdayjobs.com/en-us/lexisnexislegal
+    region: global
+    enabled: true
+- slug: liatrio
+  name: Liatrio
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: liatrio
+    source_url: https://jobs.lever.co/liatrio
+    region: global
+    enabled: true
+- slug: life-is-good
+  name: Life is Good
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: life-is-good
+    source_url: https://apply.workable.com/life-is-good
+    region: global
+    enabled: true
+- slug: lightmatter
+  name: Lightmatter
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: lightmatter
+    source_url: https://job-boards.greenhouse.io/lightmatter
+    region: global
+    enabled: true
+- slug: linear
+  name: Linear
+  website_url: https://linear.app/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: ashby
+    board_key: linear
+    source_url: https://jobs.ashbyhq.com/linear
+    region: global
+    enabled: true
+- slug: linkedin
+  name: LinkedIn
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: LinkedIn3
+    source_url: https://jobs.smartrecruiters.com/LinkedIn3
+    region: global
+    enabled: true
+- slug: lockwood
+  name: Lockwood (The Lockwood Group)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: lockwood
+    source_url: https://job-boards.greenhouse.io/lockwood
+    region: global
+    enabled: true
+- slug: loft-orbital
+  name: Loft Orbital
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: loftorbital
+    source_url: https://jobs.lever.co/loftorbital
+    region: global
+    enabled: true
+- slug: logitech
+  name: Logitech
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: logitech/Logitech
+    source_url: https://logitech.wd5.myworkdayjobs.com/Logitech
+    region: global
+    enabled: true
+- slug: loka
+  name: Loka
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: lokainc
+    source_url: https://job-boards.greenhouse.io/lokainc
+    region: global
+    enabled: true
+- slug: loop-ai
+  name: Loop AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: Loop%20AI
+    source_url: https://jobs.lever.co/Loop%20AI
+    region: global
+    enabled: true
+- slug: lovable
+  name: Lovable
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: lovable
+    source_url: https://jobs.ashbyhq.com/lovable
+    region: global
+    enabled: true
+- slug: ltk
+  name: LTK
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: shopltk
+    source_url: https://job-boards.greenhouse.io/shopltk
+    region: global
+    enabled: true
+- slug: lucyrx
+  name: LucyRx
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: lucyrx/LucyRX
+    source_url: https://lucyrx.wd503.myworkdayjobs.com/en-US/LucyRX
+    region: global
+    enabled: true
+- slug: luma-ai
+  name: Luma AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: lumaai
+    source_url: https://jobs.ashbyhq.com/lumaai
+    region: global
+    enabled: true
+- slug: luxury-presence
+  name: Luxury Presence
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: luxurypresence
+    source_url: https://jobs.lever.co/luxurypresence
+    region: global
+    enabled: true
+- slug: mars-men
+  name: Mars Men
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: mars-men
+    source_url: https://jobs.lever.co/mars-men
+    region: global
+    enabled: true
+- slug: marvell
+  name: Marvell
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: marvell/MarvellCareers
+    source_url: https://marvell.wd1.myworkdayjobs.com/MarvellCareers
+    region: global
+    enabled: true
+- slug: maximus-health
+  name: Maximus Health, Inc.
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: maximustribe
+    source_url: https://jobs.ashbyhq.com/maximustribe
+    region: global
+    enabled: true
+- slug: maze
+  name: Maze
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: mazedesign
+    source_url: https://jobs.ashbyhq.com/mazedesign
+    region: global
+    enabled: true
+- slug: mckinney
+  name: McKinney
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: jobsmckinneycom
+    source_url: https://job-boards.greenhouse.io/jobsmckinneycom
+    region: global
+    enabled: true
+- slug: meanpug-digital
+  name: MeanPug Digital
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: meanpug
+    source_url: https://apply.workable.com/meanpug
+    region: global
+    enabled: true
+- slug: mercor
+  name: Mercor
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: mercor
+    source_url: https://jobs.ashbyhq.com/mercor
+    region: global
+    enabled: true
+- slug: mercury
+  name: Mercury
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: mercury
+    source_url: https://job-boards.greenhouse.io/mercury
+    region: global
+    enabled: true
+- slug: mesh
+  name: Mesh
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: mesh
+    source_url: https://job-boards.greenhouse.io/mesh
+    region: global
+    enabled: true
+- slug: mews
+  name: Mews
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: mewssystems
+    source_url: https://job-boards.greenhouse.io/mewssystems
+    region: global
+    enabled: true
+- slug: micron
+  name: Micron
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: micron/External
+    source_url: https://micron.wd1.myworkdayjobs.com/External
+    region: global
+    enabled: true
+- slug: midjourney
+  name: Midjourney
+  website_url: https://www.midjourney.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: midjourney
+    source_url: https://jobs.ashbyhq.com/midjourney
+    region: global
+    enabled: true
+- slug: mint-studios
+  name: Mint Studios
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: mint-studios
+    source_url: https://apply.workable.com/mint-studios
+    region: global
+    enabled: true
+- slug: mistral-ai
+  name: Mistral AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: mistral.ai
+    source_url: https://jobs.ashbyhq.com/mistral.ai
+    region: global
+    enabled: true
+- slug: mixpanel
+  name: Mixpanel
+  website_url: https://mixpanel.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: greenhouse
+    board_key: mixpanel
+    source_url: https://job-boards.greenhouse.io/mixpanel
+    region: global
+    enabled: true
+- slug: modal
+  name: Modal
+  website_url: https://modal.com/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: ashby
+    board_key: modal
+    source_url: https://jobs.ashbyhq.com/modal
+    region: global
+    enabled: true
+- slug: mongodb
+  name: MongoDB
+  website_url: https://www.mongodb.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: mongodb
+    source_url: https://job-boards.greenhouse.io/mongodb
+    region: global
+    enabled: true
+- slug: monte-carlo
+  name: Monte Carlo
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: montecarlodata
+    source_url: https://jobs.ashbyhq.com/montecarlodata
+    region: global
+    enabled: true
+- slug: mostest
+  name: Mostest
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: mostest
+    source_url: https://jobs.ashbyhq.com/mostest
+    region: global
+    enabled: true
+- slug: movement-strategy
+  name: Movement Strategy
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: movementstrategy
+    source_url: https://job-boards.greenhouse.io/movementstrategy
+    region: global
+    enabled: true
+- slug: mutiny
+  name: Mutiny
+  website_url: https://www.mutinyhq.com/
+  enabled: true
+  priority: 80
+  boards:
+  - provider: ashby
+    board_key: mutiny
+    source_url: https://jobs.ashbyhq.com/mutiny
+    region: global
+    enabled: true
+- slug: mymoose
+  name: MyMoose
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: mymoose/careers
+    source_url: https://mymoose.wd1.myworkdayjobs.com/en-US/careers
+    region: global
+    enabled: true
+- slug: namsa
+  name: NAMSA
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: namsa/NAMSA
+    source_url: https://namsa.wd5.myworkdayjobs.com/NAMSA
+    region: global
+    enabled: true
+- slug: nasdaq
+  name: Nasdaq
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: nasdaq/Global_External_Site
+    source_url: https://nasdaq.wd1.myworkdayjobs.com/en-US/Global_External_Site
+    region: global
+    enabled: true
+- slug: navan
+  name: Navan
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: tripactions
+    source_url: https://job-boards.greenhouse.io/tripactions
+    region: global
+    enabled: true
+- slug: netease-games
+  name: NetEase Games
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: neteasegames
+    source_url: https://job-boards.greenhouse.io/neteasegames
+    region: global
+    enabled: true
+- slug: netgear
+  name: NETGEAR
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: netgear
+    source_url: https://jobs.ashbyhq.com/netgear
+    region: global
+    enabled: true
+- slug: newsela
+  name: Newsela
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: newsela
+    source_url: https://job-boards.greenhouse.io/newsela
+    region: global
+    enabled: true
+- slug: nexthink
+  name: Nexthink
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: Nexthink
+    source_url: https://jobs.smartrecruiters.com/Nexthink
+    region: global
+    enabled: true
+- slug: nexus-communications
+  name: Nexus Communications
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: nexuscommunications
+    source_url: https://job-boards.greenhouse.io/nexuscommunications
+    region: global
+    enabled: true
+- slug: nielsen
+  name: Nielsen
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: TheNielsenCompany
+    source_url: https://jobs.smartrecruiters.com/TheNielsenCompany
+    region: global
+    enabled: true
+- slug: nimble-gravity
+  name: Nimble Gravity
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: nimblegravity
+    source_url: https://job-boards.greenhouse.io/nimblegravity
+    region: global
+    enabled: true
+- slug: nothing
+  name: Nothing
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: nothing
+    source_url: https://job-boards.greenhouse.io/nothing
+    region: global
+    enabled: true
+- slug: notion
+  name: Notion
+  website_url: https://www.notion.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: notion
+    source_url: https://jobs.ashbyhq.com/notion
+    region: global
+    enabled: true
+- slug: nuro
+  name: Nuro
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: nuro
+    source_url: https://job-boards.greenhouse.io/nuro
+    region: global
+    enabled: true
+- slug: okx
+  name: OKX
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: okx
+    source_url: https://job-boards.greenhouse.io/okx
+    region: global
+    enabled: true
+- slug: oliver
+  name: OLIVER
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: oliver
+    source_url: https://job-boards.greenhouse.io/oliver
+    region: global
+    enabled: true
+- slug: oliver-agency
+  name: OLIVER Agency
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: oliverusa
+    source_url: https://job-boards.greenhouse.io/oliverusa
+    region: global
+    enabled: true
+- slug: omada-health
+  name: Omada Health
+  website_url: https://www.omadahealth.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: greenhouse
+    board_key: omadahealth
+    source_url: https://job-boards.greenhouse.io/omadahealth
+    region: global
+    enabled: true
+- slug: ometria
+  name: Ometria
+  website_url: https://ometria.com/
+  enabled: true
+  priority: 20
+  boards:
+  - provider: workable
+    board_key: ometria
+    source_url: https://apply.workable.com/ometria
+    region: global
+    enabled: true
+- slug: openai
+  name: OpenAI
+  website_url: https://openai.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: OpenAI
+    source_url: https://jobs.ashbyhq.com/OpenAI
+    region: global
+    enabled: true
+- slug: openevidence
+  name: OpenEvidence
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: openevidence
+    source_url: https://jobs.ashbyhq.com/openevidence
+    region: global
+    enabled: true
+- slug: openrouter
+  name: OpenRouter
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: openrouter
+    source_url: https://jobs.ashbyhq.com/openrouter
+    region: global
+    enabled: true
+- slug: origin
+  name: Origin
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: origin-10x
+    source_url: https://apply.workable.com/origin-10x
+    region: global
+    enabled: true
+- slug: oura
+  name: Oura
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: oura
+    source_url: https://job-boards.greenhouse.io/oura
+    region: global
+    enabled: true
+- slug: ovative
+  name: Ovative
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: ovative/ovative
+    source_url: https://ovative.wd12.myworkdayjobs.com/en-US/ovative
+    region: global
+    enabled: true
+- slug: packt
+  name: Packt
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: packtpublishing
+    source_url: https://apply.workable.com/packtpublishing
+    region: global
+    enabled: true
+- slug: padsplit
+  name: PadSplit
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: padsplit
+    source_url: https://jobs.lever.co/padsplit
+    region: global
+    enabled: true
+- slug: parafin
+  name: Parafin
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: parafin
+    source_url: https://jobs.ashbyhq.com/parafin
+    region: global
+    enabled: true
+- slug: pattern
+  name: Pattern
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: pattern
+    source_url: https://jobs.lever.co/pattern
+    region: global
+    enabled: true
+- slug: peak-credit-union
+  name: Peak Credit Union
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: peakcreditunion
+    source_url: https://job-boards.greenhouse.io/peakcreditunion
+    region: global
+    enabled: true
+- slug: pearl-justanswer
+  name: Pearl (JustAnswer)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: justanswer
+    source_url: https://job-boards.greenhouse.io/justanswer
+    region: global
+    enabled: true
+- slug: peloton
+  name: Peloton
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: peloton
+    source_url: https://job-boards.greenhouse.io/peloton
+    region: global
+    enabled: true
+- slug: pencil
+  name: Pencil
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: pencil
+    source_url: https://jobs.ashbyhq.com/pencil
+    region: global
+    enabled: true
+- slug: pergolux
+  name: Pergolux
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: pergolux
+    source_url: https://jobs.ashbyhq.com/pergolux
+    region: global
+    enabled: true
+- slug: perplexity
+  name: Perplexity
+  website_url: https://www.perplexity.ai/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: perplexity
+    source_url: https://jobs.ashbyhq.com/perplexity
+    region: global
+    enabled: true
+- slug: phantom
+  name: Phantom
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: phantom
+    source_url: https://jobs.ashbyhq.com/phantom
+    region: global
+    enabled: true
+- slug: pointclickcare
+  name: PointClickCare
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: pointclickcare
+    source_url: https://jobs.lever.co/pointclickcare
+    region: global
+    enabled: true
+- slug: polyai
+  name: PolyAI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: polyai
+    source_url: https://job-boards.eu.greenhouse.io/polyai
+    region: eu
+    enabled: true
+- slug: poppy-ai
+  name: Poppy AI (GetPoppy AI)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: getpoppyai
+    source_url: https://jobs.ashbyhq.com/getpoppyai
+    region: global
+    enabled: true
+- slug: power-to-decide
+  name: Power to Decide
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: powertodecide
+    source_url: https://job-boards.greenhouse.io/powertodecide
+    region: global
+    enabled: true
+- slug: precision-aq
+  name: Precision AQ (Precision Medicine Group)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: precisionaq
+    source_url: https://job-boards.greenhouse.io/precisionaq
+    region: global
+    enabled: true
+- slug: press-ganey
+  name: Press Ganey
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: pressganey/Careers
+    source_url: https://pressganey.wd1.myworkdayjobs.com/en-US/Careers
+    region: global
+    enabled: true
+- slug: progressive-leasing
+  name: Progressive Leasing
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: progleasing/ProgLeasingCareers
+    source_url: https://progleasing.wd5.myworkdayjobs.com/ProgLeasingCareers
+    region: global
+    enabled: true
+- slug: qualys
+  name: Qualys
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: qualys/Careers
+    source_url: https://qualys.wd5.myworkdayjobs.com/en-US/Careers
+    region: global
+    enabled: true
+- slug: quatrain-creative
+  name: Quatrain Creative
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: quatrain-creative
+    source_url: https://quatrain-creative.breezy.hr/
+    region: global
+    enabled: true
+- slug: qvc-group
+  name: QVC Group
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: qvc/QRG
+    source_url: https://qvc.wd5.myworkdayjobs.com/en-US/QRG
+    region: global
+    enabled: true
+- slug: rally
+  name: Rally
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: wearerally
+    source_url: https://ats.rippling.com/wearerally/jobs
+    region: global
+    enabled: true
+- slug: ramp
+  name: Ramp
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: ramp
+    source_url: https://jobs.ashbyhq.com/ramp
+    region: global
+    enabled: true
+- slug: razer
+  name: Razer
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: razer/Careers
+    source_url: https://razer.wd3.myworkdayjobs.com/Careers
+    region: global
+    enabled: true
+- slug: recidiviz
+  name: Recidiviz
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: recidiviz
+    source_url: https://job-boards.greenhouse.io/recidiviz
+    region: global
+    enabled: true
+- slug: reddit
+  name: Reddit
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: reddit
+    source_url: https://job-boards.greenhouse.io/reddit
+    region: global
+    enabled: true
+- slug: reevo
+  name: Reevo
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: reevo
+    source_url: https://jobs.ashbyhq.com/reevo
+    region: global
+    enabled: true
+- slug: reflection-ai
+  name: Reflection AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: reflectionai
+    source_url: https://jobs.ashbyhq.com/reflectionai
+    region: global
+    enabled: true
+- slug: remote
+  name: Remote
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: remotecom
+    source_url: https://job-boards.greenhouse.io/remotecom
+    region: global
+    enabled: true
+- slug: render
+  name: Render
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: render
+    source_url: https://jobs.ashbyhq.com/render
+    region: global
+    enabled: true
+- slug: renew-home
+  name: Renew Home
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workable
+    board_key: renewhome
+    source_url: https://apply.workable.com/renewhome
+    region: global
+    enabled: true
+- slug: replit
+  name: Replit
+  website_url: https://replit.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: ashby
+    board_key: replit
+    source_url: https://jobs.ashbyhq.com/replit
+    region: global
+    enabled: true
+- slug: resmed
+  name: ResMed
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: resmed/ResMed_External_Careers
+    source_url: https://resmed.wd3.myworkdayjobs.com/en-US/ResMed_External_Careers
+    region: global
+    enabled: true
+- slug: respond-io
+  name: Respond.io
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: respond-io
+    source_url: https://respond-io.breezy.hr/
+    region: global
+    enabled: true
+- slug: retell-ai
+  name: Retell AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: retell-ai
+    source_url: https://jobs.ashbyhq.com/retell-ai
+    region: global
+    enabled: true
+- slug: revhealth
+  name: RevHealth
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: revhealth
+    source_url: https://ats.rippling.com/revhealth/jobs
+    region: global
+    enabled: true
+- slug: revinate
+  name: Revinate
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: revinate
+    source_url: https://jobs.lever.co/revinate
+    region: global
+    enabled: true
+- slug: ridgeline
+  name: Ridgeline
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: ridgeline
+    source_url: https://job-boards.greenhouse.io/ridgeline
+    region: global
+    enabled: true
+- slug: rocket-quicken-loans
+  name: Rocket (Quicken Loans)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: quickenloans/rocket_careers
+    source_url: https://quickenloans.wd5.myworkdayjobs.com/en-US/rocket_careers
+    region: global
+    enabled: true
+- slug: roku
+  name: Roku
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: roku
+    source_url: https://job-boards.greenhouse.io/roku
+    region: global
+    enabled: true
+- slug: runbook
+  name: Runbook
+  website_url: https://www.runbook.cloud/
+  enabled: true
+  priority: 60
+  boards:
+  - provider: ashby
+    board_key: runbook
+    source_url: https://jobs.ashbyhq.com/runbook
+    region: global
+    enabled: true
+- slug: runlayer
+  name: Runlayer
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: runlayer
+    source_url: https://jobs.ashbyhq.com/runlayer
+    region: global
+    enabled: true
+- slug: runway
+  name: Runway
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: runway-ml
+    source_url: https://jobs.ashbyhq.com/runway-ml
+    region: global
+    enabled: true
+- slug: rwazi
+  name: Rwazi
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: rwazi
+    source_url: https://jobs.ashbyhq.com/rwazi
+    region: global
+    enabled: true
+- slug: sabre
+  name: Sabre
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: sabre/SabreJobs
+    source_url: https://sabre.wd1.myworkdayjobs.com/en-US/SabreJobs
+    region: global
+    enabled: true
+- slug: sambanova
+  name: SambaNova
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: sambanovasystems
+    source_url: https://job-boards.greenhouse.io/sambanovasystems
+    region: global
+    enabled: true
+- slug: saviynt
+  name: Saviynt
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: saviynt
+    source_url: https://jobs.lever.co/saviynt
+    region: global
+    enabled: true
+- slug: scale-ai
+  name: Scale AI
+  website_url: https://scale.com/
+  enabled: true
+  priority: 60
+  boards:
+  - provider: greenhouse
+    board_key: scaleai
+    source_url: https://job-boards.greenhouse.io/scaleai
+    region: global
+    enabled: true
+- slug: scholastic
+  name: Scholastic
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: scholastic/External
+    source_url: https://scholastic.wd5.myworkdayjobs.com/External
+    region: global
+    enabled: true
+- slug: scopely
+  name: Scopely
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: scopely
+    source_url: https://job-boards.greenhouse.io/scopely
+    region: global
+    enabled: true
+- slug: seafoam-marketing
+  name: Seafoam Marketing
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: seafoam-media
+    source_url: https://seafoam-media.breezy.hr/
+    region: global
+    enabled: true
+- slug: seattle-sounders-fc
+  name: Seattle Sounders FC
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: seattlesoundersfc
+    source_url: https://job-boards.greenhouse.io/seattlesoundersfc
+    region: global
+    enabled: true
+- slug: seed
+  name: Seed
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: seed
+    source_url: https://job-boards.greenhouse.io/seed
+    region: global
+    enabled: true
+- slug: servicenow
+  name: ServiceNow
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: ServiceNow
+    source_url: https://jobs.smartrecruiters.com/ServiceNow
+    region: global
+    enabled: true
+- slug: shi
+  name: SHI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: shi/shicareers
+    source_url: https://shi.wd12.myworkdayjobs.com/shicareers
+    region: global
+    enabled: true
+- slug: shift-paradigm
+  name: SHIFT Paradigm
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: shift
+    source_url: https://ats.rippling.com/shift/jobs
+    region: global
+    enabled: true
+- slug: sierra
+  name: Sierra
+  website_url: https://sierra.ai/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: sierra
+    source_url: https://jobs.ashbyhq.com/sierra
+    region: global
+    enabled: true
+- slug: sifive
+  name: SiFive
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: sifive/sifivecareers
+    source_url: https://sifive.wd1.myworkdayjobs.com/sifivecareers
+    region: global
+    enabled: true
+- slug: simpson-thacher
+  name: Simpson Thacher
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: stblaw/careers
+    source_url: https://stblaw.wd1.myworkdayjobs.com/en-US/careers
+    region: global
+    enabled: true
+- slug: siteminder
+  name: SiteMinder
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: SiteMinder
+    source_url: https://jobs.ashbyhq.com/SiteMinder
+    region: global
+    enabled: true
+- slug: smalls
+  name: Smalls
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: smalls
+    source_url: https://jobs.ashbyhq.com/smalls
+    region: global
+    enabled: true
+- slug: smarterdx
+  name: SmarterDx
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: smarterdxprivate
+    source_url: https://job-boards.greenhouse.io/smarterdxprivate
+    region: global
+    enabled: true
+- slug: smartrecruiters
+  name: SmartRecruiters
+  website_url: https://www.smartrecruiters.com/
+  enabled: true
+  priority: 20
+  boards:
+  - provider: smartrecruiters
+    board_key: SmartRecruiters
+    source_url: https://careers.smartrecruiters.com/SmartRecruiters
+    region: global
+    enabled: true
+- slug: smdigital
+  name: SMDigital
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: smdigital
+    source_url: https://smdigital.breezy.hr/
+    region: global
+    enabled: true
+- slug: socure
+  name: Socure
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: socure
+    source_url: https://jobs.ashbyhq.com/socure
+    region: global
+    enabled: true
+- slug: sonos
+  name: Sonos
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: sonos/Sonos
+    source_url: https://sonos.wd1.myworkdayjobs.com/Sonos
+    region: global
+    enabled: true
+- slug: spotminders
+  name: Spotminders
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: spotminders
+    source_url: https://jobs.ashbyhq.com/spotminders
+    region: global
+    enabled: true
+- slug: spoton
+  name: SpotOn
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: spoton
+    source_url: https://jobs.ashbyhq.com/spoton
+    region: global
+    enabled: true
+- slug: starz
+  name: Starz
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: starz/Starz
+    source_url: https://starz.wd5.myworkdayjobs.com/en-US/Starz
+    region: global
+    enabled: true
+- slug: stay-ai
+  name: Stay AI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: stayai
+    source_url: https://jobs.ashbyhq.com/stayai
+    region: global
+    enabled: true
+- slug: steno
+  name: Steno
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: steno-careers-page
+    source_url: https://ats.rippling.com/steno-careers-page/jobs
+    region: global
+    enabled: true
+- slug: stockstotrade
+  name: StocksToTrade
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: stockstotradecom-inc
+    source_url: https://ats.rippling.com/stockstotradecom-inc/jobs
+    region: global
+    enabled: true
+- slug: strawberryfrog
+  name: StrawberryFrog
+  enabled: true
+  priority: 50
+  boards:
+  - provider: breezy
+    board_key: strawberryfrog
+    source_url: https://strawberryfrog.breezy.hr/
+    region: global
+    enabled: true
+- slug: suno
+  name: Suno
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: suno
+    source_url: https://jobs.ashbyhq.com/suno
+    region: global
+    enabled: true
+- slug: superside
+  name: Superside
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: superside
+    source_url: https://jobs.lever.co/superside
+    region: global
+    enabled: true
+- slug: supra-human
+  name: Supra Human
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: supra-human
+    source_url: https://ats.rippling.com/supra-human/jobs
+    region: global
+    enabled: true
+- slug: syllo
+  name: Syllo
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: tlatechinc
+    source_url: https://job-boards.greenhouse.io/tlatechinc
+    region: global
+    enabled: true
+- slug: t-rowe-price
+  name: T. Rowe Price
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: troweprice/TRowePrice
+    source_url: https://troweprice.wd5.myworkdayjobs.com/en-US/TRowePrice
+    region: global
+    enabled: true
+- slug: talentpop-twillory
+  name: TalentPop (Twillory)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: TalentPop
+    source_url: https://jobs.ashbyhq.com/TalentPop
+    region: global
+    enabled: true
+- slug: talkdesk
+  name: Talkdesk
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: talkdesk2
+    source_url: https://job-boards.greenhouse.io/talkdesk2
+    region: global
+    enabled: true
+- slug: teladoc
+  name: Teladoc
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: teladoc/teladochealth_is_hiring
+    source_url: https://teladoc.wd503.myworkdayjobs.com/teladochealth_is_hiring
+    region: global
+    enabled: true
+- slug: tenstorrent
+  name: Tenstorrent
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: tenstorrent
+    source_url: https://job-boards.greenhouse.io/tenstorrent
+    region: global
+    enabled: true
+- slug: terra
+  name: Terra
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: terrahq
+    source_url: https://jobs.lever.co/terrahq
+    region: global
+    enabled: true
+- slug: thatgamecompany
+  name: thatgamecompany
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: Thatgamecompany
+    source_url: https://jobs.ashbyhq.com/Thatgamecompany
+    region: global
+    enabled: true
+- slug: aiedu
+  name: The AI Education Project (aiEDU)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: aiedu
+    source_url: https://job-boards.greenhouse.io/aiedu
+    region: global
+    enabled: true
+- slug: the-athletic
+  name: The Athletic
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: theathletic
+    source_url: https://jobs.lever.co/theathletic
+    region: global
+    enabled: true
+- slug: the-farmer-s-dog
+  name: The Farmer's Dog
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: thefarmersdog
+    source_url: https://job-boards.greenhouse.io/thefarmersdog
+    region: global
+    enabled: true
+- slug: the-motley-fool
+  name: The Motley Fool
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: themotleyfool
+    source_url: https://job-boards.greenhouse.io/themotleyfool
+    region: global
+    enabled: true
+- slug: the-rhinestone-world
+  name: The Rhinestone World
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: TheRhinestoneWorld
+    source_url: https://jobs.smartrecruiters.com/TheRhinestoneWorld
+    region: global
+    enabled: true
+- slug: thinking-machines-lab
+  name: Thinking Machines Lab
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: thinkingmachines
+    source_url: https://job-boards.greenhouse.io/thinkingmachines
+    region: global
+    enabled: true
+- slug: tilt
+  name: Tilt (formerly Empower)
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: tilthq
+    source_url: https://jobs.ashbyhq.com/tilthq
+    region: global
+    enabled: true
+- slug: toast
+  name: Toast
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: toast
+    source_url: https://job-boards.greenhouse.io/toast
+    region: global
+    enabled: true
+- slug: toptal
+  name: Toptal
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: toptal
+    source_url: https://jobs.lever.co/toptal
+    region: global
+    enabled: true
+- slug: tripadvisor
+  name: Tripadvisor
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: tripadvisor
+    source_url: https://job-boards.greenhouse.io/tripadvisor
+    region: global
+    enabled: true
+- slug: tripledot-studios
+  name: Tripledot Studios
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: tripledotstudios
+    source_url: https://job-boards.greenhouse.io/tripledotstudios
+    region: global
+    enabled: true
+- slug: turtle-rock-studios
+  name: Turtle Rock Studios
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: turtlerockstudios
+    source_url: https://job-boards.greenhouse.io/turtlerockstudios
+    region: global
+    enabled: true
+- slug: turtlebox
+  name: Turtlebox
+  enabled: true
+  priority: 50
+  boards:
+  - provider: rippling
+    board_key: turtlebox
+    source_url: https://ats.rippling.com/turtlebox/jobs
+    region: global
+    enabled: true
+- slug: twilio
+  name: Twilio
+  website_url: https://www.twilio.com/
+  enabled: true
+  priority: 70
+  boards:
+  - provider: greenhouse
+    board_key: twilio
+    source_url: https://job-boards.greenhouse.io/twilio
+    region: global
+    enabled: true
+- slug: typeface
+  name: Typeface
+  website_url: https://www.typeface.ai/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: greenhouse
+    board_key: typeface
+    source_url: https://job-boards.greenhouse.io/typeface
+    region: global
+    enabled: true
+- slug: u-s-bank
+  name: U.S. Bank
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: usbank/us_bank_careers
+    source_url: https://usbank.wd1.myworkdayjobs.com/en-us/us_bank_careers
+    region: global
+    enabled: true
+- slug: ubiquiti
+  name: Ubiquiti
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: ubiquiti
+    source_url: https://job-boards.greenhouse.io/ubiquiti
+    region: global
+    enabled: true
+- slug: unity
+  name: Unity
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: unitytech/Unity
+    source_url: https://unitytech.wd1.myworkdayjobs.com/Unity
+    region: global
+    enabled: true
+- slug: unknown-worlds
+  name: Unknown Worlds
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: unknownworlds
+    source_url: https://job-boards.greenhouse.io/unknownworlds
+    region: global
+    enabled: true
+- slug: vacation-inc
+  name: Vacation Inc.
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: vacationinc
+    source_url: https://job-boards.greenhouse.io/vacationinc
+    region: global
+    enabled: true
+- slug: vanguard
+  name: Vanguard
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: vanguard/vanguard_external
+    source_url: https://vanguard.wd5.myworkdayjobs.com/en-US/vanguard_external
+    region: global
+    enabled: true
+- slug: vanta
+  name: Vanta
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: vanta
+    source_url: https://jobs.ashbyhq.com/vanta
+    region: global
+    enabled: true
+- slug: vantage-data-centers
+  name: Vantage Data Centers
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: vantagedc/Vantage
+    source_url: https://vantagedc.wd1.myworkdayjobs.com/Vantage
+    region: global
+    enabled: true
+- slug: vercel
+  name: Vercel
+  website_url: https://vercel.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: greenhouse
+    board_key: vercel
+    source_url: https://job-boards.greenhouse.io/vercel
+    region: global
+    enabled: true
+- slug: vertex
+  name: Vertex
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: vertexinc/VertexInc
+    source_url: https://vertexinc.wd1.myworkdayjobs.com/en-US/VertexInc
+    region: global
+    enabled: true
+- slug: vocal-media
+  name: Vocal Media
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: get-vocal-pbc
+    source_url: https://jobs.lever.co/get-vocal-pbc
+    region: global
+    enabled: true
+- slug: waymo
+  name: Waymo
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: waymo
+    source_url: https://job-boards.greenhouse.io/waymo
+    region: global
+    enabled: true
+- slug: webflow
+  name: Webflow
+  website_url: https://webflow.com/
+  enabled: true
+  priority: 60
+  boards:
+  - provider: greenhouse
+    board_key: webflow
+    source_url: https://job-boards.greenhouse.io/webflow
+    region: global
+    enabled: true
+- slug: weedmaps
+  name: Weedmaps
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: weedmaps77
+    source_url: https://job-boards.greenhouse.io/weedmaps77
+    region: global
+    enabled: true
+- slug: western-digital-sandisk
+  name: Western Digital / SanDisk
+  enabled: true
+  priority: 50
+  boards:
+  - provider: smartrecruiters
+    board_key: WesternDigital
+    source_url: https://jobs.smartrecruiters.com/WesternDigital
+    region: global
+    enabled: true
+- slug: workato
+  name: Workato
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: workato
+    source_url: https://job-boards.greenhouse.io/workato
+    region: global
+    enabled: true
+- slug: wpromote
+  name: Wpromote
+  enabled: true
+  priority: 50
+  boards:
+  - provider: lever
+    board_key: wpromote
+    source_url: https://jobs.lever.co/wpromote
+    region: global
+    enabled: true
+- slug: writer
+  name: Writer
+  website_url: https://writer.com/
+  enabled: true
+  priority: 100
+  boards:
+  - provider: ashby
+    board_key: writer
+    source_url: https://jobs.ashbyhq.com/writer
+    region: global
+    enabled: true
+- slug: xai
+  name: xAI
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: xai
+    source_url: https://job-boards.greenhouse.io/xai
+    region: global
+    enabled: true
+- slug: xapo-bank
+  name: Xapo Bank
+  enabled: true
+  priority: 50
+  boards:
+  - provider: greenhouse
+    board_key: xapo61
+    source_url: https://job-boards.greenhouse.io/xapo61
+    region: global
+    enabled: true
+- slug: yext
+  name: Yext
+  website_url: https://www.yext.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: greenhouse
+    board_key: yext
+    source_url: https://job-boards.greenhouse.io/yext
+    region: global
+    enabled: true
+- slug: zapier
+  name: Zapier
+  website_url: https://zapier.com/
+  enabled: true
+  priority: 90
+  boards:
+  - provider: ashby
+    board_key: zapier
+    source_url: https://jobs.ashbyhq.com/zapier
+    region: global
+    enabled: true
+- slug: zayo
+  name: Zayo
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: zayo/Zayo_Careers
+    source_url: https://zayo.wd1.myworkdayjobs.com/en-US/Zayo_Careers
+    region: global
+    enabled: true
+- slug: zeely
+  name: Zeely
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: zeely
+    source_url: https://jobs.ashbyhq.com/zeely
+    region: global
+    enabled: true
+- slug: zillow
+  name: Zillow
+  enabled: true
+  priority: 50
+  boards:
+  - provider: workday
+    board_key: zillow/Zillow_Group_External
+    source_url: https://zillow.wd5.myworkdayjobs.com/Zillow_Group_External
+    region: global
+    enabled: true
+- slug: zoe
+  name: ZOE
+  enabled: true
+  priority: 50
+  boards:
+  - provider: ashby
+    board_key: zoe
+    source_url: https://jobs.ashbyhq.com/zoe
+    region: global
+    enabled: true
