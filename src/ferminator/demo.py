@@ -190,22 +190,24 @@ def _job_view(job: NormalizedJob, match: MatchResult) -> dict[str, Any]:
 
 def demo_pipeline(matches: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     stages = {
-        "Considering": [matches[1]],
-        "Preparing": [matches[0]],
-        "Applied": [matches[3]],
+        "Considering": matches[1:2],
+        "Preparing": matches[0:1],
+        "Applied": matches[3:4],
         "Interviewing": [],
         "Offer": [],
     }
-    stages["Preparing"][0] = {
-        **stages["Preparing"][0],
-        "task": "Tailor leadership evidence",
-        "due": "Today",
-    }
-    stages["Applied"][0] = {
-        **stages["Applied"][0],
-        "task": "Follow up with recruiter",
-        "due": "Friday",
-    }
+    if stages["Preparing"]:
+        stages["Preparing"][0] = {
+            **stages["Preparing"][0],
+            "task": "Tailor leadership evidence",
+            "due": "Today",
+        }
+    if stages["Applied"]:
+        stages["Applied"][0] = {
+            **stages["Applied"][0],
+            "task": "Follow up with recruiter",
+            "due": "Friday",
+        }
     return stages
 
 

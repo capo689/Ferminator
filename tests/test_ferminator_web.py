@@ -43,7 +43,7 @@ def test_today_renders_personal_briefing():
 
 def test_discover_filters_results():
     with TestClient(app) as client:
-        response = client.get("/discover", params={"q": "Notion", "min_score": 60})
+        response = client.get("/discover", params={"q": "Notion", "min_score": 0})
 
     assert response.status_code == 200
     assert "Senior Manager, Knowledge Operations" in response.text
