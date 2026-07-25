@@ -89,7 +89,9 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     components["role_alignment"] = weights.get("role_alignment", 0) * role_factor
 
     preferred_hits = _matched(text, profile.search.preferred)
-    preferred_factor = min(1.0, len(preferred_hits) / max(3, len(profile.search.preferred) * 0.45))
+    # A richer profile vocabulary must not lower a job's score. Four independent
+    # preferred signals are enough to earn the full skills component.
+    preferred_factor = min(1.0, len(preferred_hits) / 4)
     components["skills"] = weights.get("skills", 0) * preferred_factor
     evidence.extend(f"Preferred evidence: {item}" for item in preferred_hits)
 

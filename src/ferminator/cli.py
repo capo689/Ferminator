@@ -13,6 +13,7 @@ from ferminator.adapters import ADAPTERS
 from ferminator.digest import compose_digest, send_smtp
 from ferminator.domain import ATSProvider, BoardRef
 from ferminator.ingestion import run_board_ingestion
+from ferminator.ledger import parse_master_ledger
 from ferminator.matching import score_job
 from ferminator.profiles import load_profile
 from ferminator.registry import load_registry
@@ -29,6 +30,26 @@ def cli() -> None:
 @cli.group()
 def profile() -> None:
     """Validate and inspect named career profiles."""
+
+
+@cli.command("ledger-import")
+@click.option("--profile-slug", default="adam-cagle", show_default=True)
+@click.argument("ledger_path", type=click.Path(exists=True, path_type=Path))
+def ledger_import(profile_slug: str, ledger_path: Path) -> None:
+    """Import a Markdown master ledger into durable duplicate suppression."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    parsed = parse_master_ledger(ledger_path)
+    repository = PostgresRepository(database_url)
+    try:
+        history_count, watch_count = repository.import_ledger(profile_slug, parsed)
+    finally:
+        repository.close()
+    console.print(
+        f"[green]Imported {history_count} job-history entries and "
+        f"{watch_count} company warnings for {profile_slug}[/green]"
+    )
 
 
 @profile.command("validate")
