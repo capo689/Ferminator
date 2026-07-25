@@ -13,6 +13,8 @@ weighted evidence.
 
 - ATS adapters: Greenhouse, Lever, Ashby, SmartRecruiters, Workable, BambooHR
 - Curated company registry; demo boards are disabled
+- Searchable live ATS directory with source-health tracking
+- Bounded parallel bulk ingestion for large registries
 - Named Markdown profiles for up to five private-alpha users
 - Remote-US defaults that each profile can override
 - Job revisions, removals, reactivations, and ingestion safety limits
@@ -31,6 +33,13 @@ python -m venv .venv
 .venv/bin/ferminator profile validate
 .venv/bin/ferminator registry-validate
 .venv/bin/uvicorn ferminator.web:app --reload
+```
+
+Validate a saved Ashby/Greenhouse source list before adding its boards:
+
+```bash
+ferminator directory-check master-list.html --workers 8 \
+  --json-output docs/board-validation-YYYY-MM-DD.json
 ```
 
 The UI starts in clearly labeled demo mode. Live ingestion requires

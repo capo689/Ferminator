@@ -104,7 +104,8 @@ Fetches public jobs through adapters with:
 
 - explicit timeouts
 - bounded retries with jitter
-- per-provider concurrency limits
+- bounded parallel board fetching without database connections
+- serialized, transaction-safe application after the fetch phase
 - response-size limits
 - contract validation
 - content hashing
@@ -185,4 +186,3 @@ V2 adapters include Workday and custom career-site extraction. They remain
 outside V1 because their contracts are tenant-specific, undocumented, or HTML
 dependent. The V1 adapter contract and fixtures are intentionally reusable by
 V2 implementations.
-

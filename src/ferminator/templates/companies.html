@@ -3,32 +3,90 @@
 {% block content %}
 <header class="page-hero compact">
   <div>
-    <p class="eyebrow">COMPANY RADAR</p>
-    <h1>Know where the market is moving.</h1>
-    <p class="hero-copy">Follow organizations whose hiring signals align with your direction.</p>
+    <p class="eyebrow">LIVE ATS DIRECTORY</p>
+    <h1>Every company. Every board. One radar.</h1>
+    <p class="hero-copy">Search the companies Ferminator watches and see source health before trusting the results.</p>
   </div>
 </header>
 
+<div class="directory-controls">
+  <label class="directory-search">
+    <span class="sr-only">Search companies</span>
+    <input id="company-search" type="search" placeholder="Search company, ATS, or board…" autocomplete="off">
+  </label>
+  <div class="directory-filters" role="group" aria-label="Filter directory">
+    <button class="filter-chip active" type="button" data-provider="all">All</button>
+    <button class="filter-chip" type="button" data-provider="greenhouse">Greenhouse</button>
+    <button class="filter-chip" type="button" data-provider="ashby">Ashby</button>
+    <button class="filter-chip" type="button" data-provider="healthy">Healthy only</button>
+  </div>
+</div>
+
 <div class="company-table" role="table" aria-label="Watched companies">
   <div class="company-table-row header" role="row">
-    <span>Company</span><span>Momentum</span><span>Relevant roles</span><span>New</span>
+    <span>Company</span><span>Source health</span><span>Open roles</span><span>For you</span>
   </div>
   {% for company in companies %}
-  <article class="company-table-row" role="row">
+  <article class="company-table-row directory-row" role="row"
+           data-search="{{ company.name|lower }} {{ company.provider }} {{ company.board_key|lower }}"
+           data-provider="{{ company.provider }}"
+           data-healthy="{{ 'true' if company.healthy else 'false' }}">
     <div class="company-cell">
       <span class="company-logo">{{ company.initial }}</span>
-      <div><strong>{{ company.name }}</strong><small>Watched company</small></div>
+      <div>
+        <strong>{{ company.name }}</strong>
+        <small>{{ company.provider|title }} · {{ company.board_key }}</small>
+      </div>
     </div>
     <div>
-      <span class="momentum {{ 'positive' if company.momentum >= 0 else 'negative' }}">
-        {{ "↑" if company.momentum >= 0 else "↓" }} {{ company.momentum|abs }}%
+      <span class="source-status {{ company.validation_status }}">
+        <i></i>{{ company.validation_status|title }}
       </span>
-      <small>30-day hiring</small>
+      <small>
+        {% if company.last_validated_at %}
+          checked {{ company.last_validated_at.strftime('%b %-d, %H:%M') }}
+        {% else %}
+          awaiting first scan
+        {% endif %}
+      </small>
     </div>
-    <div><strong>{{ company.relevant }}</strong><small>profile-aligned</small></div>
-    <div><strong>{{ company.new }}</strong><small>since yesterday</small></div>
+    <div><strong>{{ company.active_jobs }}</strong><small>{{ company.new_jobs }} new today</small></div>
+    <div>
+      <strong>{{ company.relevant_jobs }}</strong>
+      <small>profile-aligned</small>
+      <a class="directory-link" href="{{ company.source_url }}" target="_blank" rel="noopener">Open board ↗</a>
+    </div>
   </article>
   {% endfor %}
 </div>
-{% endblock %}
+<p id="directory-empty" class="empty-state" hidden>No companies match that search.</p>
 
+<script>
+(() => {
+  const search = document.getElementById("company-search");
+  const rows = [...document.querySelectorAll(".directory-row")];
+  const chips = [...document.querySelectorAll(".filter-chip")];
+  const empty = document.getElementById("directory-empty");
+  let filter = "all";
+  const refresh = () => {
+    const query = search.value.trim().toLowerCase();
+    let shown = 0;
+    rows.forEach((row) => {
+      const providerMatch = filter === "all"
+        || row.dataset.provider === filter
+        || (filter === "healthy" && row.dataset.healthy === "true");
+      const searchMatch = !query || row.dataset.search.includes(query);
+      row.hidden = !(providerMatch && searchMatch);
+      if (!row.hidden) shown += 1;
+    });
+    empty.hidden = shown !== 0;
+  };
+  search.addEventListener("input", refresh);
+  chips.forEach((chip) => chip.addEventListener("click", () => {
+    filter = chip.dataset.provider;
+    chips.forEach((item) => item.classList.toggle("active", item === chip));
+    refresh();
+  }));
+})();
+</script>
+{% endblock %}

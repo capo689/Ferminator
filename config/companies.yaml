@@ -479,6 +479,9 @@ companies:
       - provider: lever
         board_key: aircall
         source_url: https://jobs.lever.co/aircall
+      - provider: greenhouse
+        board_key: aircallioinc
+        source_url: https://job-boards.greenhouse.io/aircallioinc
 
   - slug: arcadia
     name: Arcadia
@@ -498,3 +501,471 @@ companies:
       - provider: lever
         board_key: leverdemo
         source_url: https://jobs.lever.co/leverdemo
+
+  # Verified 2026-07-25 from the user-supplied Ashby/Greenhouse master list.
+  # Every board below returned a structurally valid public feed with live jobs.
+  - slug: answerrocket
+    name: AnswerRocket
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: answerrocket
+        source_url: https://job-boards.greenhouse.io/answerrocket
+
+  - slug: apartmentiq
+    name: ApartmentIQ
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: apartmentiq
+        source_url: https://job-boards.greenhouse.io/apartmentiq
+
+  - slug: ashley-digital-resident
+    name: Ashley Digital (Resident)
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: residenthome
+        source_url: https://job-boards.greenhouse.io/residenthome
+
+  - slug: assured
+    name: Assured
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: assured
+        source_url: https://jobs.ashbyhq.com/assured
+
+  - slug: backblaze
+    name: Backblaze
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: backblaze
+        source_url: https://job-boards.greenhouse.io/backblaze
+
+  - slug: builder-prime
+    name: Builder Prime
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: builder-prime
+        source_url: https://jobs.ashbyhq.com/builder-prime
+
+  - slug: chainguard
+    name: Chainguard
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: chainguard
+        source_url: https://job-boards.greenhouse.io/chainguard
+
+  - slug: commvault
+    name: Commvault
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: commvault
+        source_url: https://job-boards.greenhouse.io/commvault
+
+  - slug: counterpart-health
+    name: Counterpart Health
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: counterparthealth
+        source_url: https://job-boards.greenhouse.io/counterparthealth
+
+  - slug: cresta
+    name: Cresta
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: cresta
+        source_url: https://job-boards.greenhouse.io/cresta
+
+  - slug: deepgram
+    name: Deepgram
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: deepgram
+        source_url: https://jobs.ashbyhq.com/deepgram
+
+  - slug: degreed
+    name: Degreed
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: degreed
+        source_url: https://job-boards.greenhouse.io/degreed
+
+  - slug: dept
+    name: DEPT®
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: dept
+        source_url: https://job-boards.greenhouse.io/dept
+
+  - slug: doordash
+    name: DoorDash
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: doordashusa
+        source_url: https://job-boards.greenhouse.io/doordashusa
+
+  - slug: eleos-health
+    name: Eleos Health
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: eleoshealth
+        source_url: https://job-boards.greenhouse.io/eleoshealth
+
+  - slug: ethos-life
+    name: Ethos Life
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: ethoslife
+        source_url: https://job-boards.greenhouse.io/ethoslife
+
+  - slug: evertune
+    name: Evertune
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: evertune
+        source_url: https://jobs.ashbyhq.com/evertune
+
+  - slug: forgd
+    name: forgd
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: forgd-ai
+        source_url: https://jobs.ashbyhq.com/forgd-ai
+
+  - slug: glossgenius
+    name: GlossGenius
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: glossgenius
+        source_url: https://job-boards.greenhouse.io/glossgenius
+
+  - slug: gruns
+    name: Grüns
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: gruns
+        source_url: https://job-boards.greenhouse.io/gruns
+
+  - slug: headspace
+    name: Headspace
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: hs
+        source_url: https://job-boards.greenhouse.io/hs
+
+  - slug: hightouch
+    name: Hightouch
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: hightouch
+        source_url: https://job-boards.greenhouse.io/hightouch
+
+  - slug: highwire
+    name: Highwire
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: highwire
+        source_url: https://job-boards.greenhouse.io/highwire
+
+  - slug: hims-hers
+    name: Hims & Hers
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: hims-and-hers
+        source_url: https://jobs.ashbyhq.com/hims-and-hers
+
+  - slug: hook
+    name: Hook
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: hook
+        source_url: https://job-boards.greenhouse.io/hook
+
+  - slug: huntress
+    name: Huntress
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: huntress
+        source_url: https://job-boards.greenhouse.io/huntress
+
+  - slug: id-me
+    name: ID.me
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: idme
+        source_url: https://job-boards.greenhouse.io/idme
+
+  - slug: intradiem
+    name: Intradiem
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: intradiem
+        source_url: https://job-boards.greenhouse.io/intradiem
+
+  - slug: jerry-ai
+    name: Jerry.ai
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: jerry.ai
+        source_url: https://jobs.ashbyhq.com/jerry.ai
+
+  - slug: legion-intelligence
+    name: Legion Intelligence
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: yurtsai
+        source_url: https://job-boards.greenhouse.io/yurtsai
+
+  - slug: lockwood
+    name: Lockwood (The Lockwood Group)
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: lockwood
+        source_url: https://job-boards.greenhouse.io/lockwood
+
+  - slug: loka
+    name: Loka
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: lokainc
+        source_url: https://job-boards.greenhouse.io/lokainc
+
+  - slug: maximus-health
+    name: Maximus Health, Inc.
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: maximustribe
+        source_url: https://jobs.ashbyhq.com/maximustribe
+
+  - slug: mercury
+    name: Mercury
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: mercury
+        source_url: https://job-boards.greenhouse.io/mercury
+
+  - slug: mesh
+    name: Mesh
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: mesh
+        source_url: https://job-boards.greenhouse.io/mesh
+
+  - slug: newsela
+    name: Newsela
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: newsela
+        source_url: https://job-boards.greenhouse.io/newsela
+
+  - slug: nimble-gravity
+    name: Nimble Gravity
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: nimblegravity
+        source_url: https://job-boards.greenhouse.io/nimblegravity
+
+  - slug: polyai
+    name: PolyAI
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: polyai
+        source_url: https://job-boards.eu.greenhouse.io/polyai
+        region: eu
+
+  - slug: poppy-ai
+    name: Poppy AI (GetPoppy AI)
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: getpoppyai
+        source_url: https://jobs.ashbyhq.com/getpoppyai
+
+  - slug: precision-aq
+    name: Precision AQ (Precision Medicine Group)
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: precisionaq
+        source_url: https://job-boards.greenhouse.io/precisionaq
+
+  - slug: ramp
+    name: Ramp
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: ramp
+        source_url: https://jobs.ashbyhq.com/ramp
+
+  - slug: render
+    name: Render
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: render
+        source_url: https://jobs.ashbyhq.com/render
+
+  - slug: seed
+    name: Seed
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: seed
+        source_url: https://job-boards.greenhouse.io/seed
+
+  - slug: aiedu
+    name: The AI Education Project (aiEDU)
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: aiedu
+        source_url: https://job-boards.greenhouse.io/aiedu
+
+  - slug: tilt
+    name: Tilt (formerly Empower)
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: tilthq
+        source_url: https://jobs.ashbyhq.com/tilthq
+
+  - slug: vanta
+    name: Vanta
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: vanta
+        source_url: https://jobs.ashbyhq.com/vanta
+
+  - slug: weedmaps
+    name: Weedmaps
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: weedmaps77
+        source_url: https://job-boards.greenhouse.io/weedmaps77
+
+  - slug: zeely
+    name: Zeely
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: zeely
+        source_url: https://jobs.ashbyhq.com/zeely
+
+  # Appended to the living source and verified 2026-07-25.
+  - slug: audiohook
+    name: Audiohook
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: audiohook
+        source_url: https://jobs.ashbyhq.com/audiohook
+
+  - slug: evolve
+    name: Evolve
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: evolvevacationrental
+        source_url: https://job-boards.greenhouse.io/evolvevacationrental
+
+  - slug: mostest
+    name: Mostest
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: mostest
+        source_url: https://jobs.ashbyhq.com/mostest
+
+  - slug: movement-strategy
+    name: Movement Strategy
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: movementstrategy
+        source_url: https://job-boards.greenhouse.io/movementstrategy
+
+  - slug: openrouter
+    name: OpenRouter
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: openrouter
+        source_url: https://jobs.ashbyhq.com/openrouter
+
+  - slug: ridgeline
+    name: Ridgeline
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: ridgeline
+        source_url: https://job-boards.greenhouse.io/ridgeline
+
+  - slug: rwazi
+    name: Rwazi
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: rwazi
+        source_url: https://jobs.ashbyhq.com/rwazi
+
+  - slug: smalls
+    name: Smalls
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: smalls
+        source_url: https://jobs.ashbyhq.com/smalls
+
+  - slug: talkdesk
+    name: Talkdesk
+    priority: 50
+    boards:
+      - provider: greenhouse
+        board_key: talkdesk2
+        source_url: https://job-boards.greenhouse.io/talkdesk2
+
+  - slug: zoe
+    name: ZOE
+    priority: 50
+    boards:
+      - provider: ashby
+        board_key: zoe
+        source_url: https://jobs.ashbyhq.com/zoe

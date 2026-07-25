@@ -6,6 +6,7 @@ import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -16,6 +17,9 @@ from ferminator.ingestion import IngestionResult, LifecyclePlan
 from ferminator.ledger import ParsedLedger, job_fingerprint, normalize_job_part
 from ferminator.matching import MatchResult
 from ferminator.profiles import CareerProfile
+
+if TYPE_CHECKING:
+    from ferminator.registry import CompanyRegistry
 
 
 class ConcurrentScoringError(RuntimeError):
@@ -435,6 +439,48 @@ class PostgresRepository:
             for row in rows
         ]
 
+    def company_directory(self, profile_slug: str) -> list[dict]:
+        """Return registered boards with source health and useful job counts."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select c.name, c.slug, c.priority, c.website_url,
+                       b.provider, b.board_key, b.region, b.source_url,
+                       b.validation_status, b.consecutive_failures,
+                       b.last_validated_at, b.last_success_at, b.last_error_code,
+                       count(distinct j.id) filter (where j.active) as active_jobs,
+                       count(distinct j.id) filter (
+                         where j.active and m.eligible
+                       ) as relevant_jobs,
+                       count(distinct j.id) filter (
+                         where j.active and j.first_seen_at >= now() - interval '24 hours'
+                       ) as new_jobs
+                from public.companies c
+                join public.ats_boards b on b.company_id = c.id
+                left join public.jobs j on j.ats_board_id = b.id
+                left join public.profiles p on p.slug = %s
+                left join public.job_matches m on m.profile_id = p.id
+                  and m.job_id = j.id
+                  and m.profile_version = p.profile_version
+                  and m.job_revision_id = j.current_revision_id
+                where c.enabled and b.enabled and b.validation_status <> 'failed'
+                group by c.id, b.id
+                order by c.priority desc, c.name, b.provider
+                """,
+                (profile_slug,),
+            ).fetchall()
+        return [
+            {
+                **dict(row),
+                "initial": row["name"][0],
+                "healthy": row["validation_status"] == "healthy",
+                "active_jobs": int(row["active_jobs"]),
+                "relevant_jobs": int(row["relevant_jobs"]),
+                "new_jobs": int(row["new_jobs"]),
+            }
+            for row in rows
+        ]
+
     def set_action(self, profile_slug: str, job_id: str, state: str) -> None:
         allowed = {"considering", "preparing", "applied", "interviewing", "offer", "dismissed"}
         if state not in allowed:
@@ -801,6 +847,67 @@ class PostgresRepository:
             ),
         ).fetchone()
         return str(row["id"])
+
+    def sync_registry(self, registry: CompanyRegistry) -> tuple[int, int]:
+        """Idempotently mirror the Git-controlled registry into the live directory."""
+        company_count = 0
+        board_count = 0
+        with self.connection() as conn, conn.transaction():
+            for company in registry.companies:
+                company_row = conn.execute(
+                    """
+                    insert into public.companies (
+                      slug, name, website_url, career_url, enabled, priority, metadata
+                    )
+                    values (%s, %s, %s, %s, %s, %s, %s)
+                    on conflict (slug) do update set
+                      name = excluded.name,
+                      website_url = excluded.website_url,
+                      career_url = excluded.career_url,
+                      enabled = excluded.enabled,
+                      priority = excluded.priority,
+                      metadata = companies.metadata || excluded.metadata,
+                      updated_at = now()
+                    returning id
+                    """,
+                    (
+                        company.slug,
+                        company.name,
+                        str(company.website_url) if company.website_url else None,
+                        str(company.career_url) if company.career_url else None,
+                        company.enabled,
+                        company.priority,
+                        json.dumps({"registry_schema_version": registry.schema_version}),
+                    ),
+                ).fetchone()
+                company_count += 1
+                for board in company.boards:
+                    conn.execute(
+                        """
+                        insert into public.ats_boards (
+                          company_id, provider, board_key, region, source_url,
+                          enabled, metadata
+                        )
+                        values (%s, %s, %s, %s, %s, %s, %s)
+                        on conflict (provider, board_key, region) do update set
+                          company_id = excluded.company_id,
+                          source_url = excluded.source_url,
+                          enabled = excluded.enabled,
+                          metadata = ats_boards.metadata || excluded.metadata,
+                          updated_at = now()
+                        """,
+                        (
+                            company_row["id"],
+                            board.provider.value,
+                            board.board_key,
+                            board.region,
+                            str(board.source_url),
+                            company.enabled and board.enabled,
+                            json.dumps({"managed_by": "config/companies.yaml"}),
+                        ),
+                    )
+                    board_count += 1
+        return company_count, board_count
 
     def record_ingestion_failure(
         self,

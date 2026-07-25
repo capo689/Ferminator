@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -42,6 +45,26 @@ class IngestionResult:
     removed: int
     reactivated: int
     run_id: str
+
+
+@dataclass(frozen=True)
+class BoardFetch:
+    board: BoardRef
+    jobs: tuple[NormalizedJob, ...]
+    duration_ms: int
+
+
+@dataclass(frozen=True)
+class BoardFailure:
+    board: BoardRef
+    error_code: str
+
+
+@dataclass(frozen=True)
+class BulkIngestionResult:
+    succeeded: tuple[IngestionResult, ...]
+    failed: tuple[BoardFailure, ...]
+    fetch_duration_ms: int
 
 
 class IngestionRepository(Protocol):
@@ -132,3 +155,96 @@ def run_board_ingestion(
         policy=policy,
     )
     return repository.apply_ingestion(board, jobs, plan, idempotency_key)
+
+
+def fetch_board(board: BoardRef) -> BoardFetch:
+    """Fetch and validate a board without holding a database connection."""
+    started = time.monotonic()
+    with ADAPTERS[board.provider]() as adapter:
+        jobs = adapter.fetch_jobs(board)
+    source_ids = [job.source_job_id for job in jobs]
+    if len(source_ids) != len(set(source_ids)):
+        raise InvalidBoardResponseError("Provider returned duplicate job identifiers")
+    return BoardFetch(
+        board=board,
+        jobs=tuple(jobs),
+        duration_ms=round((time.monotonic() - started) * 1000),
+    )
+
+
+def apply_board_fetch(
+    fetched: BoardFetch,
+    repository: IngestionRepository,
+    *,
+    policy: IngestionPolicy | None = None,
+) -> IngestionResult:
+    """Apply a previously fetched board through the normal lifecycle safeguards."""
+    board = fetched.board
+    incoming_ids = {job.source_job_id for job in fetched.jobs}
+    plan = plan_lifecycle(
+        active_ids=repository.active_source_ids(board),
+        known_ids=repository.known_source_ids(board),
+        incoming_ids=incoming_ids,
+        policy=policy,
+    )
+    return repository.apply_ingestion(
+        board,
+        list(fetched.jobs),
+        plan,
+        ingestion_idempotency_key(board),
+    )
+
+
+def run_bulk_ingestion(
+    boards: list[BoardRef],
+    repository: IngestionRepository,
+    *,
+    max_workers: int = 8,
+    policy: IngestionPolicy | None = None,
+    progress: Callable[[BoardRef, IngestionResult | None, str | None], None] | None = None,
+) -> BulkIngestionResult:
+    """Fetch boards concurrently, then apply each result with bounded DB pressure."""
+    if max_workers < 1 or max_workers > 16:
+        raise ValueError("max_workers must be between 1 and 16")
+    fetch_started = time.monotonic()
+    fetched: list[BoardFetch] = []
+    failures: list[BoardFailure] = []
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(boards))) as executor:
+        futures = {executor.submit(fetch_board, board): board for board in boards}
+        for future in as_completed(futures):
+            board = futures[future]
+            try:
+                fetched.append(future.result())
+            except Exception as exc:
+                error_code = str(getattr(exc, "code", type(exc).__name__))[:120]
+                repository.record_ingestion_failure(
+                    board,
+                    idempotency_key=ingestion_idempotency_key(board),
+                    error_code=error_code,
+                )
+                failures.append(BoardFailure(board=board, error_code=error_code))
+                if progress:
+                    progress(board, None, error_code)
+    fetch_duration_ms = round((time.monotonic() - fetch_started) * 1000)
+    succeeded: list[IngestionResult] = []
+    for item in sorted(fetched, key=lambda value: value.board.company_slug):
+        try:
+            result = apply_board_fetch(item, repository, policy=policy)
+            succeeded.append(result)
+            if progress:
+                progress(item.board, result, None)
+        except Exception as exc:
+            error_code = str(getattr(exc, "code", type(exc).__name__))[:120]
+            repository.record_ingestion_failure(
+                item.board,
+                idempotency_key=ingestion_idempotency_key(item.board),
+                error_code=error_code,
+            )
+            failures.append(BoardFailure(board=item.board, error_code=error_code))
+            if progress:
+                progress(item.board, None, error_code)
+    return BulkIngestionResult(
+        succeeded=tuple(succeeded),
+        failed=tuple(failures),
+        fetch_duration_ms=fetch_duration_ms,
+    )
