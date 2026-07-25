@@ -75,3 +75,19 @@ Its log showed only 14.3 seconds in parallel ATS fetching; nearly all remaining
 time was row-by-row persistence of 8,625 jobs. The set-based unchanged-job path
 was added from that evidence so recurring scans do not repeat thousands of
 revision and location round trips.
+
+## Hosted acceptance evidence
+
+After the set-based path merged, the same 113-board production workflow was
+rerun in a fresh idempotency window:
+
+- GitHub Actions run: `30178625728`
+- Result: succeeded
+- Total workflow runtime: 1m40s
+- Parallel ATS fetch/normalization: 12.2s
+- Provider failures: 0
+- Match refresh: completed for Adam
+- Post-run Render readiness: HTTP 200, database `ok`
+
+This is a 93.9% runtime reduction from the 27m09s first-load baseline and leaves
+more than 28 minutes of headroom under the unchanged 30-minute workflow limit.
