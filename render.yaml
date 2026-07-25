@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ferminator-web
+    runtime: docker
+    plan: free
+    branch: codex/dream-product
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: FERMINATOR_ENV
+        value: staging
+      - key: FERMINATOR_DEMO_MODE
+        value: "true"
+      - key: FERMINATOR_AUTH_MODE
+        value: shared_password
+      - key: FERMINATOR_ALPHA_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        sync: false

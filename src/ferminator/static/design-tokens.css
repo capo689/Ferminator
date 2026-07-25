@@ -1,0 +1,12 @@
+:root {
+  --color-porcelain:#F6F4EF; --color-ink:#16181D; --color-midnight:#172033;
+  --color-slate:#687386; --color-iris:#735CFF; --color-cyan:#36C8D8;
+  --color-gold:#E7A93B; --color-green:#46A878; --color-coral:#E97867;
+  --color-border:#D8D4CC; --color-surface:#FFFEFB; --color-focus:#5B49E6;
+  --font-display:"Newsreader",Georgia,serif;
+  --font-interface:"Inter",Arial,sans-serif;
+  --font-data:"IBM Plex Mono",monospace;
+  --radius-sm:8px; --radius-md:14px; --radius-lg:22px;
+  --shadow-soft:0 12px 32px rgba(23,32,51,.08);
+  --shadow-lift:0 18px 48px rgba(23,32,51,.14);
+}

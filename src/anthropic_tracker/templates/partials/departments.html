@@ -1,0 +1,50 @@
+<h2>Departments</h2>
+{% if departments %}
+<div class="dept-layout">
+  <div class="chart-container" style="height:200px">
+    <canvas id="deptDonut"></canvas>
+  </div>
+  <div class="dept-table">
+    <table>
+      <tbody>
+        {% for d in departments %}
+        <tr>
+          <td class="dept-name">{{ d.name }}</td>
+          <td class="dept-bar"><div class="bar" style="width: {{ d.bar_width }}%"></div></td>
+          <td class="dept-count">{{ d.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+(function() {
+  const ctx = document.getElementById('deptDonut');
+  if (!ctx) return;
+  const all = {{ departments | tojson }};
+  const top6 = all.slice(0, 6);
+  const otherCount = all.slice(6).reduce((s, d) => s + d.count, 0);
+  const labels = top6.map(d => d.name);
+  const values = top6.map(d => d.count);
+  if (otherCount > 0) { labels.push('Other'); values.push(otherCount); }
+  const colors = ['#7c6ef0','#4ecdc4','#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#555'];
+  if (window._deptChart) window._deptChart.destroy();
+  window._deptChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+    options: {
+      cutout: '60%',
+      responsive: true,
+      maintainAspectRatio: false,
+      resizeDelay: 200,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#aaa', boxWidth: 10, font: { size: 10 }, padding: 8 } }
+      }
+    }
+  });
+})();
+</script>
+{% else %}
+<p class="muted">No department data.</p>
+{% endif %}

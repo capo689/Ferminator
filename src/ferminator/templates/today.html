@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Today · Ferminator{% endblock %}
+{% block content %}
+<header class="page-hero">
+  <div>
+    <p class="eyebrow">{{ now if now else "TODAY'S BRIEFING" }}</p>
+    <h1>Good morning, {{ display_name }}.</h1>
+    <p class="hero-copy">
+      {% if matches %}{{ matches|length }} profile-qualified opportunities deserve attention.
+      {% else %}The market scan is complete; no role currently clears your evidence threshold.{% endif %}
+    </p>
+  </div>
+  <a class="button button-primary hero-action" href="#opportunities">Review today's briefing <span>→</span></a>
+</header>
+
+<section class="signal-strip" aria-label="Daily signals">
+  <div><strong>{{ stats.new_matches }}</strong><span>new matches</span></div>
+  <div><strong>{{ stats.exceptional }}</strong><span>exceptional fits</span></div>
+  <div><strong>{{ stats.changed }}</strong><span>saved roles changed</span></div>
+  <div><strong>{{ stats.followups }}</strong><span>follow-up due</span></div>
+</section>
+
+<section class="section-heading" id="opportunities">
+  <div>
+    <p class="eyebrow">OPPORTUNITY CONSTELLATION</p>
+    <h2>Your strongest signal</h2>
+  </div>
+  <span class="quiet">Ranked against {{ profile.profile.display_name }}'s profile</span>
+</section>
+
+{% if lead %}
+<article class="lead-opportunity">
+  <div class="opportunity-main">
+    <div class="company-row">
+      <span class="company-logo" data-initial="{{ lead.company_initial }}">
+        <img src="{{ url_for('static', path='/assets/svg/company-' ~ lead.company_slug ~ '.svg') }}"
+             alt="" width="42" height="42">
+      </span>
+      <span>{{ lead.company }}</span>
+      <span class="new-pill">Just surfaced · {{ lead.freshness }}</span>
+    </div>
+    <h3>{{ lead.title }}</h3>
+    <p class="job-meta">
+      {{ lead.location }} · {{ lead.compensation or "Compensation not disclosed" }}
+    </p>
+    <div class="evidence-list">
+      {% for item in lead.evidence[:3] %}
+      <span>✓ {{ item }}</span>
+      {% endfor %}
+    </div>
+    {% if lead.concerns %}
+    <p class="concern"><strong>Worth checking:</strong> {{ lead.concerns[0] }}</p>
+    {% endif %}
+    <div class="actions">
+      <a class="button button-primary" href="/fit/{{ lead.id }}">Explore fit</a>
+      <form method="post" action="/actions/{{ lead.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
+      <form method="post" action="/actions/{{ lead.id }}/preparing"><button class="button button-quiet" type="submit">Prepare application</button></form>
+      <form method="post" action="/actions/{{ lead.id }}/dismissed"><button class="button button-quiet" type="submit">Dismiss</button></form>
+      <a class="text-action" href="{{ lead.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
+    </div>
+  </div>
+  <div class="score-orbit" aria-label="{{ lead.score }} percent match">
+    <div>
+      <strong>{{ lead.score|round|int }}</strong>
+      <span>% alignment</span>
+    </div>
+  </div>
+</article>
+
+<div class="secondary-grid">
+  {% for job in secondary %}
+  <article class="opportunity-card">
+    <div class="company-row">
+      <span class="company-logo small" data-initial="{{ job.company_initial }}">
+        <img src="{{ url_for('static', path='/assets/svg/company-' ~ job.company_slug ~ '.svg') }}"
+             alt="" width="31" height="31">
+      </span>
+      <span>{{ job.company }}</span>
+      <span class="score-chip">{{ job.score|round|int }}%</span>
+    </div>
+    <h3>{{ job.title }}</h3>
+    <p class="job-meta">{{ job.location }} · {{ job.compensation or "Salary open" }}</p>
+    <p>{{ job.evidence[0] if job.evidence else job.explanation }}</p>
+    <a href="/fit/{{ job.id }}">Explore fit <span>→</span></a>
+  </article>
+  {% endfor %}
+</div>
+
+<section class="market-pulse">
+  <div>
+    <p class="eyebrow">MARKET PULSE</p>
+    <h2>The signal behind the listings</h2>
+  </div>
+  <div class="pulse-metrics">
+    <span><strong>↑ 18%</strong> AI enablement roles</span>
+    <span><strong>↓ 7%</strong> remote leadership</span>
+    <span><strong>$192K</strong> median relevant salary</span>
+    <span><strong>11</strong> watched companies hiring</span>
+  </div>
+</section>
+
+<section class="focus-callout">
+  <div class="focus-icon">25</div>
+  <div>
+    <p class="eyebrow">BEST USE OF 25 MINUTES</p>
+    <h2>Prepare your {{ lead.company }} application while the role is fresh.</h2>
+    <p>Start with leadership evidence and the two strongest examples of AI adoption work.</p>
+  </div>
+  <a class="button button-primary" href="/pipeline">Start preparation</a>
+</section>
+{% else %}
+<section class="empty-state">
+  <span>⌕</span>
+  <h2>No profile-qualified opportunities yet.</h2>
+  <p>The scanner is healthy; complete the evidence sections in your profile or adjust its match threshold.</p>
+  <a class="button button-secondary" href="/profile">Review profile</a>
+</section>
+{% endif %}
+{% endblock %}

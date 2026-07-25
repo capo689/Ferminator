@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+{# --- Summary Cards --- #}
+<div class="summary-bar"
+     hx-get="/partials/summary" hx-trigger="every 60s" hx-swap="innerHTML">
+  {% include "partials/summary.html" %}
+</div>
+
+{# --- Row 1: Donut + Locations --- #}
+<div class="grid-2col">
+  <section class="card"
+           hx-get="/partials/departments" hx-trigger="every 60s" hx-swap="innerHTML">
+    {% include "partials/departments.html" %}
+  </section>
+  <section class="card"
+           hx-get="/partials/locations" hx-trigger="every 60s" hx-swap="innerHTML">
+    {% include "partials/locations.html" %}
+  </section>
+</div>
+
+{# --- Row 2: Trends --- #}
+<section class="card full-width"
+         hx-get="/partials/trends" hx-trigger="every 60s" hx-swap="innerHTML">
+  {% include "partials/trends.html" %}
+</section>
+
+{# --- Row 3: Recent Changes + Compensation --- #}
+<div class="grid-2col">
+  <section class="card"
+           hx-get="/partials/recent" hx-trigger="every 60s" hx-swap="innerHTML">
+    {% include "partials/recent.html" %}
+  </section>
+  <section class="card"
+           hx-get="/partials/compensation" hx-trigger="every 60s" hx-swap="innerHTML">
+    {% include "partials/compensation.html" %}
+  </section>
+</div>
+
+{# --- Row 4: Keyword Search --- #}
+<section class="card full-width">
+  <h2>Keyword Search</h2>
+  <div class="search-box">
+    <input type="text" id="searchInput" name="q"
+           placeholder="Search job titles (e.g. higher education, university, engineer)"
+           hx-get="/partials/search"
+           hx-trigger="keyup changed delay:300ms"
+           hx-target="#searchResults"
+           hx-swap="innerHTML"
+           hx-include="this">
+    <div class="search-tags">
+      <button class="tag" onclick="searchFor('higher education,university,college')">Education</button>
+      <button class="tag" onclick="searchFor('engineer')">Engineering</button>
+      <button class="tag" onclick="searchFor('manager,director,lead')">Leadership</button>
+      <button class="tag" onclick="searchFor('research,scientist')">Research</button>
+      <button class="tag" onclick="searchFor('security')">Security</button>
+      <button class="tag" onclick="searchFor('sales')">Sales</button>
+    </div>
+  </div>
+  <div id="searchResults">
+    <p class="muted">Type to search across {{ total }} active roles.</p>
+  </div>
+</section>
+
+{# --- Row 5: Alerts --- #}
+<section class="card full-width"
+         hx-get="/partials/alerts" hx-trigger="every 60s" hx-swap="innerHTML">
+  {% include "partials/alerts.html" %}
+</section>
+
+<script>
+function searchFor(q) {
+  const input = document.getElementById('searchInput');
+  input.value = q;
+  htmx.trigger(input, 'keyup');
+}
+</script>
+{% endblock %}
