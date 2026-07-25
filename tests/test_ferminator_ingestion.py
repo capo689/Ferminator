@@ -4,11 +4,14 @@ import pytest
 
 from ferminator.domain import ATSProvider, BoardRef
 from ferminator.ingestion import (
+    BoardFetch,
     IngestionPolicy,
+    IngestionResult,
     InvalidBoardResponseError,
     UnsafeRemovalError,
     plan_lifecycle,
     run_board_ingestion,
+    run_bulk_ingestion,
 )
 
 
@@ -82,3 +85,54 @@ def test_duplicate_provider_ids_are_recorded_as_failure(monkeypatch) -> None:
         run_board_ingestion(board, repository)
 
     assert repository.failure["error_code"] == "duplicate_source_job_id"
+
+
+def test_bulk_ingestion_isolates_fetch_failure(monkeypatch) -> None:
+    first = BoardRef(
+        provider=ATSProvider.GREENHOUSE,
+        board_key="first",
+        company_slug="first",
+        company_name="First",
+        source_url="https://job-boards.greenhouse.io/first",
+    )
+    second = first.model_copy(
+        update={"board_key": "second", "company_slug": "second", "company_name": "Second"}
+    )
+    job = type("Job", (), {"source_job_id": "one"})()
+
+    class Repository:
+        def __init__(self):
+            self.failures = []
+
+        def record_ingestion_failure(self, target, **kwargs):
+            self.failures.append((target, kwargs))
+
+        def active_source_ids(self, _target):
+            return set()
+
+        def known_source_ids(self, _target):
+            return set()
+
+        def apply_ingestion(self, target, jobs, _plan, idempotency_key):
+            return IngestionResult(
+                board=target,
+                fetched=len(jobs),
+                added=len(jobs),
+                updated=0,
+                removed=0,
+                reactivated=0,
+                run_id=idempotency_key,
+            )
+
+    def fake_fetch(target):
+        if target.board_key == "second":
+            raise RuntimeError("provider down")
+        return BoardFetch(board=target, jobs=(job,), duration_ms=5)
+
+    repository = Repository()
+    monkeypatch.setattr("ferminator.ingestion.fetch_board", fake_fetch)
+    result = run_bulk_ingestion([first, second], repository, max_workers=2)
+
+    assert [item.board.board_key for item in result.succeeded] == ["first"]
+    assert [item.board.board_key for item in result.failed] == ["second"]
+    assert repository.failures[0][1]["error_code"] == "RuntimeError"
