@@ -1,4 +1,17 @@
 {
-  "summary": "First FINISHER 1.1.0 full-audit baseline. No remediation was performed in this run; the score records verified repository, CI, Render, Supabase, and live HTTP evidence.",
-  "actions": {}
+  "summary": "Single-user alpha hardening pass: reliability/monitoring, local backup and restore, database locking, match quality and feedback, ATS resilience, production rollback, and deeper verification.",
+  "actions": {
+    "DATA-02": "Built Supabase-compatible logical backup/restore tooling and passed a dated isolated local restore drill with checksums and relational-integrity verification. Production-data hosted restore remains open.",
+    "API-07": "Added persisted scan runs, stable error codes, source health, serialized execution, and a production-triggered end-to-end scheduled scan.",
+    "APPSEC-03": "Unified authentication and observability middleware and verified the complete security-header contract in tests and production.",
+    "CI-05": "Rolled production to known-good 36105c0, smoke-tested it, rolled forward to c6ace03, smoke-tested again, and restored deploy-after-CI.",
+    "OBS-02": "Added structured request/authentication logs and correlation IDs across successful and failed requests; verified in Render production logs.",
+    "OBS-04": "Added independent GitHub production monitor and failure-visible scan workflows.",
+    "OBS-05": "Added scheduled external health and database-readiness checks plus a reusable authenticated smoke harness.",
+    "PERF-02": "Added advisory scan/scoring locks, bounded lock/query timeouts, distinct-only match updates, and missing foreign-key indexes; regression-tested lock contention.",
+    "TEST-02": "Added deployment smoke coverage and completed authenticated browser feedback verification.",
+    "TEST-06": "Exercised migrations, ingestion, scoring, locking, backup, and restore on real local Supabase/Postgres.",
+    "PROD-02": "Added a labelled golden match set and a CI quality gate; current result is 100% with no false positives or negatives.",
+    "PROD-03": "Added persistent job-quality feedback and dashboard quality metrics for ranking improvement."
+  }
 }
