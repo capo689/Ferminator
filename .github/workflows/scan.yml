@@ -38,7 +38,7 @@ jobs:
         run: ferminator scan
 
       - name: Send ranked digests
-        if: ${{ secrets.FERMINATOR_SMTP_HOST != '' }}
+        if: ${{ env.SMTP_HOST != '' }}
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
           FERMINATOR_ADAM_EMAIL: ${{ secrets.FERMINATOR_ADAM_EMAIL }}
