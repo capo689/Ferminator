@@ -50,6 +50,9 @@ search:
       - Product Narrative
       - AEO
       - GEO
+  require_title_match: true
+  enforce_default_geography: true
+  adjacent_minimum_preferred_hits: 1
   required_any: []
   preferred:
     - enterprise AI adoption
@@ -81,7 +84,21 @@ search:
       - 50% travel
     title_phrases:
       - Account Executive
+      - Account Director
       - Sales Development Representative
+      - Sales Enablement
+      - Revenue Enablement
+      - Customer Success Enablement
+      - Customer Enablement
+      - Field Enablement
+      - Partner Enablement
+      - Procurement Enablement
+      - Partner Development
+      - Public Relations
+      - PR Director
+      - Security
+      - Compensation Operations
+      - Travel Operations
       - Machine Learning Engineer
       - Data Scientist
       - Research Scientist

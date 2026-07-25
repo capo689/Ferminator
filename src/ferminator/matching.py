@@ -8,6 +8,38 @@ from datetime import UTC, datetime
 from ferminator.domain import NormalizedJob, WorkplaceType
 from ferminator.profiles import CareerProfile
 
+_US_LOCATION_MARKERS = (
+    "united states",
+    "u.s.",
+    "u.s. remote",
+    "us remote",
+    "remote - us",
+    "remote — us",
+    "remote, us",
+    "namER",
+)
+_FOREIGN_LOCATION_MARKERS = (
+    "apac",
+    "emea",
+    "india",
+    "japan",
+    "singapore",
+    "korea",
+    "dubai",
+    "uae",
+    "ireland",
+    "dublin",
+    "london",
+    "berlin",
+    "paris",
+    "brussels",
+    "united kingdom",
+    "uk",
+    "toronto",
+    "montreal",
+    "canada",
+)
+
 
 def _contains(text: str, phrase: str) -> bool:
     return phrase.casefold() in text.casefold()
@@ -15,6 +47,27 @@ def _contains(text: str, phrase: str) -> bool:
 
 def _matched(text: str, phrases: list[str]) -> list[str]:
     return [phrase for phrase in phrases if _contains(text, phrase)]
+
+
+def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
+    """Accept explicit US roles and reject clearly foreign-only remote listings."""
+    country_codes = {
+        (location.country_code or "").strip().upper()
+        for location in job.locations
+        if location.country_code
+    }
+    if "US" in country_codes:
+        return True
+    normalized = location_text.casefold()
+    if any(marker.casefold() in normalized for marker in _US_LOCATION_MARKERS):
+        return True
+    if any(marker.casefold() in normalized for marker in _FOREIGN_LOCATION_MARKERS):
+        return False
+    # A provider that says only "Remote" has not contradicted the US default.
+    return bool(
+        job.workplace_type == WorkplaceType.REMOTE
+        and (not normalized.strip() or normalized.strip() == "remote")
+    )
 
 
 @dataclass(frozen=True)
@@ -53,6 +106,57 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             explanation="The job did not satisfy any required concept.",
         )
 
+    if (
+        job.employment_type
+        and profile.search.employment_types
+        and not _matched(job.employment_type, profile.search.employment_types)
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[f"Employment type is {job.employment_type}."],
+            explanation="The job failed the profile employment-type rule.",
+        )
+
+    high = _matched(title, profile.high_titles)
+    adjacent = _matched(title, profile.adjacent_titles)
+    if profile.search.require_title_match and not (high or adjacent):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=["No target or adjacent concept appeared in the title."],
+            explanation="Description-only keyword overlap is not sufficient for eligibility.",
+        )
+
+    preferred_hits = _matched(text, profile.search.preferred)
+    if (
+        adjacent
+        and not high
+        and len(preferred_hits) < profile.search.adjacent_minimum_preferred_hits
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=["The adjacent title lacked supporting profile evidence."],
+            explanation="A broad adjacent title needs evidence in the job description.",
+        )
+
+    location_text = " ".join(location.label for location in job.locations)
+    if (
+        profile.search.enforce_default_geography
+        and any("united states" in item.casefold() for item in profile.search.default_geography)
+        and not _is_us_compatible_location(job, location_text)
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[
+                f"Location is outside the configured US search: "
+                f"{location_text or 'unknown'}."
+            ],
+            explanation="The job failed the profile geography rule.",
+        )
+
     floor = profile.search.compensation.minimum_base_annual
     comp = job.compensation
     if floor and comp and comp.maximum is not None and comp.maximum < floor:
@@ -74,8 +178,6 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     components: dict[str, float] = {}
     evidence: list[str] = []
 
-    high = _matched(title, profile.high_titles)
-    adjacent = _matched(title, profile.adjacent_titles)
     if high:
         role_factor = 1.0
         evidence.extend(f"Target title: {item}" for item in high)
@@ -88,7 +190,6 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
         evidence.extend(f"Role concept: {item}" for item in body_hits)
     components["role_alignment"] = weights.get("role_alignment", 0) * role_factor
 
-    preferred_hits = _matched(text, profile.search.preferred)
     # A richer profile vocabulary must not lower a job's score. Four independent
     # preferred signals are enough to earn the full skills component.
     preferred_factor = min(1.0, len(preferred_hits) / 4)
@@ -109,7 +210,6 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     components["seniority"] = weights.get("seniority", 0) * (1.0 if seniority_hits else 0.25)
     evidence.extend(f"Seniority: {item}" for item in seniority_hits)
 
-    location_text = " ".join(location.label for location in job.locations)
     remote_ok = job.workplace_type == WorkplaceType.REMOTE or _contains(location_text, "remote")
     geography_hits = _matched(location_text, profile.search.default_geography)
     geography_factor = 1.0 if remote_ok or geography_hits else 0.2
