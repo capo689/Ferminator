@@ -9,12 +9,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import click
+import yaml
 from rich.console import Console
 from rich.table import Table
 
 from ferminator.adapters import ADAPTERS
 from ferminator.digest import compose_digest, send_smtp
-from ferminator.directory import parse_seed_html, validate_candidates
+from ferminator.directory import parse_company_csv, parse_seed_html, validate_candidates
 from ferminator.domain import ATSProvider, BoardRef
 from ferminator.ingestion import IngestionResult, run_bulk_ingestion
 from ferminator.ledger import parse_master_ledger
@@ -131,8 +132,12 @@ def registry_validate(path: Path) -> None:
 @click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
 @click.option("--json-output", type=click.Path(path_type=Path))
 def directory_check(seed_path: Path, workers: int, json_output: Path | None) -> None:
-    """Extract and live-test Greenhouse/Ashby boards from a saved HTML list."""
-    candidates = parse_seed_html(seed_path)
+    """Extract and live-test public ATS boards from an HTML or CSV directory."""
+    candidates = (
+        parse_company_csv(seed_path)
+        if seed_path.suffix.casefold() == ".csv"
+        else parse_seed_html(seed_path)
+    )
     results = validate_candidates(candidates, max_workers=workers)
     table = Table("Company", "Provider", "Board", "Jobs", "Status")
     for result in results:
@@ -176,6 +181,73 @@ def directory_check(seed_path: Path, workers: int, json_output: Path | None) -> 
         console.print(f"Evidence written to {json_output}")
     if payload["failed"]:
         raise click.ClickException(f"{payload['failed']} board(s) failed validation")
+
+
+@cli.command("directory-merge")
+@click.argument("validation_path", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--registry",
+    "registry_path",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("config/companies.yaml"),
+)
+@click.option("--output", type=click.Path(path_type=Path), required=True)
+def directory_merge(validation_path: Path, registry_path: Path, output: Path) -> None:
+    """Merge only live-validated boards into an existing registry."""
+    evidence = json.loads(validation_path.read_text(encoding="utf-8"))
+    registry = load_registry(registry_path)
+    payload = registry.model_dump(mode="json", exclude_none=True)
+    companies = payload["companies"]
+    by_slug = {company["slug"]: company for company in companies}
+    identities = {
+        (board["provider"], board["board_key"].casefold(), board["region"])
+        for company in companies
+        for board in company["boards"]
+    }
+    added = 0
+    for row in evidence.get("results", []):
+        if not row.get("healthy"):
+            continue
+        identity = (
+            row["provider"],
+            row["board_key"].casefold(),
+            row.get("region", "global"),
+        )
+        if identity in identities:
+            continue
+        slug = row["company_slug"]
+        company = by_slug.get(slug)
+        if company is None:
+            company = {
+                "slug": slug,
+                "name": row["company"],
+                "enabled": True,
+                "priority": 50,
+                "boards": [],
+            }
+            companies.append(company)
+            by_slug[slug] = company
+        company["boards"].append(
+            {
+                "provider": row["provider"],
+                "board_key": row["board_key"],
+                "source_url": row["source_url"],
+                "region": row.get("region", "global"),
+                "enabled": True,
+            }
+        )
+        identities.add(identity)
+        added += 1
+    companies.sort(key=lambda company: company["name"].casefold())
+    output.write_text(
+        yaml.safe_dump(payload, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
+    load_registry(output)
+    console.print(
+        f"[green]Added {added} validated boards; "
+        f"{len(identities)} total boards written to {output}[/green]"
+    )
 
 
 @cli.command("quality-eval")

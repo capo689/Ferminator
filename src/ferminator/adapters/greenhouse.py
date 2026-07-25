@@ -28,7 +28,12 @@ class GreenhouseAdapter(BaseAdapter):
         return [self.normalize(board, row) for row in rows]
 
     def normalize(self, board: BoardRef, row: dict[str, Any]) -> NormalizedJob:
-        raw_location = (row.get("location") or {}).get("name", "")
+        location_value = row.get("location") or {}
+        raw_location = (
+            location_value.get("name") or ""
+            if isinstance(location_value, dict)
+            else str(location_value)
+        )
         locations = [
             JobLocation(
                 label=raw_location,
@@ -60,4 +65,3 @@ class GreenhouseAdapter(BaseAdapter):
             source_updated_at=parse_datetime(row.get("updated_at")),
             raw_metadata={"requisition_id": row.get("requisition_id")},
         )
-

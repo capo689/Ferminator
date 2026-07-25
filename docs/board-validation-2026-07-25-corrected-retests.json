@@ -1,0 +1,15 @@
+{
+  "source": "targeted live retest after normalization corrections",
+  "checked_at": "2026-07-25T16:48:31-07:00",
+  "total": 6,
+  "healthy": 6,
+  "failed": 0,
+  "results": [
+    {"company":"Forbes Advisor","company_slug":"forbes-advisor","provider":"rippling","board_key":"forbes-advisor","region":"global","source_url":"https://ats.rippling.com/forbes-advisor/jobs","healthy":true,"job_count":17,"error_code":null},
+    {"company":"Intel","company_slug":"intel","provider":"workday","board_key":"intel/External","region":"global","source_url":"https://intel.wd1.myworkdayjobs.com/External","healthy":true,"job_count":40,"error_code":null},
+    {"company":"Rally","company_slug":"rally","provider":"rippling","board_key":"wearerally","region":"global","source_url":"https://ats.rippling.com/wearerally/jobs","healthy":true,"job_count":4,"error_code":null},
+    {"company":"Razer","company_slug":"razer","provider":"workday","board_key":"razer/Careers","region":"global","source_url":"https://razer.wd3.myworkdayjobs.com/Careers","healthy":true,"job_count":40,"error_code":null},
+    {"company":"SiFive","company_slug":"sifive","provider":"workday","board_key":"sifive/sifivecareers","region":"global","source_url":"https://sifive.wd1.myworkdayjobs.com/sifivecareers","healthy":true,"job_count":40,"error_code":null},
+    {"company":"xAI","company_slug":"xai","provider":"greenhouse","board_key":"xai","region":"global","source_url":"https://job-boards.greenhouse.io/xai","healthy":true,"job_count":223,"error_code":null}
+  ]
+}
