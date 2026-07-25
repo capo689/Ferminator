@@ -40,12 +40,15 @@ class SearchRules(BaseModel):
 class NotificationRules(BaseModel):
     dashboard: bool = True
     email: bool = True
+    review_minimum_score: float = Field(default=58, ge=0, le=100)
     minimum_score: float = Field(default=70, ge=0, le=100)
     exceptional_score: float = Field(default=88, ge=0, le=100)
     max_daily_matches: int = Field(default=12, ge=1, le=100)
 
     @model_validator(mode="after")
     def exceptional_is_higher(self) -> NotificationRules:
+        if self.review_minimum_score >= self.minimum_score:
+            raise ValueError("review_minimum_score must be lower than minimum_score")
         if self.exceptional_score < self.minimum_score:
             raise ValueError("exceptional_score must be at least minimum_score")
         return self

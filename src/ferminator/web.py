@@ -184,20 +184,29 @@ def _matches(profile: CareerProfile, *, minimum_score: float = 0) -> list[dict]:
 @app.get("/", response_class=HTMLResponse)
 async def today(request: Request):
     context = _context(request, "today")
+    review_floor = context["profile"].notifications.review_minimum_score
+    strong_floor = context["profile"].notifications.minimum_score
     matches = _matches(
         context["profile"],
-        minimum_score=context["profile"].notifications.minimum_score,
+        minimum_score=review_floor,
     )
+    strong_matches = [item for item in matches if item["score"] >= strong_floor]
+    review_matches = [
+        item for item in matches
+        if review_floor <= item["score"] < strong_floor
+    ]
     context.update(
         {
-            "matches": matches,
-            "lead": matches[0] if matches else None,
-            "secondary": matches[1:3],
+            "matches": strong_matches,
+            "review_matches": review_matches[:6],
+            "lead": strong_matches[0] if strong_matches else None,
+            "secondary": strong_matches[1:3],
             "stats": {
-                "new_matches": len(matches),
+                "new_matches": len(strong_matches),
+                "review_matches": len(review_matches),
                 "exceptional": sum(
                     item["score"] >= context["profile"].notifications.exceptional_score
-                    for item in matches
+                    for item in strong_matches
                 ),
                 "changed": 2,
                 "followups": 1,
@@ -218,7 +227,7 @@ async def discover(
     effective_minimum = (
         min_score
         if min_score is not None
-        else int(context["profile"].notifications.minimum_score)
+        else int(context["profile"].notifications.review_minimum_score)
     )
     matches = _matches(context["profile"], minimum_score=effective_minimum)
     if q:
@@ -235,6 +244,8 @@ async def discover(
             "query": q,
             "remote": remote,
             "min_score": effective_minimum,
+            "strong_minimum": context["profile"].notifications.minimum_score,
+            "review_minimum": context["profile"].notifications.review_minimum_score,
         }
     )
     return templates.TemplateResponse(request, "discover.html", context=context)
