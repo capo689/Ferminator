@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Discover · Ferminator{% endblock %}
+{% block content %}
+<header class="page-hero compact">
+  <div>
+    <p class="eyebrow">DISCOVER</p>
+    <h1>Search less. See what matters.</h1>
+    <p class="hero-copy">One view across every supported career board, ranked for you.</p>
+  </div>
+</header>
+
+<form class="command-search" method="get" action="/discover">
+  <label for="q">Search opportunities</label>
+  <div class="command-row">
+    <span aria-hidden="true">⌕</span>
+    <input id="q" name="q" value="{{ query }}" placeholder="AI enablement, knowledge operations, company…">
+    <button class="button button-primary" type="submit">Search</button>
+  </div>
+  <div class="filter-row">
+    <label class="check-filter">
+      <input type="checkbox" name="remote" value="true" {{ "checked" if remote else "" }}>
+      Remote only
+    </label>
+    <label>
+      Minimum fit
+      <select name="min_score">
+        {% for value in [0, 60, 70, 80, 90] %}
+        <option value="{{ value }}" {{ "selected" if min_score == value else "" }}>
+          {{ "Any score" if value == 0 else value ~ "%+" }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <span class="result-count">{{ matches|length }} opportunities</span>
+  </div>
+</form>
+
+<div class="results-list">
+  {% for job in matches %}
+  <article class="result-card">
+    <div class="company-logo">{{ job.company_initial }}</div>
+    <div class="result-body">
+      <div class="result-topline">
+        <span>{{ job.company }} · {{ job.provider|title }}</span>
+        <span class="new-pill">{{ job.freshness }}</span>
+      </div>
+      <h2>{{ job.title }}</h2>
+      <p class="job-meta">{{ job.location }} · {{ job.compensation or "Compensation not disclosed" }}</p>
+      <div class="match-reasons">
+        {% for item in job.evidence[:3] %}<span>{{ item }}</span>{% endfor %}
+      </div>
+      {% if job.concerns %}<p class="concern">{{ job.concerns[0] }}</p>{% endif %}
+      <div class="actions">
+        <form method="post" action="/actions/{{ job.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
+        <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
+      </div>
+    </div>
+    <div class="result-score">
+      <strong>{{ job.score|round|int }}</strong>
+      <span>match</span>
+    </div>
+  </article>
+  {% else %}
+  <div class="empty-state">
+    <span>⌕</span>
+    <h2>No opportunities match those filters.</h2>
+    <p>Broaden the search or remove the minimum-fit threshold.</p>
+    <a class="button button-secondary" href="/discover">Clear filters</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Intelligence · Ferminator{% endblock %}
+{% block content %}
+<header class="page-hero compact">
+  <div>
+    <p class="eyebrow">MARKET INTELLIGENCE</p>
+    <h1>Read the market before it reads like news.</h1>
+    <p class="hero-copy">Hiring movement translated into decisions for your search.</p>
+  </div>
+</header>
+
+<section class="intelligence-grid">
+  {% for item in market %}
+  <article class="metric-panel">
+    <span>{{ item.label }}</span>
+    <strong class="{{ item.direction }}">{{ item.value }}</strong>
+    <small>Compared with the previous 30 days</small>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="intelligence-detail">
+  <div>
+    <p class="eyebrow">DEMAND SIGNAL</p>
+    <h2>Skills appearing in your strongest matches</h2>
+    <p>The market is rewarding operators who can connect adoption, systems, and communication.</p>
+  </div>
+  <div class="skill-bars">
+    {% for label, value in skills %}
+    <div>
+      <span>{{ label }}</span>
+      <div class="bar"><i style="width: {{ value }}%"></i></div>
+      <strong>{{ value }}</strong>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="editorial-insight">
+  <span class="insight-number">01</span>
+  <div>
+    <p class="eyebrow">WHAT THIS MEANS</p>
+    <h2>“Enablement” is becoming operating infrastructure—not a training function.</h2>
+    <p>Roles increasingly combine workflow design, executive influence, technical communication,
+      and measurable adoption. That combination maps unusually well to your search thesis.</p>
+  </div>
+</section>
+{% endblock %}
+

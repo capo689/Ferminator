@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Profile · Ferminator{% endblock %}
+{% block content %}
+<header class="page-hero compact">
+  <div>
+    <p class="eyebrow">SEARCH PROFILE</p>
+    <h1>{{ profile.profile.display_name }}'s career thesis.</h1>
+    <p class="hero-copy">Human-readable intent, deterministic rules, transparent results.</p>
+  </div>
+  <span class="status-pill">✓ Profile valid</span>
+</header>
+
+<section class="profile-layout">
+  <div class="profile-primary">
+    <article class="profile-section">
+      <p class="eyebrow">TARGET DIRECTION</p>
+      <h2>Primary roles</h2>
+      <div class="tag-cloud">
+        {% for title in profile.high_titles %}<span class="tag strong">{{ title }}</span>{% endfor %}
+      </div>
+      <h3>Adjacent opportunities</h3>
+      <div class="tag-cloud">
+        {% for title in profile.adjacent_titles %}<span class="tag">{{ title }}</span>{% endfor %}
+      </div>
+    </article>
+    <article class="profile-section">
+      <p class="eyebrow">PREFERRED SIGNALS</p>
+      <div class="preference-list">
+        {% for item in profile.search.preferred %}<span>✓ {{ item }}</span>{% endfor %}
+      </div>
+    </article>
+  </div>
+  <aside class="profile-summary">
+    <div><span>Profile version</span><strong>{{ profile.schema_version }}</strong></div>
+    <div><span>Target concepts</span><strong>{{ target_count }}</strong></div>
+    <div><span>Scan cadence</span><strong>{{ profile.search.scan_interval_hours }}h</strong></div>
+    <div><span>Digest threshold</span><strong>{{ profile.notifications.minimum_score }}%</strong></div>
+    <div><span>Default geography</span><strong>{{ profile.search.default_geography[0] }}</strong></div>
+    <p>Update <code>{{ profile.source_path }}</code> to recalibrate the search.</p>
+  </aside>
+</section>
+{% endblock %}
+

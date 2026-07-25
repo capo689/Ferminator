@@ -1,0 +1,187 @@
+"""Tests for CLI commands."""
+
+import json
+
+import httpx
+import respx
+from click.testing import CliRunner
+
+from anthropic_tracker.cli import cli
+from anthropic_tracker.fetcher import board_url, departments_url
+from tests.fixtures import SAMPLE_JOBS
+
+MOCK_DEPARTMENTS = {
+    "departments": [
+        {
+            "id": 100,
+            "name": "Software Engineering (Infrastructure)",
+            "jobs": [
+                {"id": 1001, "title": "Senior Software Engineer, Infrastructure"},
+                {"id": 1004, "title": "Forward Deployed Engineer"},
+            ],
+        },
+        {
+            "id": 200,
+            "name": "Sales",
+            "jobs": [
+                {"id": 1002, "title": "Account Executive, Higher Education"},
+                {"id": 1005, "title": "Solutions Architect, EMEA"},
+            ],
+        },
+        {
+            "id": 300,
+            "name": "AI Research & Engineering",
+            "jobs": [
+                {"id": 1003, "title": "Research Scientist, Interpretability"},
+            ],
+        },
+    ]
+}
+
+
+def _mock_api(company="anthropic"):
+    """Set up standard API mocks for jobs + departments."""
+    respx.get(board_url(company)).mock(
+        return_value=httpx.Response(200, json={"jobs": SAMPLE_JOBS})
+    )
+    respx.get(departments_url(company)).mock(
+        return_value=httpx.Response(200, json=MOCK_DEPARTMENTS)
+    )
+
+
+class TestCLI:
+    def test_init_command(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--db", db_path, "init"])
+        assert result.exit_code == 0
+        assert "initialized" in result.output.lower()
+
+    @respx.mock
+    def test_fetch_command(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        _mock_api()
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--db", db_path, "fetch"])
+        assert result.exit_code == 0
+        assert "5" in result.output
+
+    @respx.mock
+    def test_summary_after_fetch(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        _mock_api()
+
+        runner = CliRunner()
+        runner.invoke(cli, ["--db", db_path, "fetch"])
+        result = runner.invoke(cli, ["--db", db_path, "summary"])
+        assert result.exit_code == 0
+
+    @respx.mock
+    def test_report_json(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        _mock_api()
+
+        runner = CliRunner()
+        runner.invoke(cli, ["--db", db_path, "fetch"])
+        result = runner.invoke(cli, ["--db", db_path, "report", "--format", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["total_active"] == 5
+
+    @respx.mock
+    def test_report_csv(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        _mock_api()
+
+        runner = CliRunner()
+        runner.invoke(cli, ["--db", db_path, "fetch"])
+        result = runner.invoke(cli, ["--db", db_path, "report", "--format", "csv"])
+        assert result.exit_code == 0
+        assert "id,title,department" in result.output
+
+    def test_alerts_no_data(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        runner = CliRunner()
+        runner.invoke(cli, ["--db", db_path, "init"])
+        result = runner.invoke(cli, ["--db", db_path, "alerts"])
+        assert result.exit_code == 0
+
+    def test_trends_no_data(self, tmp_path):
+        db_path = str(tmp_path / "test.db")
+        runner = CliRunner()
+        runner.invoke(cli, ["--db", db_path, "init"])
+        result = runner.invoke(cli, ["--db", db_path, "trends"])
+        assert result.exit_code == 0
+
+
+class TestMultiCompanyFetch:
+    @respx.mock
+    def test_fetch_all_configured_companies_by_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TRACKER_COMPANIES", "anthropic,openai")
+        monkeypatch.setenv("TRACKER_DB", str(tmp_path / "tracker.db"))
+        _mock_api("anthropic")
+        _mock_api("openai")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["fetch"])
+        assert result.exit_code == 0
+        assert (tmp_path / "tracker-anthropic.db").exists()
+        assert (tmp_path / "tracker-openai.db").exists()
+
+    @respx.mock
+    def test_fetch_company_flag_scopes_to_one_company(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TRACKER_COMPANIES", "anthropic,openai")
+        monkeypatch.setenv("TRACKER_DB", str(tmp_path / "tracker.db"))
+        _mock_api("openai")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["fetch", "--company", "openai"])
+        assert result.exit_code == 0
+        assert (tmp_path / "tracker-openai.db").exists()
+        assert not (tmp_path / "tracker-anthropic.db").exists()
+
+    @respx.mock
+    def test_group_level_company_flag_scopes_fetch(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TRACKER_COMPANIES", "anthropic,openai")
+        monkeypatch.setenv("TRACKER_DB", str(tmp_path / "tracker.db"))
+        _mock_api("openai")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--company", "openai", "fetch"])
+        assert result.exit_code == 0
+        assert (tmp_path / "tracker-openai.db").exists()
+        assert not (tmp_path / "tracker-anthropic.db").exists()
+
+    @respx.mock
+    def test_fetch_continues_after_one_company_fails(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TRACKER_COMPANIES", "anthropic,openai")
+        monkeypatch.setenv("TRACKER_DB", str(tmp_path / "tracker.db"))
+        respx.get(board_url("anthropic")).mock(return_value=httpx.Response(500))
+        _mock_api("openai")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["fetch"])
+        assert result.exit_code == 1
+        assert (tmp_path / "tracker-openai.db").exists()
+
+
+class TestCompanySlugValidation:
+    def test_path_traversal_company_flag_exits_cleanly(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TRACKER_COMPANIES", "anthropic,openai")
+        monkeypatch.setenv("TRACKER_DB", str(tmp_path / "tracker.db"))
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--company", "../evil", "fetch"])
+        assert result.exit_code != 0
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert "Traceback" not in result.output
+
+    def test_explicit_db_with_multiple_companies_and_no_scope_refuses(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("TRACKER_COMPANIES", "anthropic,openai")
+        db_path = str(tmp_path / "shared.db")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--db", db_path, "fetch"])
+        assert result.exit_code == 1
+        assert "Traceback" not in result.output

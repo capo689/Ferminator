@@ -1,0 +1,68 @@
+<h2>Hiring Trends (30 days)</h2>
+{% if days and days|length > 1 %}
+<div class="trends-grid">
+  <div class="chart-container" style="height:160px">
+    <canvas id="trendsLine"></canvas>
+  </div>
+  <div class="chart-container" style="height:90px">
+    <canvas id="trendsDelta"></canvas>
+  </div>
+</div>
+<script>
+(function() {
+  const data = {{ days | tojson }};
+  const labels = data.map(d => d.date.slice(5));
+  const ctx1 = document.getElementById('trendsLine');
+  if (window._trendsLine) window._trendsLine.destroy();
+  window._trendsLine = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Total Active Roles',
+        data: data.map(d => d.total),
+        borderColor: '#7c6ef0',
+        backgroundColor: 'rgba(124,110,240,0.15)',
+        fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#7c6ef0',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, resizeDelay: 200,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#1e1e1e' } },
+        y: { ticks: { color: '#888' }, grid: { color: '#1e1e1e' } }
+      }
+    }
+  });
+  const ctx2 = document.getElementById('trendsDelta');
+  if (window._trendsDelta) window._trendsDelta.destroy();
+  window._trendsDelta = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Added', data: data.map(d => d.added), backgroundColor: '#4caf50', borderRadius: 2 },
+        { label: 'Removed', data: data.map(d => -d.removed), backgroundColor: '#e53935', borderRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, resizeDelay: 200,
+      plugins: { legend: { labels: { color: '#aaa', boxWidth: 10, font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#888', maxTicksLimit: 10 }, grid: { color: '#1e1e1e' }, stacked: true },
+        y: { ticks: { color: '#888' }, grid: { color: '#1e1e1e' }, stacked: true }
+      }
+    }
+  });
+})();
+</script>
+{% elif days and days|length == 1 %}
+<div class="single-trend">
+  <div class="single-trend-value">{{ days[0].total }}</div>
+  <div class="single-trend-label">roles as of {{ days[0].date }}</div>
+  <p class="muted">Trend chart appears after 2+ daily snapshots.</p>
+</div>
+{% else %}
+<p class="muted">No trend data yet.</p>
+{% endif %}

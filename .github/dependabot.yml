@@ -1,0 +1,50 @@
+version: 2
+
+updates:
+  # Base image digest + tag updates
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: "docker"
+    groups:
+      docker-base:
+        patterns: ["*"]
+
+  # GitHub Actions versions (setup-python, build-push-action, trivy, etc.)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Python dependencies (httpx, fastapi, etc.) — security + version
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: "deps"
+    groups:
+      python:
+        patterns: ["*"]

@@ -1,0 +1,17 @@
+<h2>Alerts</h2>
+{% if alerts %}
+<ul class="alert-list">
+  {% for a in alerts %}
+  <li class="alert alert-{{ a.severity }}">
+    <span class="alert-badge">{{ a.severity }}</span>
+    <span class="alert-msg">{{ a.message }}</span>
+    <span class="alert-time muted">{{ a.time }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="alerts-clear">
+  <span class="alerts-check">&#10003;</span>
+  <span class="muted">No active alerts</span>
+</div>
+{% endif %}

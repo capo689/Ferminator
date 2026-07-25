@@ -1,0 +1,39 @@
+<h2>Recent Changes</h2>
+{% if recent_added or recent_removed %}
+<div class="recent-lists">
+  {% if recent_removed %}
+  <div class="recent-section">
+    <h3 class="recent-removed-label">Removed</h3>
+    {% for r in recent_removed %}
+    <div class="recent-item removed">
+      <span class="recent-indicator">-</span>
+      <div class="recent-info">
+        <span class="recent-title">{{ r.title }}</span>
+        <span class="recent-meta">{{ r.department }} &middot; {{ r.date }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if recent_added %}
+  <div class="recent-section">
+    <h3 class="recent-added-label">Recently Posted</h3>
+    {% for r in recent_added[:6] %}
+    <div class="recent-item added">
+      <span class="recent-indicator">+</span>
+      <div class="recent-info">
+        {% if r.url %}
+        <a href="{{ r.url }}" target="_blank" class="recent-title">{{ r.title }}</a>
+        {% else %}
+        <span class="recent-title">{{ r.title }}</span>
+        {% endif %}
+        <span class="recent-meta">{{ r.department }} &middot; {{ r.date }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<p class="muted">No recent changes tracked yet.</p>
+{% endif %}

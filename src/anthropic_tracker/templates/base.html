@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Anthropic Hiring Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body hx-headers='{"X-Company": "{{ company }}"}'>
+  <header>
+    <div class="header-left">
+      <h1>Anthropic Hiring Tracker</h1>
+      <nav class="company-tabs">
+        {% for c in companies %}
+        <a href="/?company={{ c }}" class="company-tab{% if c == company %} active{% endif %}">{{ c }}</a>
+        {% endfor %}
+      </nav>
+    </div>
+    <div class="header-right">
+      <span class="pulse"></span>
+      <span class="header-label">Live</span>
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <span class="muted">Auto-refreshes every 60s</span>
+  </footer>
+</body>
+</html>
