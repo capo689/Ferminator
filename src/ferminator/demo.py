@@ -213,9 +213,24 @@ def demo_pipeline(matches: list[dict[str, Any]]) -> dict[str, list[dict[str, Any
 
 def demo_companies() -> list[dict[str, Any]]:
     return [
-        {"name": "Airtable", "initial": "A", "momentum": 24, "relevant": 8, "new": 3},
-        {"name": "Notion", "initial": "N", "momentum": 17, "relevant": 6, "new": 2},
-        {"name": "Figma", "initial": "F", "momentum": 11, "relevant": 5, "new": 1},
-        {"name": "Asana", "initial": "A", "momentum": -4, "relevant": 4, "new": 0},
-        {"name": "Linear", "initial": "L", "momentum": 31, "relevant": 3, "new": 2},
+        {
+            "name": "Airtable", "initial": "A", "provider": "greenhouse",
+            "board_key": "airtable", "validation_status": "healthy", "healthy": True,
+            "active_jobs": 38, "relevant_jobs": 8, "new_jobs": 3,
+            "source_url": "https://job-boards.greenhouse.io/airtable",
+            "last_validated_at": None,
+        },
+        {
+            "name": "Notion", "initial": "N", "provider": "ashby",
+            "board_key": "notion", "validation_status": "healthy", "healthy": True,
+            "active_jobs": 42, "relevant_jobs": 6, "new_jobs": 2,
+            "source_url": "https://jobs.ashbyhq.com/notion", "last_validated_at": None,
+        },
+        {
+            "name": "Figma", "initial": "F", "provider": "greenhouse",
+            "board_key": "figma", "validation_status": "healthy", "healthy": True,
+            "active_jobs": 174, "relevant_jobs": 5, "new_jobs": 1,
+            "source_url": "https://job-boards.greenhouse.io/figma",
+            "last_validated_at": None,
+        },
     ]

@@ -68,6 +68,17 @@ def test_all_primary_pages_render():
             assert "Ferminator" in response.text
 
 
+def test_company_directory_renders_search_health_and_sources():
+    with TestClient(app) as client:
+        response = client.get("/companies")
+
+    assert response.status_code == 200
+    assert 'id="company-search"' in response.text
+    assert "Greenhouse · airtable" in response.text
+    assert "Healthy" in response.text
+    assert "Open board" in response.text
+
+
 def test_fit_lens_renders_explainable_components():
     with TestClient(app) as client:
         response = client.get("/fit/airtable-ai-enablement")

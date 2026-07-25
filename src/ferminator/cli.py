@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,8 +14,9 @@ from rich.table import Table
 
 from ferminator.adapters import ADAPTERS
 from ferminator.digest import compose_digest, send_smtp
+from ferminator.directory import parse_seed_html, validate_candidates
 from ferminator.domain import ATSProvider, BoardRef
-from ferminator.ingestion import run_board_ingestion
+from ferminator.ingestion import IngestionResult, run_bulk_ingestion
 from ferminator.ledger import parse_master_ledger
 from ferminator.matching import score_job
 from ferminator.profiles import load_profile
@@ -124,6 +126,58 @@ def registry_validate(path: Path) -> None:
     console.print(table)
 
 
+@cli.command("directory-check")
+@click.argument("seed_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
+@click.option("--json-output", type=click.Path(path_type=Path))
+def directory_check(seed_path: Path, workers: int, json_output: Path | None) -> None:
+    """Extract and live-test Greenhouse/Ashby boards from a saved HTML list."""
+    candidates = parse_seed_html(seed_path)
+    results = validate_candidates(candidates, max_workers=workers)
+    table = Table("Company", "Provider", "Board", "Jobs", "Status")
+    for result in results:
+        board = result.candidate.board
+        table.add_row(
+            board.company_name,
+            board.provider.value,
+            board.board_key,
+            str(result.job_count) if result.job_count is not None else "—",
+            "[green]healthy[/green]"
+            if result.healthy
+            else f"[red]{result.error_code}[/red]",
+        )
+    console.print(table)
+    payload = {
+        "source": str(seed_path),
+        "checked_at": datetime.now(UTC).isoformat(),
+        "total": len(results),
+        "healthy": sum(result.healthy for result in results),
+        "failed": sum(not result.healthy for result in results),
+        "results": [
+            {
+                "company": result.candidate.board.company_name,
+                "company_slug": result.candidate.board.company_slug,
+                "provider": result.candidate.board.provider.value,
+                "board_key": result.candidate.board.board_key,
+                "region": result.candidate.board.region,
+                "source_url": str(result.candidate.board.source_url),
+                "seed_job_url": result.candidate.seed_job_url,
+                "seed_job_title": result.candidate.seed_job_title,
+                "healthy": result.healthy,
+                "job_count": result.job_count,
+                "duration_ms": result.duration_ms,
+                "error_code": result.error_code,
+            }
+            for result in results
+        ],
+    }
+    if json_output:
+        json_output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        console.print(f"Evidence written to {json_output}")
+    if payload["failed"]:
+        raise click.ClickException(f"{payload['failed']} board(s) failed validation")
+
+
 @cli.command("quality-eval")
 @click.option(
     "--profile-path",
@@ -166,7 +220,13 @@ def quality_eval(profile_path: Path, fixtures: Path, minimum_accuracy: float) ->
 )
 @click.option("--provider", type=click.Choice([item.value for item in ATSProvider]))
 @click.option("--company")
-def scan(registry_path: Path, provider: str | None, company: str | None) -> None:
+@click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
+def scan(
+    registry_path: Path,
+    provider: str | None,
+    company: str | None,
+    workers: int,
+) -> None:
     """Ingest enabled public boards into Postgres."""
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -192,6 +252,7 @@ def scan(registry_path: Path, provider: str | None, company: str | None) -> None
     scan_id: str | None = None
     try:
         with repository.scan_lock():
+            repository.sync_registry(registry)
             scan_id = repository.start_scan(scan_key, len(boards))
             profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
             profile_ids = {
@@ -202,24 +263,37 @@ def scan(registry_path: Path, provider: str | None, company: str | None) -> None
                 for profile in profiles
                 if profile.search.enabled
             }
-            for board in boards:
-                try:
-                    result = run_board_ingestion(board, repository)
-                    succeeded += 1
+            def report(
+                board: BoardRef,
+                result: IngestionResult | None,
+                error_code: str | None,
+            ) -> None:
+                if result:
                     console.print(
                         f"[green]{board.company_name}[/green] "
                         f"{result.fetched} fetched, {result.added} added, "
                         f"{result.updated} updated, {result.removed} removed, "
                         f"{result.reactivated} reactivated"
                     )
-                except Exception as exc:
-                    failed = True
-                    error_code = getattr(exc, "code", type(exc).__name__)
-                    errors.append(str(error_code))
+                else:
                     console.print(
                         f"[red]{board.company_name}: provider failed "
                         f"({error_code})[/red]"
                     )
+
+            bulk = run_bulk_ingestion(
+                boards,
+                repository,
+                max_workers=workers,
+                progress=report,
+            )
+            succeeded = len(bulk.succeeded)
+            errors.extend(item.error_code for item in bulk.failed)
+            failed = bool(bulk.failed)
+            console.print(
+                f"[cyan]Parallel fetch phase: {bulk.fetch_duration_ms / 1000:.1f}s "
+                f"with {workers} workers[/cyan]"
+            )
             active_jobs = repository.active_jobs()
             scored_jobs = len(active_jobs)
             for career_profile in profiles:

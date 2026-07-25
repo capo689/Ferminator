@@ -359,7 +359,9 @@ async def companies(request: Request):
     else:
         repository = _repository()
         try:
-            context["companies"] = repository.company_stats(context["profile"].profile.slug)
+            context["companies"] = repository.company_directory(
+                context["profile"].profile.slug
+            )
         finally:
             repository.close()
     return templates.TemplateResponse(request, "companies.html", context=context)
