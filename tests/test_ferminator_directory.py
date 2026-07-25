@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from ferminator.directory import parse_seed_html, slugify, validate_candidates
+from ferminator.directory import (
+    parse_company_csv,
+    parse_seed_html,
+    slugify,
+    validate_candidates,
+)
 from ferminator.domain import ATSProvider
 from ferminator.ingestion import BoardFetch
 
@@ -34,6 +39,26 @@ def test_parse_seed_html_extracts_and_deduplicates_supported_boards(tmp_path: Pa
 def test_slugify_is_registry_safe():
     assert slugify("The AI Education Project (aiEDU)") == "the-ai-education-project-aiedu"
     assert slugify("ID.me") == "id-me"
+
+
+def test_parse_company_csv_maps_supported_provider_board_keys(tmp_path: Path):
+    source = tmp_path / "companies.csv"
+    source.write_text(
+        "company,ats,board_url\n"
+        "Example,Breezy,https://example.breezy.hr\n"
+        "Second,Workday,https://second.wd1.myworkdayjobs.com/en-US/External\n"
+        "Third,Rippling,https://ats.rippling.com/third-careers/jobs\n"
+        "Old,Jobvite,https://jobs.jobvite.com/old\n",
+        encoding="utf-8",
+    )
+
+    results = parse_company_csv(source)
+
+    assert [(item.board.provider, item.board.board_key) for item in results] == [
+        (ATSProvider.BREEZY, "example"),
+        (ATSProvider.WORKDAY, "second/External"),
+        (ATSProvider.RIPPLING, "third-careers"),
+    ]
 
 
 def test_validate_candidates_captures_healthy_and_failed(monkeypatch, tmp_path: Path):

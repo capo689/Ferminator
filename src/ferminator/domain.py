@@ -20,6 +20,9 @@ class ATSProvider(StrEnum):
     SMARTRECRUITERS = "smartrecruiters"
     WORKABLE = "workable"
     BAMBOOHR = "bamboohr"
+    WORKDAY = "workday"
+    BREEZY = "breezy"
+    RIPPLING = "rippling"
 
 
 class WorkplaceType(StrEnum):
