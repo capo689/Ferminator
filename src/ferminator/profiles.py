@@ -51,6 +51,11 @@ class SearchRules(BaseModel):
     enabled: bool = True
     scan_interval_hours: int = Field(default=12, ge=1, le=168)
     default_geography: list[str] = Field(default_factory=lambda: ["Remote — United States"])
+    default_zip: str = "97702"
+    default_radius_miles: Literal[10, 25, 50, 100] = 50
+    default_location_mode: Literal["remote", "near", "remote_or_near", "anywhere"] = (
+        "remote_or_near"
+    )
     allow_jobs_without_compensation: bool = True
     compensation: CompensationRule = Field(default_factory=CompensationRule)
     employment_types: list[str] = Field(default_factory=lambda: ["full-time"])
@@ -63,6 +68,13 @@ class SearchRules(BaseModel):
     required_any: list[str] = Field(default_factory=list)
     preferred: list[str] = Field(default_factory=list)
     exclude: dict[str, list[str]] = Field(default_factory=dict)
+
+    @field_validator("default_zip")
+    @classmethod
+    def valid_default_zip(cls, value: str) -> str:
+        if not re.fullmatch(r"\d{5}", value):
+            raise ValueError("default_zip must be a five-digit US ZIP code")
+        return value
 
     @model_validator(mode="after")
     def unique_role_families(self) -> SearchRules:

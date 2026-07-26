@@ -9,6 +9,9 @@ search:
   scan_interval_hours: 12
   default_geography:
     - Remote — United States
+  default_zip: "97702"
+  default_radius_miles: 50
+  default_location_mode: remote_or_near
   allow_jobs_without_compensation: true
   compensation:
     currency: USD

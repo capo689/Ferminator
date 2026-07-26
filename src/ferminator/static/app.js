@@ -8,6 +8,35 @@ if (menuButton && sidebar) {
   });
 }
 
+const discoverForm = document.querySelector("[data-discover-form]");
+if (discoverForm) {
+  const mode = discoverForm.querySelector("[data-location-mode]");
+  const nearControls = [...discoverForm.querySelectorAll("[data-near-control]")];
+  let timer;
+
+  const showNearControls = () => {
+    const visible = ["near", "remote_or_near"].includes(mode.value);
+    nearControls.forEach((control) => control.classList.toggle("is-dimmed", !visible));
+  };
+  const submit = () => {
+    window.clearTimeout(timer);
+    if (discoverForm.reportValidity()) discoverForm.requestSubmit();
+  };
+
+  discoverForm.querySelectorAll("select").forEach((control) => {
+    control.addEventListener("change", () => {
+      showNearControls();
+      submit();
+    });
+  });
+  discoverForm.querySelector('input[name="zip"]')?.addEventListener("input", (event) => {
+    if (event.target.value.length === 5) {
+      timer = window.setTimeout(submit, 350);
+    }
+  });
+  showNearControls();
+}
+
 document.querySelectorAll("[data-toast]").forEach((button) => {
   button.addEventListener("click", () => {
     const toast = document.createElement("div");
