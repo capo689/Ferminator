@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from ferminator import __version__
 from ferminator.settings import get_settings
 from ferminator.web import _apply_visible_compensation, _failed_auth, app
 
@@ -114,7 +115,7 @@ def test_profile_renders_role_threshold_control_and_copy_family():
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
     assert "50%" in response.text
-    assert "/static/app.js?v=0.8.1" in response.text
+    assert f"/static/app.js?v={__version__}" in response.text
 
 
 def test_demo_role_threshold_update_redirects_without_mutation():
