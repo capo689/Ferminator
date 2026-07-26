@@ -226,7 +226,7 @@
     {% else %}
     <p>
       The 58-record Calibration V1 corpus is frozen, but the live matcher still needs
-      your Great, Maybe, and Wrong ratings to learn its current failure modes.
+      your Great, Maybe, Wrong, and Duplicate ratings to learn its current failure modes.
     </p>
     <a class="button button-secondary" href="/discover">Rate visible matches</a>
     {% endif %}
@@ -234,6 +234,7 @@
       <span>Great <strong>{{ intel.quality.great }}</strong></span>
       <span>Maybe <strong>{{ intel.quality.maybe }}</strong></span>
       <span>Wrong <strong>{{ intel.quality.wrong }}</strong></span>
+      <span>Duplicate <strong>{{ intel.quality.duplicate }}</strong></span>
     </div>
   </article>
 </section>

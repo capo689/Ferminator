@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from ferminator.settings import get_settings
@@ -50,6 +52,15 @@ def test_discover_defaults_to_controlled_review_tier():
     assert "Every role passed" not in response.text
 
 
+def test_discover_feedback_controls_include_duplicate_and_undo() -> None:
+    template = (
+        Path("src/ferminator/templates/discover.html").read_text(encoding="utf-8")
+    )
+
+    assert '"duplicate"' in template
+    assert "Undo rating" in template
+
+
 def test_discover_filters_results():
     with TestClient(app) as client:
         response = client.get("/discover", params={"q": "Notion", "min_score": 0})
@@ -86,7 +97,7 @@ def test_profile_renders_role_threshold_control_and_copy_family():
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
     assert "65%" in response.text
-    assert "/static/app.js?v=0.6.3" in response.text
+    assert "/static/app.js?v=0.7.0" in response.text
 
 
 def test_demo_role_threshold_update_redirects_without_mutation():

@@ -79,10 +79,25 @@
         <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
       </div>
       <div class="feedback-actions" aria-label="Rate this match">
-        <span>Teach the matcher:</span>
-        <form method="post" action="/feedback/{{ job.id }}/great"><button class="text-action" type="submit">Great</button></form>
-        <form method="post" action="/feedback/{{ job.id }}/maybe"><button class="text-action" type="submit">Maybe</button></form>
-        <form method="post" action="/feedback/{{ job.id }}/wrong"><button class="text-action" type="submit">Wrong</button></form>
+        <span>
+          {% if job.feedback_verdict %}
+          Rated: <strong>{{ job.feedback_verdict|title }}</strong>
+          {% else %}Teach the matcher:{% endif %}
+        </span>
+        {% for verdict in ["great", "maybe", "wrong", "duplicate"] %}
+        <form method="post" action="/feedback/{{ job.id }}/{{ verdict }}">
+          <button
+            class="text-action{% if job.feedback_verdict == verdict %} feedback-selected{% endif %}"
+            type="submit"
+            {% if job.feedback_verdict == verdict %}aria-pressed="true"{% endif %}
+          >{{ verdict|title }}</button>
+        </form>
+        {% endfor %}
+        {% if job.feedback_verdict %}
+        <form method="post" action="/feedback/{{ job.id }}/clear">
+          <button class="text-action feedback-undo" type="submit">Undo rating</button>
+        </form>
+        {% endif %}
       </div>
     </div>
     <div class="result-score">
