@@ -7,6 +7,17 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Added
 
+- Calibration V2, a frozen 61-job human-review corpus with 11 Great, 8 Maybe,
+  40 Wrong, and 2 Duplicate outcomes.
+- A release gate that preserves all reviewed Great/Maybe jobs while rejecting
+  at least 85% of reviewed Wrong jobs.
+- Function-aware calibration signals for copy, content strategy, DevRel,
+  creative technology, AI enablement, product marketing, technical roles,
+  mandatory qualifications, and opportunity economics.
+- A no-fetch `ferminator rescore` command and manually dispatched GitHub
+  workflow for refreshing profile matches from the shared job corpus.
+- A Discover control for temporarily showing hidden Wrong and Duplicate
+  feedback so mistaken ratings can still be undone.
 - Ferminator Profile Builder, a distributable skills-only plugin that converts
   resumes, confirmed public career sources, and a guided interview into a
   schema-validated Ferminator Markdown profile.
@@ -15,6 +26,11 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Changed
 
+- Adam's visibility floors now represent a controlled-review floor rather than
+  requiring every candidate to clear an already-calibrated display score.
+- Contract compensation now enforces a $60/hour floor independently of the
+  annual full-time salary floor.
+- Discover hides jobs explicitly rated Wrong or Duplicate by default.
 - Production monitoring now treats Render free-tier cold starts as a bounded
   wake-up phase: up to three 20-second connection attempts with 10 seconds
   between failures (an 80-second maximum). Persistent failures still fail the

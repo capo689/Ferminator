@@ -62,6 +62,15 @@
         {% endfor %}
       </select>
     </label>
+    <label class="checkbox-control">
+      <input
+        type="checkbox"
+        name="show_rejected"
+        value="true"
+        {{ "checked" if show_rejected else "" }}
+      >
+      Show Wrong &amp; Duplicate
+    </label>
   </div>
   <div class="filter-summary">
     <div class="filter-chips">

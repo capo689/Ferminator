@@ -95,6 +95,323 @@ def _matched_title_exclusions(title: str, phrases: list[str]) -> list[str]:
     return matches
 
 
+def _phrase_count(text: str, phrases: tuple[str, ...]) -> int:
+    """Count distinct explainable signals without rewarding keyword stuffing."""
+    normalized = text.casefold()
+    return sum(phrase in normalized for phrase in phrases)
+
+
+def _calibration_adjustment(
+    role_family: RoleFamily | None,
+    title: str,
+    text: str,
+) -> tuple[float, list[str], list[str]]:
+    """Translate broad title matches into function-aware ranking evidence.
+
+    These signals are deliberately conservative: they change ordering and
+    visibility, while hard eligibility remains in explicit profile rules.
+    """
+    title_text = title.casefold()
+    body = text.casefold()
+    adjustment = 0.0
+    evidence: list[str] = []
+    concerns: list[str] = []
+
+    def add(points: float, label: str) -> None:
+        nonlocal adjustment
+        adjustment += points
+        evidence.append(label)
+
+    def subtract(points: float, label: str) -> None:
+        nonlocal adjustment
+        adjustment -= points
+        concerns.append(label)
+
+    family_id = role_family.id if role_family else ""
+
+    if family_id in {"copywriting", "creative-direction-copy"}:
+        add(15, "Direct senior copy craft")
+        if (
+            _phrase_count(
+                body,
+                (
+                    "brand voice",
+                    "campaign concept",
+                    "conversion",
+                    "landing page",
+                    "lifecycle",
+                    "paid media",
+                    "direct response",
+                    "video script",
+                    "e-commerce",
+                    "d2c",
+                ),
+            )
+            >= 2
+        ):
+            add(5, "Commercial copy and conversion work")
+        if "market access" in body or "payer" in body and "reimbursement" in body:
+            subtract(24, "Specialized pharmaceutical market-access experience required")
+        if (
+            "legal portfolio" in body
+            or "legal-content writing" in body
+            or "legal content writer" in body
+            or "legal content writing" in body
+        ):
+            subtract(18, "Specialized legal-copy portfolio required")
+        if (
+            _phrase_count(
+                body,
+                (
+                    "fda",
+                    "ftc",
+                    "supplement",
+                    "market access",
+                    "medical legal review",
+                    "payer",
+                    "reimbursement",
+                ),
+            )
+            >= 2
+        ):
+            subtract(22, "Specialized regulated-copy domain required")
+
+    if family_id == "content-strategy-brand":
+        add(12, "Direct content and brand strategy")
+        if (
+            _phrase_count(
+                body,
+                ("ai-native", "brand voice", "content system", "ai discovery", "seo", "aeo", "geo"),
+            )
+            >= 2
+        ):
+            add(8, "AI-native content-system intersection")
+        if (
+            _phrase_count(
+                body,
+                ("member support", "support content", "agent sop", "upsell", "account retention"),
+            )
+            >= 2
+        ):
+            subtract(26, "Role is primarily support or account operations")
+        if "est/cst" in body or "future opening" in title_text:
+            subtract(18, "Availability or working-hours constraint")
+
+    if "developer relation" in title_text or "developer advocate" in title_text:
+        subtract(14, "Formal DevRel title requires direct builder evidence")
+        if "engineer" in title_text:
+            subtract(14, "DevRel engineering title")
+        builder_hits = _phrase_count(
+            body,
+            (
+                "build",
+                "prototype",
+                "technical content",
+                "documentation",
+                "product feedback",
+                "example application",
+                "sample application",
+                "make cool stuff",
+                "feedback from the market",
+            ),
+        )
+        if builder_hits >= 3:
+            add(20, "Builder-oriented developer education")
+        formal_hits = _phrase_count(
+            body,
+            (
+                "developer community",
+                "community growth",
+                "conference",
+                "event strategy",
+                "public speaking",
+                "established audience",
+                "social following",
+                "appsec",
+                "devsecops",
+            ),
+        )
+        if formal_hits >= 2:
+            subtract(min(28, 7 * formal_hits), "Formal DevRel/community program ownership")
+
+    if family_id == "creative-ai-technology":
+        experiential_hits = _phrase_count(
+            body,
+            (
+                "real-time graphics",
+                "game engine",
+                "unreal engine",
+                "unity",
+                "physical computing",
+                "hardware integration",
+                "av integration",
+                "interactive installation",
+            ),
+        )
+        if experiential_hits >= 2:
+            subtract(42, "Experiential, real-time, or hardware creative technology")
+        elif (
+            _phrase_count(
+                body,
+                ("agent", "workflow", "api", "automation", "guardrail", "human approval"),
+            )
+            >= 3
+        ):
+            add(12, "Applied-AI creative systems")
+
+    if family_id == "conversation-prompt-design":
+        traditional_hits = _phrase_count(
+            body,
+            ("nlu", "tts", "voice interface", "voice assistant", "conversation design experience"),
+        )
+        if traditional_hits >= 2:
+            subtract(22, "Traditional NLU, voice, or TTS specialization")
+
+    if family_id == "product-marketing-narrative":
+        if (
+            _phrase_count(
+                body,
+                ("messaging", "positioning", "narrative", "product launch", "executive"),
+            )
+            >= 3
+        ):
+            add(8, "Messaging, positioning, and launch leadership")
+        formal_pmm = bool(
+            re.search(
+                r"\b(?:4|5|6|7|8|9|10)(?:\s*[-–—]\s*(?:5|6|7|8|9|10))?\+?"
+                r"\s+years?[^.]{0,90}product marketing",
+                body,
+            )
+        )
+        if formal_pmm and not re.search(
+            r"product marketing[^.]{0,80}(?:related|launch management|gtm strategy)", body
+        ):
+            subtract(16, "Conventional product-marketing tenure gate")
+        specialist_hits = _phrase_count(
+            body,
+            (
+                "supply chain security",
+                "cloud-native",
+                "open source security",
+                "credentials security",
+                "password manager",
+                "institutional trading",
+                "derivatives",
+                "av-over-ip",
+                "dante",
+                "clinical outcomes",
+            ),
+        )
+        if specialist_hits >= 2:
+            subtract(min(24, 8 * specialist_hits), "Specialized product domain required")
+        if "technical product marketing" in title_text:
+            subtract(14, "Formal technical product-marketing function")
+        if "chainguard" in body and "product marketing" in title_text:
+            subtract(10, "Cloud-native supply-chain-security PMM specialization")
+
+    ai_builder_hits = _phrase_count(
+        body,
+        (
+            "build ai",
+            "build and deploy",
+            "prototype",
+            "agent",
+            "api integration",
+            "evaluation",
+            "guardrail",
+            "workflow automation",
+            "python",
+            "javascript",
+        ),
+    )
+    if family_id in {
+        "ai-enablement",
+        "ai-transformation-operations",
+        "consulting-transformation",
+    }:
+        if ai_builder_hits >= 3:
+            add(min(16, 4 * ai_builder_hits), "Hands-on applied-AI building")
+        change_hits = _phrase_count(
+            body,
+            (
+                "training program",
+                "office hours",
+                "champion network",
+                "change management",
+                "adoption metrics",
+                "guided selling",
+                "sales enablement",
+            ),
+        )
+        if (
+            change_hits >= 3
+            and ai_builder_hits < 3
+            and family_id == "ai-enablement"
+            and "director" not in title_text
+        ):
+            subtract(20, "Training, change, or field enablement without hands-on building")
+        if "transformation owner" in title_text:
+            add(8, "Cross-functional AI transformation ownership")
+        if "adoption manager" in title_text and change_hits >= 3:
+            subtract(22, "Formal adoption and change-management program ownership")
+        if (
+            "customer success" in title_text
+            and _phrase_count(body, ("retention", "expansion", "renewal", "customer success")) >= 3
+        ):
+            subtract(24, "Enterprise Customer Success ownership")
+
+    technical_title_hits = _phrase_count(
+        title_text,
+        (
+            "engineering manager",
+            "solutions architect",
+            "technical product manager",
+            "internal ai transformation",
+            "product designer",
+            "creative designer",
+        ),
+    )
+    infrastructure_hits = _phrase_count(
+        body,
+        (
+            "kubernetes",
+            "mlops",
+            "infrastructure as code",
+            "data engineering",
+            "cloud certification",
+            "manage engineers",
+            "incident response",
+            "snowflake",
+        ),
+    )
+    if technical_title_hits and infrastructure_hits >= 2:
+        subtract(
+            min(35, 15 + 5 * infrastructure_hits), "Career engineering/infrastructure ownership"
+        )
+    if "technical product manager" in title_text:
+        subtract(24, "Formal technical-product-management tenure")
+    if "ai adoption manager" in title_text:
+        subtract(22, "Formal adoption and change-management program ownership")
+
+    mandatory_degree = bool(
+        re.search(
+            r"(?:bachelor'?s|four-year|4-year) degree[^.]{0,45}(?:required|must)",
+            body,
+        )
+        or re.search(
+            r"(?:required|must have)[^.]{0,45}(?:bachelor'?s|four-year|4-year) degree",
+            body,
+        )
+    )
+    if mandatory_degree and "or equivalent" not in body:
+        subtract(16, "Mandatory degree without equivalent-experience path")
+
+    if "talent pool" in title_text or "future opening" in title_text:
+        subtract(25, "No immediate defined opening")
+
+    return adjustment, evidence, concerns
+
+
 def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
     """Accept explicit US roles and reject clearly foreign-only remote listings."""
     country_codes = {
@@ -144,6 +461,25 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             score=0,
             concerns=[f"Excluded phrase: {phrase}" for phrase in blocked],
             explanation="The job failed a profile exclusion rule.",
+        )
+
+    structural_title_blocks = (
+        "engineering manager",
+        "product designer",
+        "creative designer",
+        "solutions architect",
+        "engineering - internal ai",
+    )
+    structural_match = next(
+        (phrase for phrase in structural_title_blocks if phrase in title.casefold()),
+        None,
+    )
+    if structural_match:
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[f"Functionally excluded title: {structural_match}"],
+            explanation="The title denotes a career function outside the profile evidence.",
         )
 
     required = profile.search.required_any
@@ -201,13 +537,13 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=[
-                f"Location is outside the configured US search: "
-                f"{location_text or 'unknown'}."
+                f"Location is outside the configured US search: {location_text or 'unknown'}."
             ],
             explanation="The job failed the profile geography rule.",
         )
 
     floor = profile.search.compensation.minimum_base_annual
+    hourly_floor = profile.search.compensation.minimum_contract_hourly
     comp = job.compensation
     if (
         floor
@@ -228,6 +564,21 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             score=0,
             concerns=["Compensation is not disclosed."],
             explanation="The profile requires disclosed compensation.",
+        )
+    if (
+        hourly_floor
+        and comp
+        and comp.interval == "hour"
+        and comp.maximum is not None
+        and comp.maximum < hourly_floor
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[
+                f"Published hourly maximum {comp.maximum:g} is below the configured contract floor."
+            ],
+            explanation="The disclosed contract compensation failed a hard profile rule.",
         )
 
     weights = profile.scoring
@@ -260,11 +611,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     # Preferred concepts only earn career-evidence credit when the profile's
     # factual narrative also contains them. Matching full resume bullets
     # verbatim made this component effectively unreachable.
-    career_hits = [
-        phrase
-        for phrase in preferred_hits
-        if _contains(profile.evidence_text, phrase)
-    ]
+    career_hits = [phrase for phrase in preferred_hits if _contains(profile.evidence_text, phrase)]
     evidence_factor = min(1.0, len(career_hits) / 4)
     components["career_evidence"] = weights.get("career_evidence", 0) * evidence_factor
     evidence.extend(f"Career evidence: {item}" for item in career_hits[:5])
@@ -303,11 +650,42 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
         evidence.append("Newly published")
 
     score = round(min(100.0, sum(components.values())), 2)
-    # Adjacent titles have already passed the explicit supporting-evidence gate.
-    # Keep them visible in the controlled review tier without promoting them to
-    # the strong-match tier solely through a floor.
-    if adjacent and not high:
-        score = max(score, profile.notifications.review_minimum_score)
+    adjustment, calibration_evidence, calibration_concerns = _calibration_adjustment(
+        role_family,
+        title,
+        text,
+    )
+    if (
+        floor
+        and comp
+        and comp.interval in {None, "year", "annual", "annually"}
+        and comp.minimum is not None
+        and comp.maximum is not None
+        and comp.minimum < floor
+        and comp.maximum <= floor * 1.05
+    ):
+        adjustment -= 18
+        calibration_concerns.append(
+            "Only the extreme top of the published range reaches the compensation floor"
+        )
+    if role_family and role_family.id == "content-strategy-brand" and comp and floor:
+        if (
+            comp.interval in {None, "year", "annual", "annually"}
+            and comp.maximum is not None
+            and comp.maximum <= floor
+        ):
+            adjustment -= 6
+    if (
+        role_family
+        and role_family.id in {"copywriting", "creative-direction-copy"}
+        and "per word" in title.casefold()
+    ):
+        adjustment -= 15
+        calibration_concerns.append("Per-word engagement with undisclosed economics")
+    score = round(max(0.0, min(100.0, score + adjustment)), 2)
+    components["functional_calibration"] = round(adjustment, 2)
+    evidence.extend(calibration_evidence)
+    concerns.extend(calibration_concerns)
     strongest = ", ".join(item for item in evidence[:3]) or "limited direct evidence"
     explanation = f"Score {score:g}: strongest signals are {strongest}."
     return MatchResult(

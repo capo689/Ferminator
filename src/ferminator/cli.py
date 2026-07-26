@@ -138,8 +138,7 @@ def registry_import(path: Path) -> None:
     repository = PostgresRepository(database_url)
     companies, boards = repository.sync_registry(registry)
     console.print(
-        f"[green]Private registry imported[/green]: "
-        f"{companies} companies, {boards} boards"
+        f"[green]Private registry imported[/green]: {companies} companies, {boards} boards"
     )
 
 
@@ -163,9 +162,7 @@ def directory_check(seed_path: Path, workers: int, json_output: Path | None) -> 
             board.provider.value,
             board.board_key,
             str(result.job_count) if result.job_count is not None else "—",
-            "[green]healthy[/green]"
-            if result.healthy
-            else f"[red]{result.error_code}[/red]",
+            "[green]healthy[/green]" if result.healthy else f"[red]{result.error_code}[/red]",
         )
     console.print(table)
     payload = {
@@ -310,13 +307,48 @@ def _boards_for_shard(
         return boards
     selected = []
     for board in boards:
-        identity = (
-            f"{board.provider.value}:{board.board_key.casefold()}:{board.region}"
-        ).encode()
+        identity = (f"{board.provider.value}:{board.board_key.casefold()}:{board.region}").encode()
         assigned = int.from_bytes(hashlib.sha256(identity).digest()[:8], "big")
         if assigned % shard_count + 1 == shard_index:
             selected.append(board)
     return selected
+
+
+@cli.command("rescore")
+@click.option(
+    "--profile-path",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("profiles/adam-cagle.md"),
+    show_default=True,
+)
+def rescore(profile_path: Path) -> None:
+    """Refresh one profile's matches from the shared job corpus without fetching ATS boards."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    career_profile = load_profile(profile_path)
+    repository = PostgresRepository(database_url)
+    try:
+        profile_id = repository.sync_profile(
+            career_profile,
+            os.environ.get(career_profile.profile.email_env),
+        )
+        profile_version = repository.profile_version(profile_id)
+        active_jobs = repository.active_jobs()
+        repository.store_matches(
+            profile_id=profile_id,
+            profile_version=profile_version,
+            matches=[
+                (job_id, revision_id, score_job(career_profile, job))
+                for job_id, revision_id, job in active_jobs
+            ],
+        )
+    finally:
+        repository.close()
+    console.print(
+        f"[green]{career_profile.profile.display_name}: rescored "
+        f"{len(active_jobs)} active jobs[/green]"
+    )
 
 
 @cli.command("scan")
@@ -374,6 +406,7 @@ def scan(
                 for profile in profiles
                 if profile.search.enabled
             }
+
             def report(
                 board: BoardRef,
                 result: IngestionResult | None,
@@ -388,8 +421,7 @@ def scan(
                     )
                 else:
                     console.print(
-                        f"[red]{board.company_name}: provider failed "
-                        f"({error_code})[/red]"
+                        f"[red]{board.company_name}: provider failed ({error_code})[/red]"
                     )
 
             bulk = run_bulk_ingestion(

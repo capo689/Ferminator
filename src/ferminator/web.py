@@ -108,9 +108,8 @@ async def request_observability(request: Request, call_next):
     request.state.request_id = request_id
     started = time.perf_counter()
     settings = get_settings()
-    public_path = (
-        request.url.path in {"/healthz", "/readyz"}
-        or request.url.path.startswith("/static/")
+    public_path = request.url.path in {"/healthz", "/readyz"} or request.url.path.startswith(
+        "/static/"
     )
     if settings.auth_mode == "shared_password" and not public_path:
         key = _auth_key(request)
@@ -288,11 +287,7 @@ def _matches(profile: CareerProfile, *, minimum_score: float = 0) -> list[dict]:
     if get_settings().demo_mode:
         return _apply_role_thresholds(
             profile,
-            [
-                item
-                for item in scored_jobs(profile)
-                if item["score"] >= minimum_score
-            ],
+            [item for item in scored_jobs(profile) if item["score"] >= minimum_score],
             {},
         )
     repository = _repository()
@@ -319,9 +314,7 @@ def _compile_intelligence(
     """Build an honest, explainable snapshot from current production facts."""
     overview = market_data["overview"]
     visible_count = len(matches)
-    strong_count = sum(
-        item["score"] >= profile.notifications.minimum_score for item in matches
-    )
+    strong_count = sum(item["score"] >= profile.notifications.minimum_score for item in matches)
     exceptional_count = sum(
         item["score"] >= profile.notifications.exceptional_score for item in matches
     )
@@ -337,9 +330,7 @@ def _compile_intelligence(
         and item.get("compensation_interval") in {None, "year", "annual", "annually"}
     ]
     median_salary = round(median(annual_salaries) / 1000) if annual_salaries else None
-    salary_coverage = (
-        round(100 * len(annual_salaries) / visible_count) if visible_count else 0
-    )
+    salary_coverage = round(100 * len(annual_salaries) / visible_count) if visible_count else 0
 
     family_data: dict[str, dict] = {}
     skill_counts: Counter[str] = Counter()
@@ -367,7 +358,8 @@ def _compile_intelligence(
             item.get("compensation_minimum") is not None
             and item.get("compensation_maximum") is not None
             and item.get("compensation_currency") in {None, "USD"}
-            and item.get("compensation_interval") in {
+            and item.get("compensation_interval")
+            in {
                 None,
                 "year",
                 "annual",
@@ -397,9 +389,7 @@ def _compile_intelligence(
                 "maximum_score": round(max(family["scores"]), 1),
                 "remote_rate": round(100 * family["remote"] / family["count"]),
                 "median_salary": (
-                    round(median(family["salaries"]) / 1000)
-                    if family["salaries"]
-                    else None
+                    round(median(family["salaries"]) / 1000) if family["salaries"] else None
                 ),
                 "threshold": family["threshold"],
             }
@@ -437,9 +427,7 @@ def _compile_intelligence(
         )
 
     boards = source_health.get("boards", [])
-    source_exceptions = [
-        board for board in boards if board["validation_status"] != "healthy"
-    ]
+    source_exceptions = [board for board in boards if board["validation_status"] != "healthy"]
     latest_scan = source_health.get("latest_scan")
     scan_minutes = None
     if latest_scan and latest_scan.get("finished_at"):
@@ -449,9 +437,7 @@ def _compile_intelligence(
         )
 
     observed_since = overview.get("observed_since")
-    observed_days = (
-        max(0, (datetime.now(UTC) - observed_since).days) if observed_since else 0
-    )
+    observed_days = max(0, (datetime.now(UTC) - observed_since).days) if observed_since else 0
     trend_ready = observed_days >= 14
     active_jobs = int(overview["active_jobs"])
     raw_eligible = int(overview["eligible_jobs"])
@@ -559,9 +545,8 @@ def _compile_intelligence(
             "new_jobs_24h": int(overview["new_jobs_24h"]),
             "removed_jobs_7d": int(overview["removed_jobs_7d"]),
         },
-        "thresholds_wide_open": bool(overrides) and all(
-            threshold == 0 for threshold in overrides.values()
-        ),
+        "thresholds_wide_open": bool(overrides)
+        and all(threshold == 0 for threshold in overrides.values()),
         "exclusions": market_data["exclusions"],
         "insights": insights,
     }
@@ -602,6 +587,7 @@ async def discover(
     zip_code: str | None = Query(default=None, alias="zip"),
     radius: int | None = Query(default=None),
     min_score: int | None = Query(default=None, ge=0, le=100),
+    show_rejected: bool = Query(default=False),
 ):
     context = _context(request, "discover")
     profile = context["profile"]
@@ -618,6 +604,10 @@ async def discover(
     effective_minimum = min_score or 0
 
     matches = _matches(profile, minimum_score=0)
+    if not show_rejected:
+        matches = [
+            item for item in matches if item.get("feedback_verdict") not in {"wrong", "duplicate"}
+        ]
     for item in matches:
         display = match_display(item["score"])
         item.update(
@@ -630,13 +620,12 @@ async def discover(
     if q:
         needle = q.casefold()
         matches = [
-            item for item in matches
+            item
+            for item in matches
             if needle in f"{item['title']} {item['company']} {item['department']}".casefold()
         ]
     if effective_minimum:
-        matches = [
-            item for item in matches if item["display_score"] >= effective_minimum
-        ]
+        matches = [item for item in matches if item["display_score"] >= effective_minimum]
     if posted != "anytime":
         window = {"30d": timedelta(days=30), "7d": timedelta(days=7), "24h": timedelta(hours=24)}
         cutoff = datetime.now(UTC) - window[posted]
@@ -673,6 +662,7 @@ async def discover(
                 )
             )
         ]
+
     def date_value(item: dict) -> datetime:
         return item.get("published_at") or item.get("first_seen_at")
 
@@ -689,6 +679,7 @@ async def discover(
         "zip": zip_code,
         "radius": radius,
         "min_score": effective_minimum,
+        "show_rejected": show_rejected,
     }
     chips = []
     labels = {
@@ -707,17 +698,18 @@ async def discover(
         "zip": rules.default_zip,
         "radius": rules.default_radius_miles,
         "min_score": 0,
+        "show_rejected": False,
     }
     for key, value in params.items():
-        radius_is_inactive = (
-            key == "radius" and location_mode not in {"near", "remote_or_near"}
-        )
+        radius_is_inactive = key == "radius" and location_mode not in {"near", "remote_or_near"}
         if value == defaults[key] or radius_is_inactive:
             continue
         chip_params = {**params, key: defaults[key]}
         label = (
-            f"Search: {value}" if key == "q"
-            else "Newest first" if key == "sort"
+            f"Search: {value}"
+            if key == "q"
+            else "Newest first"
+            if key == "sort"
             else labels.get(str(value), f"{key.replace('_', ' ').title()}: {value}")
         )
         chips.append({"label": label, "url": f"/discover?{urlencode(chip_params)}"})
@@ -732,6 +724,7 @@ async def discover(
             "zip_error": zip_error,
             "radius": radius,
             "min_score": effective_minimum,
+            "show_rejected": show_rejected,
             "chips": chips,
             "strong_minimum": profile.notifications.minimum_score,
             "wrong_reason_labels": WRONG_REASON_LABELS,
@@ -750,9 +743,7 @@ async def pipeline(request: Request):
                 job.update(
                     {
                         "state": next(
-                            state.casefold()
-                            for state, items in board.items()
-                            if job in items
+                            state.casefold() for state, items in board.items() if job in items
                         ),
                         "priority": 0,
                         "notes": job.get("task", ""),
@@ -776,9 +767,7 @@ async def pipeline(request: Request):
                     {**job, "compensation_text": job.get("description_text")}
                 )
         context["pipeline"]["terminal"] = [
-            _apply_visible_compensation(
-                {**job, "compensation_text": job.get("description_text")}
-            )
+            _apply_visible_compensation({**job, "compensation_text": job.get("description_text")})
             for job in context["pipeline"]["terminal"]
         ]
     context.update(
@@ -815,9 +804,7 @@ async def fit_lens(request: Request, job_id: str):
     job = next((item for item in matches if item["id"] == job_id), None)
     if job is None and not get_settings().demo_mode:
         pipeline_jobs = [
-            item
-            for jobs in pipeline_data["stages"].values()
-            for item in jobs
+            item for jobs in pipeline_data["stages"].values() for item in jobs
         ] + pipeline_data["terminal"]
         job = next((item for item in pipeline_jobs if item["id"] == job_id), None)
     if job is None:
@@ -852,9 +839,7 @@ async def fit_lens(request: Request, job_id: str):
         {
             "job": job,
             "components": components,
-            "requirements": [
-                item.split(":", 1)[-1].strip() for item in job["evidence"]
-            ],
+            "requirements": [item.split(":", 1)[-1].strip() for item in job["evidence"]],
         }
     )
     return templates.TemplateResponse(request, "fit.html", context=context)
@@ -868,9 +853,7 @@ async def companies(request: Request):
     else:
         repository = _repository()
         try:
-            context["companies"] = repository.company_directory(
-                context["profile"].profile.slug
-            )
+            context["companies"] = repository.company_directory(context["profile"].profile.slug)
         finally:
             repository.close()
     return templates.TemplateResponse(request, "companies.html", context=context)
@@ -918,9 +901,7 @@ async def update_action_details(request: Request, job_id: str):
     follow_up_at = None
     if fields.get("follow_up_at"):
         try:
-            follow_up_at = datetime.fromisoformat(fields["follow_up_at"]).replace(
-                tzinfo=UTC
-            )
+            follow_up_at = datetime.fromisoformat(fields["follow_up_at"]).replace(tzinfo=UTC)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Invalid follow-up date") from exc
     try:
@@ -944,9 +925,7 @@ async def update_action_details(request: Request, job_id: str):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
         repository.close()
-    return RedirectResponse(
-        f"/pipeline?message={quote('Job details updated')}", status_code=303
-    )
+    return RedirectResponse(f"/pipeline?message={quote('Job details updated')}", status_code=303)
 
 
 @app.post("/pipeline-actions/{job_id}/unsave")
@@ -1105,9 +1084,7 @@ async def intelligence(request: Request):
                 "score_80_plus": sum(item["score"] >= 80 for item in matches),
                 "score_88_plus": sum(item["score"] >= 88 for item in matches),
                 "maximum_score": max((item["score"] for item in matches), default=0),
-                "remote_eligible": sum(
-                    item["workplace"] == "remote" for item in matches
-                ),
+                "remote_eligible": sum(item["workplace"] == "remote" for item in matches),
                 "structured_salary_eligible": sum(
                     item["compensation"] is not None for item in matches
                 ),
@@ -1167,9 +1144,7 @@ async def operations():
     finally:
         repository.close()
     boards = health["boards"]
-    degraded = sum(
-        board["validation_status"] not in {"healthy", "pending"} for board in boards
-    )
+    degraded = sum(board["validation_status"] not in {"healthy", "pending"} for board in boards)
     return {
         "status": "degraded" if degraded else "ok",
         "degraded_boards": degraded,

@@ -25,9 +25,7 @@ def make_job(**overrides):
             "technical writing, executive communication, and enablement programs."
         ),
         "workplace_type": WorkplaceType.REMOTE,
-        "locations": [
-            JobLocation(label="Remote — United States", is_primary=True, is_remote=True)
-        ],
+        "locations": [JobLocation(label="Remote — United States", is_primary=True, is_remote=True)],
         "compensation": Compensation(
             minimum=190000,
             maximum=230000,
@@ -144,8 +142,7 @@ def test_profile_backed_technical_evidence_earns_career_credit():
     job = make_job(
         title="Senior Manager, Marketing AI Operations",
         description_text=(
-            "Build governed marketing systems using AI agents, RAG, APIs, "
-            "and human approval."
+            "Build governed marketing systems using AI agents, RAG, APIs, and human approval."
         ),
     )
 
@@ -173,11 +170,11 @@ def test_advertising_copywriter_is_a_primary_eligible_role():
     assert result.eligible
     assert family is not None
     assert family.id == "copywriting"
-    assert family.threshold == 65
+    assert family.threshold == 50
     assert "Role family: Copywriting" in result.matched_evidence
 
 
-def test_product_marketing_is_kept_as_a_high_threshold_edge_case():
+def test_product_marketing_is_kept_in_the_controlled_review_tier():
     profile = load_profile(Path("profiles/adam-cagle.md"))
 
     family = matched_role_family(profile, "Director of Product Marketing")
@@ -185,4 +182,4 @@ def test_product_marketing_is_kept_as_a_high_threshold_edge_case():
     assert family is not None
     assert family.id == "product-marketing-narrative"
     assert family.tier == "edge"
-    assert family.threshold == 90
+    assert family.threshold == 50

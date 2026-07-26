@@ -16,6 +16,7 @@ search:
   compensation:
     currency: USD
     minimum_base_annual: 100000
+    minimum_contract_hourly: 60
   employment_types:
     - full-time
     - contract
@@ -32,7 +33,7 @@ search:
     - id: ai-enablement
       label: AI Enablement & Adoption
       tier: primary
-      threshold: 80
+      threshold: 50
       description: Helping teams understand, adopt, govern, and use AI successfully.
       aliases:
         - AI Enablement
@@ -43,7 +44,7 @@ search:
     - id: ai-transformation-operations
       label: AI Transformation & Operations
       tier: primary
-      threshold: 80
+      threshold: 50
       description: Operationalizing AI programs, workflows, governance, and implementation.
       aliases:
         - AI Transformation
@@ -63,7 +64,7 @@ search:
     - id: ai-content-systems
       label: AI Content Systems
       tier: primary
-      threshold: 80
+      threshold: 50
       description: Building governed AI systems for content, voice, and knowledge.
       aliases:
         - AI Content Systems
@@ -75,7 +76,7 @@ search:
     - id: creative-ai-technology
       label: Creative AI & Technology
       tier: primary
-      threshold: 80
+      threshold: 50
       description: Hands-on creative technology, agents, and applied AI solutions.
       aliases:
         - AI Marketing Engineer
@@ -88,7 +89,7 @@ search:
     - id: copywriting
       label: Copywriting
       tier: primary
-      threshold: 65
+      threshold: 50
       description: Senior, hands-on copywriting across advertising, brand, digital, and direct response.
       aliases:
         - Copywriter
@@ -123,7 +124,7 @@ search:
     - id: creative-direction-copy
       label: Copy & Creative Direction
       tier: adjacent
-      threshold: 75
+      threshold: 50
       description: Copy-led creative direction and senior creative team leadership.
       aliases:
         - Associate Creative Director Copy
@@ -138,7 +139,7 @@ search:
     - id: content-strategy-brand
       label: Content & Brand Strategy
       tier: adjacent
-      threshold: 75
+      threshold: 50
       description: Brand voice, messaging, editorial direction, and content strategy.
       aliases:
         - Content Strategy
@@ -155,7 +156,7 @@ search:
     - id: technical-content-education
       label: Technical Content & Education
       tier: adjacent
-      threshold: 80
+      threshold: 50
       description: Translating technical products into useful education and content.
       aliases:
         - Technical Content
@@ -169,7 +170,7 @@ search:
     - id: ai-search
       label: AI Search & Discoverability
       tier: primary
-      threshold: 80
+      threshold: 50
       description: AI search, AEO, GEO, and modern organic discoverability.
       aliases:
         - AI Search Strategist
@@ -181,7 +182,7 @@ search:
     - id: conversation-prompt-design
       label: Conversation & Prompt Design
       tier: primary
-      threshold: 80
+      threshold: 50
       description: Designing useful, safe conversational and prompt-driven experiences.
       aliases:
         - Conversation Design
@@ -193,7 +194,7 @@ search:
     - id: content-creative-operations
       label: Content & Creative Operations
       tier: adjacent
-      threshold: 75
+      threshold: 50
       description: Systems, workflows, and governance for content and creative teams.
       aliases:
         - Content Operations
@@ -204,7 +205,7 @@ search:
     - id: consulting-transformation
       label: AI & Digital Consulting
       tier: adjacent
-      threshold: 85
+      threshold: 50
       description: Client-facing implementation and transformation work with strong AI relevance.
       aliases:
         - AI Implementation Consultant
@@ -214,7 +215,7 @@ search:
     - id: product-marketing-narrative
       label: Product Marketing & Narrative
       tier: edge
-      threshold: 90
+      threshold: 50
       description: Product positioning and narrative roles that require unusually strong fit.
       aliases:
         - Product Marketing Manager
@@ -226,7 +227,7 @@ search:
     - id: agency-creative-leadership
       label: Agency & Creative Leadership
       tier: edge
-      threshold: 90
+      threshold: 50
       description: Broad creative leadership roles shown only when the evidence is exceptional.
       aliases:
         - Head of Creative

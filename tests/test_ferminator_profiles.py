@@ -17,8 +17,8 @@ def test_adam_profile_is_valid():
     assert "Customer Education" in profile.adjacent_titles
     assert "Copywriter" in profile.high_titles
     assert "Advertising Copywriter" in profile.high_titles
-    assert profile.role_family("copywriting").threshold == 65
-    assert profile.role_family("product-marketing-narrative").threshold == 90
+    assert profile.role_family("copywriting").threshold == 50
+    assert profile.role_family("product-marketing-narrative").threshold == 50
     assert profile.notifications.review_minimum_score == 58
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 from datetime import UTC, datetime
@@ -123,11 +124,11 @@ def extract_compensation_from_text(value: str | None) -> Compensation | None:
     """Extract a conservative published pay range from a complete job description."""
     if not value:
         return None
-    text = re.sub(r"\s+", " ", value)
+    text = re.sub(r"\s+", " ", html.unescape(value))
     candidates: list[tuple[int, int, Compensation]] = []
     for match in _RANGE_PATTERN.finditer(text):
-        before = text[max(0, match.start() - 120):match.start()].casefold()
-        after = text[match.end():min(len(text), match.end() + 70)].casefold()
+        before = text[max(0, match.start() - 120) : match.start()].casefold()
+        after = text[match.end() : min(len(text), match.end() + 70)].casefold()
         context = f"{before} {after}"
         has_pay_context = any(term in context for term in _PAY_CONTEXT)
         has_currency = bool(match.group("currency1") or match.group("currency2"))
@@ -168,8 +169,8 @@ def extract_compensation_from_text(value: str | None) -> Compensation | None:
         return max(candidates, key=lambda item: (item[0], item[1]))[2]
 
     for match in _SINGLE_PATTERN.finditer(text):
-        before = text[max(0, match.start() - 100):match.start()].casefold()
-        after = text[match.end():min(len(text), match.end() + 50)].casefold()
+        before = text[max(0, match.start() - 100) : match.start()].casefold()
+        after = text[match.end() : min(len(text), match.end() + 50)].casefold()
         if not any(term in f"{before} {after}" for term in _PAY_CONTEXT):
             continue
         amount = _money_number(match.group("value"))
