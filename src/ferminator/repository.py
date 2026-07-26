@@ -289,11 +289,28 @@ class PostgresRepository:
         with self.connection() as conn:
             rows = conn.execute(
                 """
+                with effective_profile as (
+                  select p.id, (
+                    select max(pm.profile_version)
+                    from public.job_matches pm
+                    where pm.profile_id = p.id
+                  ) as match_version
+                  from public.profiles p
+                  where p.id = %s
+                ),
+                effective_matches as (
+                  select distinct on (m.job_id) m.*
+                  from public.job_matches m
+                  join effective_profile p on p.id = m.profile_id
+                    and p.match_version = m.profile_version
+                  order by m.job_id, m.updated_at desc
+                )
                 select j.title, j.company_name, j.job_url, j.apply_url,
                        j.first_seen_at, m.score, m.matched_evidence, m.concerns
-                from public.job_matches m
+                from effective_profile p
+                join effective_matches m on m.profile_id = p.id
                 join public.jobs j on j.id = m.job_id
-                where m.profile_id = %s and m.eligible and j.active
+                where m.eligible and j.active
                   and m.score >= %s
                   and not exists (
                     select 1 from public.job_history h
@@ -305,13 +322,10 @@ class PostgresRepository:
                           || '::' || public.normalize_job_part(j.title)
                       )
                   )
-                  and m.profile_version = (
-                    select profile_version from public.profiles where id = %s
-                  )
                 order by m.score desc, j.first_seen_at desc
                 limit %s
                 """,
-                (profile_id, minimum_score, profile_id, limit),
+                (profile_id, minimum_score, limit),
             ).fetchall()
         return [dict(row) for row in rows]
 
@@ -327,6 +341,22 @@ class PostgresRepository:
         with self.connection() as conn:
             rows = conn.execute(
                 """
+                with effective_profile as (
+                  select p.*, (
+                    select max(pm.profile_version)
+                    from public.job_matches pm
+                    where pm.profile_id = p.id
+                  ) as match_version
+                  from public.profiles p
+                  where p.slug = %s
+                ),
+                effective_matches as (
+                  select distinct on (m.job_id) m.*
+                  from public.job_matches m
+                  join effective_profile p on p.id = m.profile_id
+                    and p.match_version = m.profile_version
+                  order by m.job_id, m.updated_at desc
+                )
                 select j.id, j.title, j.company_name, c.slug as company_slug,
                        j.department, j.workplace_type, j.salary_min, j.salary_max,
                        j.salary_currency, j.salary_interval, j.job_url, j.apply_url,
@@ -342,8 +372,8 @@ class PostgresRepository:
                        ) as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
                        prior.history_candidates
-                from public.profiles p
-                join public.job_matches m on m.profile_id = p.id
+                from effective_profile p
+                join effective_matches m on m.profile_id = p.id
                 join public.jobs j on j.id = m.job_id and j.active
                 join public.job_revisions r on r.id = j.current_revision_id
                 join public.ats_boards b on b.id = j.ats_board_id
@@ -372,9 +402,7 @@ class PostgresRepository:
                     and h.normalized_company = public.normalize_job_part(j.company_name)
                     and (h.permanent or h.suppress_until > now())
                 ) prior on true
-                where p.slug = %s and m.eligible and m.score >= %s
-                  and m.profile_version = p.profile_version
-                  and m.job_revision_id = j.current_revision_id
+                where m.eligible and m.score >= %s
                   and (%s or not exists (
                     select 1 from public.job_history h
                     where h.profile_id = p.id
@@ -469,16 +497,29 @@ class PostgresRepository:
         with self.connection() as conn:
             row = conn.execute(
                 """
+                with effective_profile as (
+                  select p.id, (
+                    select max(pm.profile_version)
+                    from public.job_matches pm
+                    where pm.profile_id = p.id
+                  ) as match_version
+                  from public.profiles p
+                  where p.slug = %s
+                ),
+                effective_matches as (
+                  select distinct on (m.job_id) m.*
+                  from public.job_matches m
+                  join effective_profile p on p.id = m.profile_id
+                    and p.match_version = m.profile_version
+                  order by m.job_id, m.updated_at desc
+                )
                 select r.description_text
-                from public.profiles p
-                join public.job_matches m on m.profile_id = p.id
+                from effective_profile p
+                join effective_matches m on m.profile_id = p.id
                 join public.jobs j on j.id = m.job_id and j.active
                 join public.job_revisions r on r.id = j.current_revision_id
-                where p.slug = %s
-                  and j.id = %s
+                where j.id = %s
                   and m.eligible
-                  and m.profile_version = p.profile_version
-                  and m.job_revision_id = j.current_revision_id
                 limit 1
                 """,
                 (profile_slug, job_id),
@@ -563,10 +604,20 @@ class PostgresRepository:
                 join public.jobs j on j.id = a.job_id
                 join public.ats_boards b on b.id = j.ats_board_id
                 left join public.job_revisions r on r.id = j.current_revision_id
-                left join public.job_matches m on m.profile_id = p.id
-                  and m.job_id = j.id
-                  and m.profile_version = p.profile_version
-                  and m.job_revision_id = j.current_revision_id
+                left join lateral (
+                  select pm.score, pm.component_scores, pm.matched_evidence,
+                         pm.concerns, pm.explanation
+                  from public.job_matches pm
+                  where pm.profile_id = p.id
+                    and pm.job_id = j.id
+                    and pm.profile_version = (
+                      select max(vm.profile_version)
+                      from public.job_matches vm
+                      where vm.profile_id = p.id
+                    )
+                  order by pm.updated_at desc
+                  limit 1
+                ) m on true
                 left join lateral (
                   select created_at
                   from public.action_events
