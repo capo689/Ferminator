@@ -806,6 +806,59 @@ footer { display: flex; justify-content: space-between; max-width: 1280px; margi
 .feedback-actions .feedback-undo {
   color: var(--coral);
 }
+.feedback-dialog {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 28px 80px rgb(26 24 22 / 28%);
+  color: var(--ink);
+  max-width: 620px;
+  padding: 1.5rem;
+  width: calc(100% - 2rem);
+}
+.feedback-dialog::backdrop {
+  background: rgb(19 18 17 / 58%);
+  backdrop-filter: blur(3px);
+}
+.feedback-dialog-heading {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+}
+.feedback-dialog-heading h2 { margin: .2rem 0; }
+.feedback-dialog-heading p:last-child { color: var(--muted); margin-top: .25rem; }
+.feedback-dialog label {
+  display: grid;
+  font-weight: 650;
+  gap: .45rem;
+  margin-top: 1rem;
+}
+.feedback-dialog label small { color: var(--muted); font-weight: 400; }
+.feedback-dialog select,
+.feedback-dialog textarea {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font: inherit;
+  padding: .8rem;
+  width: 100%;
+}
+.feedback-dialog textarea { resize: vertical; }
+.dialog-close {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.8rem;
+}
+.dialog-help { color: var(--muted); font-size: .9rem; }
+.dialog-actions {
+  display: flex;
+  gap: .75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
 .directory-controls {
   display: flex;
   align-items: center;

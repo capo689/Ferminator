@@ -81,3 +81,12 @@ def test_company_registry_is_not_available_through_client_roles() -> None:
         "revoke all privileges on table public.ats_boards "
         "from anon, authenticated"
     ) in sql
+
+
+def test_wrong_feedback_has_structured_reason_and_audit_evidence() -> None:
+    sql = migration_sql().casefold()
+
+    assert "add column wrong_reason_code text" in sql
+    assert "match_feedback_wrong_reason_code_check" in sql
+    assert "match_feedback_events_wrong_reason_code_check" in sql
+    assert "match_feedback_profile_wrong_reason_idx" in sql

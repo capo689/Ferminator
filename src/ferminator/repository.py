@@ -13,6 +13,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
 from ferminator.domain import ATSProvider, BoardRef, NormalizedJob
+from ferminator.feedback import WRONG_REASON_CODES
 from ferminator.ingestion import IngestionResult, LifecyclePlan
 from ferminator.ledger import (
     ParsedLedger,
@@ -394,6 +395,8 @@ class PostgresRepository:
                        j.first_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
                        feedback.verdict as feedback_verdict,
+                       feedback.wrong_reason_code as feedback_reason_code,
+                       feedback.reason as feedback_reason,
                        r.description_text as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
                        locations.records as locations,
@@ -428,7 +431,7 @@ class PostgresRepository:
                   where jl.job_id = j.id
                 ) locations on true
                 left join lateral (
-                  select f.verdict
+                  select f.verdict, f.wrong_reason_code, f.reason
                   from public.match_feedback f
                   where f.profile_id = p.id and f.job_id = j.id
                   limit 1
@@ -1076,11 +1079,17 @@ class PostgresRepository:
         job_id: str,
         verdict: str,
         *,
+        wrong_reason_code: str | None = None,
         reason: str | None = None,
     ) -> None:
         """Capture a durable quality verdict against the exact scored revision."""
         if verdict not in {"great", "maybe", "wrong", "duplicate"}:
             raise ValueError("Unsupported match verdict")
+        clean_code = wrong_reason_code.strip() if wrong_reason_code else None
+        if verdict == "wrong" and clean_code not in WRONG_REASON_CODES:
+            raise ValueError("Choose why this match is wrong")
+        if verdict != "wrong" and clean_code is not None:
+            raise ValueError("Wrong-match reasons apply only to Wrong feedback")
         clean_reason = reason.strip()[:500] if reason and reason.strip() else None
         with self.connection() as conn, conn.transaction():
             target = conn.execute(
@@ -1105,7 +1114,8 @@ class PostgresRepository:
                 raise LookupError("Current profile match not found")
             previous = conn.execute(
                 """
-                select verdict from public.match_feedback
+                select verdict, wrong_reason_code, reason
+                from public.match_feedback
                 where profile_id = %s and job_id = %s
                 """,
                 (target["profile_id"], target["job_id"]),
@@ -1114,12 +1124,13 @@ class PostgresRepository:
                 """
                 insert into public.match_feedback (
                   profile_id, job_id, job_revision_id, profile_version, verdict,
-                  reason, score_at_feedback, component_scores
-                ) values (%s, %s, %s, %s, %s, %s, %s, %s)
+                  wrong_reason_code, reason, score_at_feedback, component_scores
+                ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 on conflict (profile_id, job_id)
                 do update set job_revision_id = excluded.job_revision_id,
                               profile_version = excluded.profile_version,
                               verdict = excluded.verdict,
+                              wrong_reason_code = excluded.wrong_reason_code,
                               reason = excluded.reason,
                               score_at_feedback = excluded.score_at_feedback,
                               component_scores = excluded.component_scores,
@@ -1131,6 +1142,7 @@ class PostgresRepository:
                     target["job_revision_id"],
                     target["profile_version"],
                     verdict,
+                    clean_code,
                     clean_reason,
                     target["score"],
                     target["component_scores"],
@@ -1139,14 +1151,17 @@ class PostgresRepository:
             conn.execute(
                 """
                 insert into public.match_feedback_events (
-                  profile_id, job_id, action, prior_verdict, verdict
-                ) values (%s, %s, 'set', %s, %s)
+                  profile_id, job_id, action, prior_verdict, verdict,
+                  wrong_reason_code, reason
+                ) values (%s, %s, 'set', %s, %s, %s, %s)
                 """,
                 (
                     target["profile_id"],
                     target["job_id"],
                     previous["verdict"] if previous else None,
                     verdict,
+                    clean_code,
+                    clean_reason,
                 ),
             )
 
@@ -1155,7 +1170,8 @@ class PostgresRepository:
         with self.connection() as conn, conn.transaction():
             previous = conn.execute(
                 """
-                select f.profile_id, f.job_id, f.verdict
+                select f.profile_id, f.job_id, f.verdict,
+                       f.wrong_reason_code, f.reason
                 from public.match_feedback f
                 join public.profiles p on p.id = f.profile_id
                 where p.slug = %s and f.job_id = %s
@@ -1174,13 +1190,16 @@ class PostgresRepository:
             conn.execute(
                 """
                 insert into public.match_feedback_events (
-                  profile_id, job_id, action, prior_verdict, verdict
-                ) values (%s, %s, 'cleared', %s, null)
+                  profile_id, job_id, action, prior_verdict, verdict,
+                  wrong_reason_code, reason
+                ) values (%s, %s, 'cleared', %s, null, %s, %s)
                 """,
                 (
                     previous["profile_id"],
                     previous["job_id"],
                     previous["verdict"],
+                    previous["wrong_reason_code"],
+                    previous["reason"],
                 ),
             )
 
@@ -1206,12 +1225,12 @@ class PostgresRepository:
             ).fetchone()
             reasons = conn.execute(
                 """
-                select reason, count(*) as count
+                select wrong_reason_code, count(*) as count
                 from public.match_feedback f
                 join public.profiles p on p.id = f.profile_id
-                where p.slug = %s and f.verdict = 'wrong' and reason is not null
-                group by reason
-                order by count(*) desc, reason
+                where p.slug = %s and f.verdict = 'wrong'
+                group by wrong_reason_code
+                order by count(*) desc, wrong_reason_code
                 limit 8
                 """,
                 (profile_slug,),
@@ -1225,6 +1244,39 @@ class PostgresRepository:
             "useful_rate": round(100 * useful / rated, 1) if rated else None,
             "wrong_reasons": [dict(row) for row in reasons],
         }
+
+    def wrong_feedback_records(self, profile_slug: str) -> list[dict]:
+        """Return active Wrong verdicts with the evidence needed for MD calibration."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select
+                  j.title,
+                  j.company_name,
+                  coalesce(j.apply_url, j.job_url) as job_url,
+                  f.wrong_reason_code,
+                  f.reason,
+                  f.score_at_feedback,
+                  f.component_scores,
+                  m.matched_evidence,
+                  m.concerns,
+                  left(r.description_text, 3000) as description_excerpt,
+                  f.updated_at
+                from public.match_feedback f
+                join public.profiles p on p.id = f.profile_id
+                join public.jobs j on j.id = f.job_id
+                join public.job_revisions r on r.id = f.job_revision_id
+                left join public.job_matches m
+                  on m.profile_id = f.profile_id
+                  and m.job_id = f.job_id
+                  and m.job_revision_id = f.job_revision_id
+                  and m.profile_version = f.profile_version
+                where p.slug = %s and f.verdict = 'wrong'
+                order by f.updated_at desc, j.company_name, j.title
+                """,
+                (profile_slug,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def market_intelligence(self, profile_slug: str) -> dict:
         """Return factual market and search-funnel aggregates for one profile."""

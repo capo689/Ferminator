@@ -120,7 +120,7 @@
           Rated: <strong>{{ job.feedback_verdict|title }}</strong>
           {% else %}Teach the matcher:{% endif %}
         </span>
-        {% for verdict in ["great", "maybe", "wrong", "duplicate"] %}
+        {% for verdict in ["great", "maybe"] %}
         <form method="post" action="/feedback/{{ job.id }}/{{ verdict }}">
           <button
             class="text-action{% if job.feedback_verdict == verdict %} feedback-selected{% endif %}"
@@ -129,6 +129,23 @@
           >{{ verdict|title }}</button>
         </form>
         {% endfor %}
+        <button
+          class="text-action wrong-feedback-trigger{% if job.feedback_verdict == 'wrong' %} feedback-selected{% endif %}"
+          type="button"
+          data-wrong-feedback
+          data-job-id="{{ job.id }}"
+          data-job-label="{{ job.title }} · {{ job.company }}"
+          data-reason-code="{{ job.feedback_reason_code or '' }}"
+          data-reason-note="{{ job.feedback_reason or '' }}"
+          {% if job.feedback_verdict == "wrong" %}aria-pressed="true"{% endif %}
+        >Wrong</button>
+        <form method="post" action="/feedback/{{ job.id }}/duplicate">
+          <button
+            class="text-action{% if job.feedback_verdict == 'duplicate' %} feedback-selected{% endif %}"
+            type="submit"
+            {% if job.feedback_verdict == "duplicate" %}aria-pressed="true"{% endif %}
+          >Duplicate</button>
+        </form>
         {% if job.feedback_verdict %}
         <form method="post" action="/feedback/{{ job.id }}/clear">
           <button class="text-action feedback-undo" type="submit">Undo rating</button>
@@ -150,4 +167,43 @@
   </div>
   {% endfor %}
 </div>
+
+<dialog class="feedback-dialog" data-wrong-dialog>
+  <form method="post" data-wrong-form>
+    <div class="feedback-dialog-heading">
+      <div>
+        <p class="eyebrow">TEACH FERMINATOR</p>
+        <h2>Why is this match wrong?</h2>
+        <p data-wrong-job></p>
+      </div>
+      <button class="dialog-close" type="button" aria-label="Close" data-wrong-close>×</button>
+    </div>
+    <label>
+      Primary reason
+      <select name="wrong_reason_code" required>
+        <option value="">Choose the strongest reason…</option>
+        {% for code, label in wrong_reason_labels.items() %}
+        <option value="{{ code }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Anything else I should understand? <small>Optional</small>
+      <textarea
+        name="reason"
+        maxlength="500"
+        rows="4"
+        placeholder="Example: This is really a product-management role, despite the copywriting title."
+      ></textarea>
+    </label>
+    <p class="dialog-help">
+      Stored with this exact job, score, and profile version so repeated patterns
+      can become deliberate profile changes later.
+    </p>
+    <div class="dialog-actions">
+      <button class="button button-secondary" type="button" data-wrong-cancel>Cancel</button>
+      <button class="button button-primary" type="submit">Save Wrong feedback</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

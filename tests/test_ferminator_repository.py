@@ -66,9 +66,27 @@ def test_match_feedback_is_upserted_against_current_revision() -> None:
     assert "job_matches" in target_sql
     assert target_params == ("job-id", "adam-cagle")
     assert "on conflict (profile_id, job_id)" in upsert_sql
-    assert upsert_params[4:6] == ("duplicate", "Same listing")
+    assert upsert_params[4:7] == ("duplicate", None, "Same listing")
     assert "match_feedback_events" in event_sql
-    assert event_params == ("profile-id", "job-id", "maybe", "duplicate")
+    assert event_params == (
+        "profile-id",
+        "job-id",
+        "maybe",
+        "duplicate",
+        None,
+        "Same listing",
+    )
+
+
+def test_wrong_feedback_requires_a_structured_reason() -> None:
+    repository = object.__new__(PostgresRepository)
+
+    try:
+        repository.set_match_feedback("adam-cagle", "job-id", "wrong")
+    except ValueError as exc:
+        assert str(exc) == "Choose why this match is wrong"
+    else:
+        raise AssertionError("Wrong feedback without a reason should fail")
 
 
 def test_match_feedback_can_be_cleared_without_erasing_audit_history() -> None:
@@ -80,6 +98,8 @@ def test_match_feedback_can_be_cleared_without_erasing_audit_history() -> None:
         "profile_id": "profile-id",
         "job_id": "job-id",
         "verdict": "wrong",
+        "wrong_reason_code": "too_technical",
+        "reason": "This is an engineering role.",
     }
     connection.execute.side_effect = [previous_cursor, MagicMock(), MagicMock()]
 
@@ -90,7 +110,13 @@ def test_match_feedback_can_be_cleared_without_erasing_audit_history() -> None:
     assert "delete from public.match_feedback" in delete_sql
     assert delete_params == ("profile-id", "job-id")
     assert "match_feedback_events" in event_sql
-    assert event_params == ("profile-id", "job-id", "wrong")
+    assert event_params == (
+        "profile-id",
+        "job-id",
+        "wrong",
+        "too_technical",
+        "This is an engineering role.",
+    )
 
 
 def test_jobs_requiring_upsert_skips_unchanged_and_counts_updates() -> None:

@@ -79,6 +79,31 @@ document.querySelectorAll("[data-copy-target]").forEach((button) => {
   });
 });
 
+const wrongDialog = document.querySelector("[data-wrong-dialog]");
+if (wrongDialog) {
+  const form = wrongDialog.querySelector("[data-wrong-form]");
+  const jobLabel = wrongDialog.querySelector("[data-wrong-job]");
+  const reasonCode = form.querySelector('[name="wrong_reason_code"]');
+  const reasonNote = form.querySelector('[name="reason"]');
+  const close = () => wrongDialog.close();
+
+  document.querySelectorAll("[data-wrong-feedback]").forEach((button) => {
+    button.addEventListener("click", () => {
+      form.action = `/feedback/${button.dataset.jobId}/wrong`;
+      jobLabel.textContent = button.dataset.jobLabel;
+      reasonCode.value = button.dataset.reasonCode || "";
+      reasonNote.value = button.dataset.reasonNote || "";
+      wrongDialog.showModal();
+      reasonCode.focus();
+    });
+  });
+  wrongDialog.querySelector("[data-wrong-close]").addEventListener("click", close);
+  wrongDialog.querySelector("[data-wrong-cancel]").addEventListener("click", close);
+  wrongDialog.addEventListener("click", (event) => {
+    if (event.target === wrongDialog) close();
+  });
+}
+
 const roleControl = document.querySelector("[data-role-control]");
 if (roleControl) {
   const cards = [...roleControl.querySelectorAll("[data-role-family]")];
