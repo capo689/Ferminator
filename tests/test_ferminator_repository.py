@@ -35,19 +35,62 @@ def test_match_feedback_is_upserted_against_current_revision() -> None:
     repository = object.__new__(PostgresRepository)
     repository.connection = MagicMock()
     connection = repository.connection.return_value.__enter__.return_value
-    connection.execute.return_value.fetchone.return_value = {"id": "feedback-id"}
+    target_cursor = MagicMock()
+    target_cursor.fetchone.return_value = {
+        "profile_id": "profile-id",
+        "job_id": "job-id",
+        "job_revision_id": "revision-id",
+        "profile_version": 5,
+        "score": 72,
+        "component_scores": {},
+    }
+    previous_cursor = MagicMock()
+    previous_cursor.fetchone.return_value = {"verdict": "maybe"}
+    connection.execute.side_effect = [
+        target_cursor,
+        previous_cursor,
+        MagicMock(),
+        MagicMock(),
+    ]
 
     repository.set_match_feedback(
         "adam-cagle",
         "job-id",
-        "wrong",
-        reason="Wrong discipline",
+        "duplicate",
+        reason="Same listing",
     )
 
-    sql, params = connection.execute.call_args.args
-    assert "match_feedback" in sql
-    assert "job_revision_id" in sql
-    assert params == ("wrong", "Wrong discipline", "job-id", "adam-cagle")
+    target_sql, target_params = connection.execute.call_args_list[0].args
+    upsert_sql, upsert_params = connection.execute.call_args_list[2].args
+    event_sql, event_params = connection.execute.call_args_list[3].args
+    assert "job_matches" in target_sql
+    assert target_params == ("job-id", "adam-cagle")
+    assert "on conflict (profile_id, job_id)" in upsert_sql
+    assert upsert_params[4:6] == ("duplicate", "Same listing")
+    assert "match_feedback_events" in event_sql
+    assert event_params == ("profile-id", "job-id", "maybe", "duplicate")
+
+
+def test_match_feedback_can_be_cleared_without_erasing_audit_history() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    previous_cursor = MagicMock()
+    previous_cursor.fetchone.return_value = {
+        "profile_id": "profile-id",
+        "job_id": "job-id",
+        "verdict": "wrong",
+    }
+    connection.execute.side_effect = [previous_cursor, MagicMock(), MagicMock()]
+
+    repository.clear_match_feedback("adam-cagle", "job-id")
+
+    delete_sql, delete_params = connection.execute.call_args_list[1].args
+    event_sql, event_params = connection.execute.call_args_list[2].args
+    assert "delete from public.match_feedback" in delete_sql
+    assert delete_params == ("profile-id", "job-id")
+    assert "match_feedback_events" in event_sql
+    assert event_params == ("profile-id", "job-id", "wrong")
 
 
 def test_jobs_requiring_upsert_skips_unchanged_and_counts_updates() -> None:

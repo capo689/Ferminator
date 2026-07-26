@@ -51,3 +51,12 @@ def test_alpha_hardening_migration_adds_observability_and_feedback() -> None:
     assert "alter table public.scan_runs enable row level security" in sql
     assert "alter table public.match_feedback enable row level security" in sql
     assert "revoke all on public.scan_runs from anon, authenticated" in sql
+
+
+def test_match_feedback_is_reversible_and_supports_duplicates() -> None:
+    sql = migration_sql().casefold()
+
+    assert "'duplicate'" in sql
+    assert "create table public.match_feedback_events" in sql
+    assert "alter table public.match_feedback_events enable row level security" in sql
+    assert "match_feedback_profile_job_key unique (profile_id, job_id)" in sql

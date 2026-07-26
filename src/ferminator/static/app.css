@@ -785,6 +785,15 @@ footer { display: flex; justify-content: space-between; max-width: 1280px; margi
   font: inherit;
   padding: 0;
 }
+.feedback-actions .feedback-selected {
+  padding: .28rem .5rem;
+  color: white;
+  border-radius: 999px;
+  background: var(--iris);
+}
+.feedback-actions .feedback-undo {
+  color: var(--coral);
+}
 .directory-controls {
   display: flex;
   align-items: center;
