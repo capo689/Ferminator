@@ -643,6 +643,17 @@ async def pipeline(request: Request):
             context["pipeline"] = repository.pipeline(context["profile"].profile.slug)
         finally:
             repository.close()
+        for stage_jobs in context["pipeline"]["stages"].values():
+            for index, job in enumerate(stage_jobs):
+                stage_jobs[index] = _apply_visible_compensation(
+                    {**job, "compensation_text": job.get("description_text")}
+                )
+        context["pipeline"]["terminal"] = [
+            _apply_visible_compensation(
+                {**job, "compensation_text": job.get("description_text")}
+            )
+            for job in context["pipeline"]["terminal"]
+        ]
     context.update(
         {
             "changed_job": request.query_params.get("changed"),
