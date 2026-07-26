@@ -81,7 +81,7 @@ def test_profile_renders_role_threshold_control_and_copy_family():
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
     assert "65%" in response.text
-    assert "/static/app.js?v=0.4.1" in response.text
+    assert "/static/app.js?v=0.5.0" in response.text
 
 
 def test_demo_role_threshold_update_redirects_without_mutation():
@@ -101,6 +101,18 @@ def test_all_primary_pages_render():
             response = client.get(path)
             assert response.status_code == 200, path
             assert "Ferminator" in response.text
+
+
+def test_intelligence_uses_calculated_snapshot_not_fake_thirty_day_claims():
+    with TestClient(app) as client:
+        response = client.get("/intelligence")
+
+    assert response.status_code == 200
+    assert "Your market, translated into decisions." in response.text
+    assert "Building an honest trend baseline" in response.text
+    assert "Compared with the previous 30 days" not in response.text
+    assert "AI enablement roles" not in response.text
+    assert "No invented trends." in response.text
 
 
 def test_company_directory_renders_search_health_and_sources():

@@ -435,6 +435,16 @@ class PostgresRepository:
                     "workplace": item["workplace_type"],
                     "compensation": salary,
                     "compensation_source": compensation_source,
+                    "compensation_minimum": (
+                        float(salary_min) if salary_min is not None else None
+                    ),
+                    "compensation_maximum": (
+                        float(salary_max or salary_min)
+                        if salary_min is not None
+                        else None
+                    ),
+                    "compensation_currency": salary_currency,
+                    "compensation_interval": salary_interval,
                     "score": float(item["score"]),
                     "evidence": item["matched_evidence"],
                     "freshness": (
@@ -773,6 +783,118 @@ class PostgresRepository:
             "reviewed": reviewed,
             "useful_rate": round(100 * useful / reviewed, 1) if reviewed else None,
             "wrong_reasons": [dict(row) for row in reasons],
+        }
+
+    def market_intelligence(self, profile_slug: str) -> dict:
+        """Return factual market and search-funnel aggregates for one profile."""
+        with self.connection() as conn:
+            overview = conn.execute(
+                """
+                with profile as (
+                  select id, profile_version
+                  from public.profiles where slug = %s
+                ),
+                current_matches as (
+                  select m.eligible, m.score, j.workplace_type, j.salary_min
+                  from public.job_matches m
+                  join profile p on p.id = m.profile_id
+                    and p.profile_version = m.profile_version
+                  join public.jobs j on j.id = m.job_id
+                    and j.current_revision_id = m.job_revision_id
+                    and j.active
+                )
+                select
+                  (select min(first_seen_at) from public.jobs) as observed_since,
+                  (select count(*) from public.jobs where active) as active_jobs,
+                  count(*) as scored_jobs,
+                  count(*) filter (where eligible) as eligible_jobs,
+                  count(*) filter (where eligible and score >= 70) as score_70_plus,
+                  count(*) filter (where eligible and score >= 80) as score_80_plus,
+                  count(*) filter (where eligible and score >= 88) as score_88_plus,
+                  max(score) filter (where eligible) as maximum_score,
+                  count(*) filter (
+                    where eligible and workplace_type = 'remote'
+                  ) as remote_eligible,
+                  count(*) filter (
+                    where eligible and salary_min is not null
+                  ) as structured_salary_eligible,
+                  (select count(*) from public.job_actions a
+                    join profile p on p.id = a.profile_id
+                    where a.state in ('considering', 'preparing')) as saved_jobs,
+                  (select count(*) from public.job_actions a
+                    join profile p on p.id = a.profile_id
+                    where a.applied_at is not null) as tracked_applications,
+                  (select count(*) from public.job_actions a
+                    join profile p on p.id = a.profile_id
+                    where a.state in ('interviewing', 'offer')) as active_responses,
+                  (select count(*) from public.job_history h
+                    join profile p on p.id = h.profile_id
+                    where h.category = 'Applied') as historical_applications,
+                  (select count(*) from public.jobs
+                    where active and first_seen_at >= now() - interval '24 hours')
+                    as new_jobs_24h,
+                  (select count(*) from public.jobs
+                    where removed_at >= now() - interval '7 days') as removed_jobs_7d
+                from current_matches
+                """,
+                (profile_slug,),
+            ).fetchone()
+            providers = conn.execute(
+                """
+                with profile as (
+                  select id, profile_version
+                  from public.profiles where slug = %s
+                ),
+                current_matches as (
+                  select m.job_id, m.job_revision_id, m.eligible, m.score
+                  from public.job_matches m
+                  join profile p on p.id = m.profile_id
+                    and p.profile_version = m.profile_version
+                )
+                select b.provider,
+                       count(distinct b.id) as board_count,
+                       count(distinct j.id) filter (where j.active) as active_jobs,
+                       count(distinct j.id) filter (
+                         where j.active and m.eligible
+                           and m.job_revision_id = j.current_revision_id
+                       ) as eligible_jobs,
+                       count(distinct j.id) filter (
+                         where j.active and m.eligible and m.score >= 70
+                           and m.job_revision_id = j.current_revision_id
+                       ) as strong_jobs
+                from public.ats_boards b
+                left join public.jobs j on j.ats_board_id = b.id
+                left join current_matches m on m.job_id = j.id
+                where b.enabled
+                group by b.provider
+                order by eligible_jobs desc, active_jobs desc
+                """,
+                (profile_slug,),
+            ).fetchall()
+            excluded = conn.execute(
+                """
+                with profile as (
+                  select id, profile_version
+                  from public.profiles where slug = %s
+                )
+                select concern, count(*) as count
+                from public.job_matches m
+                join profile p on p.id = m.profile_id
+                  and p.profile_version = m.profile_version
+                join public.jobs j on j.id = m.job_id
+                  and j.current_revision_id = m.job_revision_id and j.active
+                cross join lateral jsonb_array_elements_text(m.concerns) concern
+                where not m.eligible
+                group by concern
+                order by count(*) desc, concern
+                limit 8
+                """,
+                (profile_slug,),
+            ).fetchall()
+        return {
+            "overview": dict(overview),
+            "providers": [dict(row) for row in providers],
+            "exclusions": [dict(row) for row in excluded],
         }
 
     def source_health(self) -> dict:
