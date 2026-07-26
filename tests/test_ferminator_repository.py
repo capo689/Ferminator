@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from ferminator.domain import ATSProvider, NormalizedJob
@@ -75,3 +76,51 @@ def test_jobs_requiring_upsert_skips_unchanged_and_counts_updates() -> None:
 
     assert [job.source_job_id for job in changed] == ["updated", "new"]
     assert updated_count == 1
+
+
+def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    connection.execute.return_value.fetchall.return_value = [
+        {
+            "id": "job-id",
+            "title": "Director, AI Enablement",
+            "company_name": "Intradiem",
+            "company_slug": "intradiem",
+            "department": "AI",
+            "workplace_type": "remote",
+            "salary_min": 180000,
+            "salary_max": 220000,
+            "salary_currency": "USD",
+            "job_url": "https://example.com/job",
+            "apply_url": "https://example.com/apply",
+            "published_at": datetime.now(UTC),
+            "first_seen_at": datetime.now(UTC),
+            "provider": "greenhouse",
+            "score": 82,
+            "component_scores": {},
+            "matched_evidence": [],
+            "concerns": [],
+            "explanation": "Calibration match",
+            "location": "Remote — United States",
+            "history_candidates": [
+                {
+                    "title": "Director, Enterprise AI Enablement",
+                    "category": "Applied",
+                    "status": "Applied",
+                    "applied_at": datetime(2026, 7, 20, tzinfo=UTC),
+                    "first_recorded_at": datetime(2026, 7, 20, tzinfo=UTC),
+                }
+            ],
+        }
+    ]
+
+    matches = repository.web_matches("adam-cagle")
+
+    assert len(matches) == 1
+    assert matches[0]["prior_application"]["is_applied"]
+    assert matches[0]["prior_application"]["confidence"] == 0.96
+    sql = connection.execute.call_args.args[0]
+    assert "history_candidates" in sql
+    assert "(h.permanent or h.suppress_until > now())" in sql
