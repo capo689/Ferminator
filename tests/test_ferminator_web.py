@@ -59,6 +59,19 @@ def test_discover_feedback_controls_include_duplicate_and_undo() -> None:
 
     assert '"duplicate"' in template
     assert "Undo rating" in template
+    assert "Why is this match wrong?" in template
+    assert 'name="wrong_reason_code"' in template
+    assert "data-wrong-feedback" in template
+
+
+def test_wrong_feedback_export_is_downloadable_markdown() -> None:
+    with TestClient(app) as client:
+        response = client.get("/feedback/export.md")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert "attachment;" in response.headers["content-disposition"]
+    assert "# Ferminator Wrong-Match Calibration" in response.text
 
 
 def test_discover_filters_results():

@@ -20,6 +20,7 @@ from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
 from ferminator.display_score import match_display
 from ferminator.domain import extract_compensation_from_text
+from ferminator.feedback import WRONG_REASON_LABELS, render_calibration_markdown
 from ferminator.geography import (
     is_remote_job,
     job_distance_miles,
@@ -733,6 +734,7 @@ async def discover(
             "min_score": effective_minimum,
             "chips": chips,
             "strong_minimum": profile.notifications.minimum_score,
+            "wrong_reason_labels": WRONG_REASON_LABELS,
         }
     )
     return templates.TemplateResponse(request, "discover.html", context=context)
@@ -1006,19 +1008,20 @@ async def update_feedback(
     request: Request,
     job_id: str,
     verdict: str,
-    reason: str | None = Query(default=None, max_length=500),
 ):
     if get_settings().demo_mode:
         return RedirectResponse("/discover", status_code=303)
-    origin = request.headers.get("origin")
-    if origin and origin != str(request.base_url).rstrip("/"):
-        raise HTTPException(status_code=403, detail="Cross-origin feedback rejected")
+    _same_origin(request)
+    fields = await _form_fields(request)
+    reason = fields.get("reason", "")[:500] or None
+    wrong_reason_code = fields.get("wrong_reason_code") or None
     repository = _repository()
     try:
         repository.set_match_feedback(
             _profile().profile.slug,
             job_id,
             verdict,
+            wrong_reason_code=wrong_reason_code,
             reason=reason,
         )
     except ValueError as exc:
@@ -1043,6 +1046,7 @@ async def dismiss_pipeline_action(request: Request, job_id: str):
                 _profile().profile.slug,
                 job_id,
                 "wrong",
+                wrong_reason_code="not_interested",
                 reason="Dismissed from pipeline as poor fit",
             )
         except LookupError:
@@ -1057,6 +1061,30 @@ async def dismiss_pipeline_action(request: Request, job_id: str):
     return RedirectResponse(
         f"/pipeline?message={quote('Dismissed and matcher feedback recorded')}",
         status_code=303,
+    )
+
+
+@app.get("/feedback/export.md")
+async def export_wrong_feedback():
+    """Download active Wrong verdicts as profile-calibration evidence."""
+    profile = _profile()
+    if get_settings().demo_mode:
+        records: list[dict] = []
+    else:
+        repository = _repository()
+        try:
+            records = repository.wrong_feedback_records(profile.profile.slug)
+        finally:
+            repository.close()
+    content = render_calibration_markdown(profile.profile.display_name, records)
+    return Response(
+        content=content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{profile.profile.slug}-wrong-feedback.md"'
+            )
+        },
     )
 
 
