@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class CompensationRule(BaseModel):
     currency: str = "USD"
     minimum_base_annual: float | None = Field(default=None, ge=0)
+    minimum_contract_hourly: float | None = Field(default=60, ge=0)
 
 
 class TargetTitles(BaseModel):

@@ -1,0 +1,47 @@
+name: Refresh profile matches
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Profile Markdown to rescore
+        required: true
+        default: profiles/adam-cagle.md
+        type: choice
+        options:
+          - profiles/adam-cagle.md
+
+concurrency:
+  group: ferminator-rescore-${{ inputs.profile }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rescore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install locked runtime
+        run: |
+          pip install --require-hashes -r requirements.lock
+          pip install --no-deps .
+
+      - name: Validate profile and calibration gate
+        run: |
+          ferminator profile validate "${{ inputs.profile }}"
+          pytest tests/test_ferminator_calibration_v2.py
+
+      - name: Refresh matches from shared corpus
+        env:
+          DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
+        run: ferminator rescore --profile-path "${{ inputs.profile }}"

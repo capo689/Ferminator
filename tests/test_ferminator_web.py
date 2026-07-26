@@ -53,9 +53,7 @@ def test_discover_defaults_to_controlled_review_tier():
 
 
 def test_discover_feedback_controls_include_duplicate_and_undo() -> None:
-    template = (
-        Path("src/ferminator/templates/discover.html").read_text(encoding="utf-8")
-    )
+    template = Path("src/ferminator/templates/discover.html").read_text(encoding="utf-8")
     script = Path("src/ferminator/static/app.js").read_text(encoding="utf-8")
 
     assert '"duplicate"' in template
@@ -63,6 +61,8 @@ def test_discover_feedback_controls_include_duplicate_and_undo() -> None:
     assert "Why is this match wrong?" in template
     assert 'name="wrong_reason_code"' in template
     assert "data-wrong-feedback" in template
+    assert "show_rejected" in template
+    assert "Show Wrong &amp; Duplicate" in template
     assert "event.preventDefault()" in script
     assert "event.stopPropagation()" in script
     assert "window.setTimeout(() =>" in script
@@ -110,10 +110,10 @@ def test_profile_renders_role_threshold_control_and_copy_family():
         response = client.get("/profile")
 
     assert response.status_code == 200
-    assert 'data-role-slider' in response.text
+    assert "data-role-slider" in response.text
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
-    assert "65%" in response.text
+    assert "50%" in response.text
     assert "/static/app.js?v=0.8.1" in response.text
 
 
