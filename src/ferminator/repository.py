@@ -14,7 +14,12 @@ from psycopg_pool import ConnectionPool
 
 from ferminator.domain import BoardRef, NormalizedJob
 from ferminator.ingestion import IngestionResult, LifecyclePlan
-from ferminator.ledger import ParsedLedger, job_fingerprint, normalize_job_part
+from ferminator.ledger import (
+    ParsedLedger,
+    compare_prior_job_titles,
+    job_fingerprint,
+    normalize_job_part,
+)
 from ferminator.matching import MatchResult
 from ferminator.profiles import CareerProfile
 
@@ -287,13 +292,11 @@ class PostgresRepository:
                   and not exists (
                     select 1 from public.job_history h
                     where h.profile_id = m.profile_id
+                      and (h.permanent or h.suppress_until > now())
                       and (
                         h.source_job_key = j.source_key
-                        or (
-                        h.fingerprint = public.normalize_job_part(j.company_name)
+                        or h.fingerprint = public.normalize_job_part(j.company_name)
                           || '::' || public.normalize_job_part(j.title)
-                          and (h.permanent or h.suppress_until > now())
-                        )
                       )
                   )
                   and m.profile_version = (
@@ -323,7 +326,8 @@ class PostgresRepository:
                        j.salary_currency, j.job_url, j.apply_url, j.published_at,
                        j.first_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
-                       coalesce(l.label, 'Location unspecified') as location
+                       coalesce(l.label, 'Location unspecified') as location,
+                       prior.history_candidates
                 from public.profiles p
                 join public.job_matches m on m.profile_id = p.id
                 join public.jobs j on j.id = m.job_id and j.active
@@ -339,19 +343,31 @@ class PostgresRepository:
                   ) desc nulls last, is_primary desc, is_remote desc, label
                   limit 1
                 ) l on true
+                left join lateral (
+                  select jsonb_agg(jsonb_build_object(
+                    'title', h.title,
+                    'category', h.category,
+                    'status', h.status,
+                    'applied_at', h.applied_at,
+                    'first_recorded_at', h.first_recorded_at
+                  ) order by h.applied_at desc nulls last, h.first_recorded_at desc)
+                    as history_candidates
+                  from public.job_history h
+                  where h.profile_id = p.id
+                    and h.normalized_company = public.normalize_job_part(j.company_name)
+                    and (h.permanent or h.suppress_until > now())
+                ) prior on true
                 where p.slug = %s and m.eligible and m.score >= %s
                   and m.profile_version = p.profile_version
                   and m.job_revision_id = j.current_revision_id
                   and (%s or not exists (
                     select 1 from public.job_history h
                     where h.profile_id = p.id
+                      and (h.permanent or h.suppress_until > now())
                       and (
                         h.source_job_key = j.source_key
-                        or (
-                          h.fingerprint = public.normalize_job_part(j.company_name)
-                            || '::' || public.normalize_job_part(j.title)
-                          and (h.permanent or h.suppress_until > now())
-                        )
+                        or h.fingerprint = public.normalize_job_part(j.company_name)
+                          || '::' || public.normalize_job_part(j.title)
                       )
                   ))
                 order by m.score desc, j.first_seen_at desc
@@ -363,6 +379,20 @@ class PostgresRepository:
         result = []
         for row in rows:
             item = dict(row)
+            prior_application = None
+            for candidate in item.pop("history_candidates", None) or []:
+                comparison = compare_prior_job_titles(item["title"], candidate["title"])
+                if comparison.likely_same_role and comparison.confidence < 1:
+                    prior_application = {
+                        **candidate,
+                        "confidence": comparison.confidence,
+                        "reason": comparison.reason,
+                        "is_applied": (
+                            candidate["category"].casefold() == "applied"
+                            or "applied" in candidate["status"].casefold()
+                        ),
+                    }
+                    break
             published = item["published_at"] or item["first_seen_at"]
             age_hours = max(0, int((now - published).total_seconds() / 3600))
             salary = None
@@ -392,6 +422,7 @@ class PostgresRepository:
                         else f"{age_hours // 24}d ago"
                     ),
                     "apply_url": item["apply_url"] or item["job_url"],
+                    "prior_application": prior_application,
                 }
             )
         return result
