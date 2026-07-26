@@ -132,21 +132,27 @@ class PostgresRepository:
         with self.connection() as conn:
             rows = conn.execute(
                 """
-                select j.id as job_id, r.id as revision_id, r.normalized_payload
+                select j.id as job_id, r.id as revision_id, r.normalized_payload,
+                       r.description_text
                 from public.jobs j
                 join public.job_revisions r on r.id = j.current_revision_id
                 where j.active
                 order by j.first_seen_at desc
                 """
             ).fetchall()
-        return [
-            (
-                str(row["job_id"]),
-                str(row["revision_id"]),
-                NormalizedJob.model_validate(row["normalized_payload"]),
+        jobs = []
+        for row in rows:
+            payload = dict(row["normalized_payload"])
+            payload["description_text"] = row["description_text"]
+            payload["description_html"] = None
+            jobs.append(
+                (
+                    str(row["job_id"]),
+                    str(row["revision_id"]),
+                    NormalizedJob.model_validate(payload),
+                )
             )
-            for row in rows
-        ]
+        return jobs
 
     def store_match(
         self,
@@ -530,30 +536,116 @@ class PostgresRepository:
                 (profile_slug, family_id),
             )
 
-    def pipeline(self, profile_slug: str) -> dict[str, list[dict]]:
-        matches = {
-            item["id"]: item
-            for item in self.web_matches(profile_slug, include_suppressed=True)
-        }
+    def pipeline(self, profile_slug: str) -> dict:
+        """Return durable campaign cards even when listings close or scores change."""
         stage_names = ("Considering", "Preparing", "Applied", "Interviewing", "Offer")
         stages = {name: [] for name in stage_names}
         with self.connection() as conn:
             rows = conn.execute(
                 """
-                select a.job_id, a.state, a.notes, a.follow_up_at
+                select a.id as action_id, a.job_id, a.state, a.priority, a.notes,
+                       a.follow_up_at, a.applied_at, a.closed_reason,
+                       a.created_at as saved_at, a.updated_at as action_updated_at,
+                       coalesce(se.created_at, a.created_at) as stage_changed_at,
+                       j.title, j.company_name, j.department, j.workplace_type,
+                       j.salary_min, j.salary_max, j.salary_currency,
+                       j.salary_interval, j.job_url, j.apply_url, j.active,
+                       j.published_at, j.first_seen_at, b.provider,
+                       coalesce(l.label, 'Location unspecified') as location,
+                       coalesce(m.score, 0) as score,
+                       coalesce(m.component_scores, '{}'::jsonb) as component_scores,
+                       coalesce(m.matched_evidence, '[]'::jsonb) as matched_evidence,
+                       coalesce(m.concerns, '[]'::jsonb) as concerns,
+                       coalesce(m.explanation, '') as explanation,
+                       r.description_text
                 from public.job_actions a
                 join public.profiles p on p.id = a.profile_id
-                where p.slug = %s and a.state not in ('closed', 'dismissed')
-                order by a.updated_at desc
+                join public.jobs j on j.id = a.job_id
+                join public.ats_boards b on b.id = j.ats_board_id
+                left join public.job_revisions r on r.id = j.current_revision_id
+                left join public.job_matches m on m.profile_id = p.id
+                  and m.job_id = j.id
+                  and m.profile_version = p.profile_version
+                  and m.job_revision_id = j.current_revision_id
+                left join lateral (
+                  select created_at
+                  from public.action_events
+                  where profile_id = a.profile_id
+                    and job_id = a.job_id
+                    and event_type = 'state_changed'
+                    and to_state = a.state
+                  order by created_at desc
+                  limit 1
+                ) se on true
+                left join lateral (
+                  select label from public.job_locations
+                  where job_id = j.id
+                  order by is_primary desc, is_remote desc, label
+                  limit 1
+                ) l on true
+                where p.slug = %s
+                order by a.priority desc, a.follow_up_at nulls last, a.updated_at desc
                 """,
                 (profile_slug,),
             ).fetchall()
+            events = conn.execute(
+                """
+                select e.job_id, e.event_type, e.from_state, e.to_state, e.note,
+                       e.created_at
+                from public.action_events e
+                join public.profiles p on p.id = e.profile_id
+                where p.slug = %s
+                order by e.created_at desc
+                limit 100
+                """,
+                (profile_slug,),
+            ).fetchall()
+        terminal = []
+        now = datetime.now(UTC)
         for row in rows:
-            job = matches.get(str(row["job_id"]))
-            if job:
-                job = {**job, "task": row["notes"], "due": row["follow_up_at"]}
-                stages[row["state"].title()].append(job)
-        return stages
+            item = dict(row)
+            salary = None
+            if item["salary_min"] is not None:
+                upper = item["salary_max"] or item["salary_min"]
+                symbol = (
+                    "$"
+                    if item["salary_currency"] in {None, "USD"}
+                    else item["salary_currency"]
+                )
+                salary = (
+                    f"{symbol}{float(item['salary_min']) / 1000:,.0f}K–"
+                    f"{symbol}{float(upper) / 1000:,.0f}K"
+                )
+            age = max(0, (now - item["stage_changed_at"]).days)
+            job = {
+                **item,
+                "id": str(item["job_id"]),
+                "company": item["company_name"],
+                "company_initial": item["company_name"][0],
+                "compensation": salary,
+                "score": float(item["score"]),
+                "evidence": item["matched_evidence"],
+                "component_scores": item["component_scores"],
+                "concerns": item["concerns"],
+                "explanation": item["explanation"],
+                "provider": item["provider"],
+                "freshness": "Listing closed" if not item["active"] else (
+                    f"{max(0, (now - (item['published_at'] or item['first_seen_at'])).days)}d ago"
+                ),
+                "apply_url": item["apply_url"] or item["job_url"],
+                "days_in_stage": age,
+                "overdue": bool(item["follow_up_at"] and item["follow_up_at"] < now),
+                "description_text": item["description_text"] or "",
+            }
+            if item["state"] in {"closed", "dismissed", "archived"}:
+                terminal.append(job)
+            else:
+                stages[item["state"].title()].append(job)
+        return {
+            "stages": stages,
+            "terminal": terminal,
+            "events": [dict(event) for event in events],
+        }
 
     def company_stats(self, profile_slug: str) -> list[dict]:
         with self.connection() as conn:
@@ -627,19 +719,47 @@ class PostgresRepository:
             for row in rows
         ]
 
-    def set_action(self, profile_slug: str, job_id: str, state: str) -> None:
-        allowed = {"considering", "preparing", "applied", "interviewing", "offer", "dismissed"}
+    def set_action(self, profile_slug: str, job_id: str, state: str) -> dict:
+        allowed = {
+            "considering", "preparing", "applied", "interviewing", "offer",
+            "closed", "dismissed", "archived",
+        }
         if state not in allowed:
             raise ValueError("Unsupported pipeline state")
         with self.connection() as conn, conn.transaction():
+            previous = conn.execute(
+                """
+                select a.id, a.state
+                from public.job_actions a
+                join public.profiles p on p.id = a.profile_id
+                where p.slug = %s and a.job_id = %s
+                for update
+                """,
+                (profile_slug, job_id),
+            ).fetchone()
             row = conn.execute(
                 """
                 insert into public.job_actions (profile_id, job_id, state)
                 select p.id, j.id, %s::public.pipeline_state
                 from public.profiles p, public.jobs j
-                where p.slug = %s and j.id = %s and j.active
+                where p.slug = %s and j.id = %s
+                  and (
+                    j.active
+                    or exists (
+                      select 1 from public.job_actions existing
+                      where existing.profile_id = p.id and existing.job_id = j.id
+                    )
+                  )
                 on conflict (profile_id, job_id) do update
-                  set state = excluded.state, updated_at = now()
+                  set state = excluded.state,
+                      closed_reason = case
+                        when excluded.state in (
+                          'considering', 'preparing', 'applied',
+                          'interviewing', 'offer'
+                        ) then null
+                        else job_actions.closed_reason
+                      end,
+                      updated_at = now()
                 returning id, profile_id, job_id
                 """,
                 (state, profile_slug, job_id),
@@ -699,11 +819,160 @@ class PostgresRepository:
             conn.execute(
                 """
                 insert into public.action_events (
-                  profile_id, job_id, action_id, event_type, to_state
-                ) values (%s, %s, %s, 'state_changed', %s::public.pipeline_state)
+                  profile_id, job_id, action_id, event_type, from_state, to_state
+                ) values (
+                  %s, %s, %s, 'state_changed',
+                  %s::public.pipeline_state, %s::public.pipeline_state
+                )
                 """,
-                (row["profile_id"], row["job_id"], row["id"], state),
+                (
+                    row["profile_id"], row["job_id"], row["id"],
+                    previous["state"] if previous else None, state,
+                ),
             )
+        return {"from_state": previous["state"] if previous else None, "to_state": state}
+
+    def update_action_details(
+        self,
+        profile_slug: str,
+        job_id: str,
+        *,
+        notes: str,
+        priority: int,
+        follow_up_at: datetime | None,
+        closed_reason: str | None = None,
+    ) -> None:
+        if priority < -10 or priority > 10:
+            raise ValueError("Priority must be between -10 and 10")
+        clean_notes = notes.strip()[:4000]
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                update public.job_actions a
+                set notes = %s, priority = %s, follow_up_at = %s,
+                    closed_reason = %s, updated_at = now()
+                from public.profiles p
+                where p.id = a.profile_id and p.slug = %s and a.job_id = %s
+                returning a.id, a.profile_id, a.job_id, a.state
+                """,
+                (
+                    clean_notes, priority, follow_up_at,
+                    closed_reason.strip()[:200] if closed_reason else None,
+                    profile_slug, job_id,
+                ),
+            ).fetchone()
+            if row is None:
+                raise LookupError("Pipeline job not found")
+            conn.execute(
+                """
+                insert into public.action_events (
+                  profile_id, job_id, action_id, event_type, from_state, to_state,
+                  note, metadata
+                ) values (%s, %s, %s, 'details_updated', %s, %s, %s, %s)
+                """,
+                (
+                    row["profile_id"], row["job_id"], row["id"], row["state"],
+                    row["state"], clean_notes[:500],
+                    json.dumps({"priority": priority, "follow_up_at": (
+                        follow_up_at.isoformat() if follow_up_at else None
+                    ), "closed_reason": closed_reason}),
+                ),
+            )
+
+    def unsave_action(self, profile_slug: str, job_id: str) -> str:
+        """Remove a bookmark without dismissing or suppressing the opportunity."""
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                select a.id, a.profile_id, a.job_id, a.state
+                from public.job_actions a
+                join public.profiles p on p.id = a.profile_id
+                where p.slug = %s and a.job_id = %s
+                for update
+                """,
+                (profile_slug, job_id),
+            ).fetchone()
+            if row is None:
+                raise LookupError("Pipeline job not found")
+            if row["state"] not in {"considering", "preparing"}:
+                raise ValueError("Only saved or preparing jobs can be unsaved")
+            conn.execute(
+                """
+                insert into public.action_events (
+                  profile_id, job_id, action_id, event_type, from_state
+                ) values (%s, %s, %s, 'unsaved', %s)
+                """,
+                (row["profile_id"], row["job_id"], row["id"], row["state"]),
+            )
+            conn.execute("delete from public.job_actions where id = %s", (row["id"],))
+        return str(row["state"])
+
+    def undo_action(self, profile_slug: str, job_id: str) -> str | None:
+        """Reverse the most recent reversible state change for one job."""
+        with self.connection() as conn, conn.transaction():
+            event = conn.execute(
+                """
+                select e.id, e.event_type, e.from_state, e.to_state, e.profile_id
+                from public.action_events e
+                join public.profiles p on p.id = e.profile_id
+                where p.slug = %s and e.job_id = %s
+                  and e.event_type in ('state_changed', 'unsaved')
+                order by e.created_at desc
+                limit 1
+                for update
+                """,
+                (profile_slug, job_id),
+            ).fetchone()
+            if event is None:
+                raise LookupError("No action to undo")
+            if event["event_type"] == "unsaved":
+                target = event["from_state"]
+                row = conn.execute(
+                    """
+                    insert into public.job_actions (profile_id, job_id, state)
+                    values (%s, %s, %s)
+                    on conflict (profile_id, job_id) do update
+                      set state = excluded.state, updated_at = now()
+                    returning id
+                    """,
+                    (event["profile_id"], job_id, target),
+                ).fetchone()
+            elif event["from_state"] is None:
+                conn.execute(
+                    "delete from public.job_actions where profile_id = %s and job_id = %s",
+                    (event["profile_id"], job_id),
+                )
+                row = {"id": None}
+                target = None
+            else:
+                target = event["from_state"]
+                row = conn.execute(
+                    """
+                    update public.job_actions
+                    set state = %s, updated_at = now()
+                    where profile_id = %s and job_id = %s
+                    returning id
+                    """,
+                    (target, event["profile_id"], job_id),
+                ).fetchone()
+            conn.execute(
+                """
+                insert into public.action_events (
+                  profile_id, job_id, action_id, event_type, from_state, to_state,
+                  metadata
+                ) values (%s, %s, %s, 'undo', %s, %s, %s)
+                """,
+                (
+                    event["profile_id"], job_id, row["id"],
+                    event["to_state"], target,
+                    json.dumps({"reversed_event_id": str(event["id"])}),
+                ),
+            )
+            conn.execute(
+                "update public.action_events set event_type = 'state_change_undone' where id = %s",
+                (event["id"],),
+            )
+        return str(target) if target else None
 
     def set_match_feedback(
         self,
@@ -1362,6 +1631,10 @@ class PostgresRepository:
                         job.source_updated_at,
                     ),
                 ).fetchone()
+                compact_payload = job.model_dump(
+                    mode="json",
+                    exclude={"description_text", "description_html"},
+                )
                 revision = conn.execute(
                     """
                     insert into public.job_revisions (
@@ -1377,9 +1650,9 @@ class PostgresRepository:
                         job_row["id"],
                         job.content_hash,
                         job.description_text,
-                        job.description_html,
-                        job.search_document,
-                        json.dumps(job.model_dump(mode="json")),
+                        None,
+                        "",
+                        json.dumps(compact_payload),
                     ),
                 ).fetchone()
                 conn.execute(
