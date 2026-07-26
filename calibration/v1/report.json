@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-07-26T01:24:30.622Z",
+  "records": 58,
+  "dashboards": 17,
+  "recommendation_counts": {
+    "pass": 10,
+    "consider": 17,
+    "stretch": 8,
+    "apply": 23
+  },
+  "outcome_counts": {
+    "recorded_without_status": 28,
+    "applied": 11,
+    "skipped": 2,
+    "pending_decision": 9,
+    "unknown": 8
+  },
+  "complete_urls": 58,
+  "descriptions_present": 58,
+  "live_verified": 18,
+  "matched_to_ledger": 50,
+  "adam_reaction_known": 22,
+  "unmatched": [
+    {
+      "company": "Monte Carlo",
+      "title": "AI Marketing Operations Manager",
+      "dashboard_date": "2026-07-22"
+    },
+    {
+      "company": "Scribe",
+      "title": "GTM Strategy Manager",
+      "dashboard_date": "2026-07-22"
+    },
+    {
+      "company": "Sprout Social",
+      "title": "Director of GTM System and Applied AI",
+      "dashboard_date": "2026-07-22"
+    },
+    {
+      "company": "Misfits & Machines",
+      "title": "AI Architect (Applied AI Engineer)",
+      "dashboard_date": "2026-07-23"
+    },
+    {
+      "company": "The AI Education Project (aiEDU)",
+      "title": "Senior Marketing & Communications Lead",
+      "dashboard_date": "2026-07-24"
+    },
+    {
+      "company": "WRITER",
+      "title": "Senior Brand Manager",
+      "dashboard_date": "2026-07-24"
+    },
+    {
+      "company": "Resident / Ashley Digital",
+      "title": "CX Knowledge Base & Conversational AI Manager",
+      "dashboard_date": "2026-07-24"
+    },
+    {
+      "company": "Branch (Branch Insurance)",
+      "title": "Copywriter & AI Content Systems Designer",
+      "dashboard_date": "2026-07-24"
+    }
+  ],
+  "caveats": [
+    "The historical dashboard field named full_jd often contains a faithful condensed description rather than a verbatim listing.",
+    "Recommendation is normalized from the preserved fit score, tier, hard gates, and final pass status.",
+    "Adam verdict is inferred only from confirmed Applied, Pass, or Presented status and is labeled with its source.",
+    "Interview likelihood and subscores are null unless an original source preserved them."
+  ]
+}
