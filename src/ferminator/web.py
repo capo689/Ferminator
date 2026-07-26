@@ -268,6 +268,11 @@ def _apply_visible_compensation(item: dict) -> dict:
         "compensation_maximum": upper,
         "compensation_currency": inferred.currency,
         "compensation_interval": inferred.interval,
+        "concerns": [
+            concern
+            for concern in item.get("concerns", [])
+            if "compensation is not disclosed" not in concern.casefold()
+        ],
     }
 
 
