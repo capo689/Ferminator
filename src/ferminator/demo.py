@@ -183,6 +183,18 @@ def _job_view(job: NormalizedJob, match: MatchResult) -> dict[str, Any]:
         "explanation": match.explanation,
         "description_text": job.description_text,
         "compensation_source": "ATS" if job.compensation else None,
+        "compensation_minimum": (
+            job.compensation.minimum if job.compensation else None
+        ),
+        "compensation_maximum": (
+            job.compensation.maximum if job.compensation else None
+        ),
+        "compensation_currency": (
+            job.compensation.currency if job.compensation else None
+        ),
+        "compensation_interval": (
+            job.compensation.interval if job.compensation else None
+        ),
         "freshness": freshness,
         "provider": job.provider.value,
         "job_url": str(job.job_url),

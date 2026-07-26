@@ -180,3 +180,46 @@ def test_job_description_is_loaded_for_one_visible_current_role() -> None:
     sql, params = connection.execute.call_args.args
     assert "m.job_revision_id = j.current_revision_id" in sql
     assert params == ("adam-cagle", "job-id")
+
+
+def test_market_intelligence_returns_current_funnel_provider_and_gates() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    overview_cursor = MagicMock()
+    overview_cursor.fetchone.return_value = {
+        "active_jobs": 1000,
+        "eligible_jobs": 10,
+        "maximum_score": 77.5,
+    }
+    provider_cursor = MagicMock()
+    provider_cursor.fetchall.return_value = [
+        {
+            "provider": "greenhouse",
+            "board_count": 10,
+            "active_jobs": 900,
+            "eligible_jobs": 9,
+            "strong_jobs": 2,
+        }
+    ]
+    exclusion_cursor = MagicMock()
+    exclusion_cursor.fetchall.return_value = [
+        {"concern": "No target title", "count": 800}
+    ]
+    connection.execute.side_effect = [
+        overview_cursor,
+        provider_cursor,
+        exclusion_cursor,
+    ]
+
+    intelligence = repository.market_intelligence("adam-cagle")
+
+    assert intelligence["overview"]["active_jobs"] == 1000
+    assert intelligence["providers"][0]["strong_jobs"] == 2
+    assert intelligence["exclusions"][0]["count"] == 800
+    assert all(
+        call.args[1] == ("adam-cagle",)
+        for call in connection.execute.call_args_list
+    )
+    provider_sql = connection.execute.call_args_list[1].args[0]
+    assert "m.job_revision_id = j.current_revision_id" in provider_sql

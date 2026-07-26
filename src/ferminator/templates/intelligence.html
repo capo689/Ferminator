@@ -1,95 +1,253 @@
 {% extends "base.html" %}
 {% block title %}Intelligence · Ferminator{% endblock %}
 {% block content %}
-<header class="page-hero compact">
+{% set intel = intelligence %}
+<header class="page-hero compact intelligence-hero">
   <div>
-    <p class="eyebrow">MARKET INTELLIGENCE</p>
-    <h1>Read the market before it reads like news.</h1>
-    <p class="hero-copy">Hiring movement translated into decisions for your search.</p>
+    <p class="eyebrow">LIVE MARKET INTELLIGENCE</p>
+    <h1>Your market, translated into decisions.</h1>
+    <p class="hero-copy">
+      Current supply, fit, source productivity, compensation, and search performance.
+      No invented trends.
+    </p>
+  </div>
+  <div class="snapshot-stamp">
+    <span>Snapshot</span>
+    <strong>{{ intel.generated_at.strftime("%b %-d · %H:%M UTC") }}</strong>
   </div>
 </header>
 
-<section class="intelligence-grid">
-  {% for item in market %}
+{% if intel.thresholds_wide_open %}
+<aside class="intelligence-notice">
+  <strong>Wide-review mode is active.</strong>
+  Every role-family threshold is set to zero, so “visible” means matcher-eligible—not
+  necessarily application-ready. Scores rank the list within that broad review set.
+</aside>
+{% endif %}
+
+<section class="intelligence-grid intelligence-grid-six" aria-label="Market summary">
+  {% for item in intel.cards %}
   <article class="metric-panel">
     <span>{{ item.label }}</span>
-    <strong class="{{ item.direction }}">{{ item.value }}</strong>
-    <small>Compared with the previous 30 days</small>
+    <strong>{{ item.value }}</strong>
+    <small>{{ item.note }}</small>
   </article>
   {% endfor %}
 </section>
 
-<section class="intelligence-detail">
-  <div>
-    <p class="eyebrow">DEMAND SIGNAL</p>
-    <h2>Skills appearing in your strongest matches</h2>
-    <p>The market is rewarding operators who can connect adoption, systems, and communication.</p>
-  </div>
-  <div class="skill-bars">
-    {% for label, value in skills %}
-    <div>
-      <span>{{ label }}</span>
-      <div class="bar"><i style="width: {{ value }}%"></i></div>
-      <strong>{{ value }}</strong>
+<section class="intelligence-split">
+  <article class="intelligence-card">
+    <p class="eyebrow">SEARCH FUNNEL</p>
+    <h2>Where opportunity becomes action</h2>
+    <div class="market-funnel">
+      {% for step in intel.funnel %}
+      <div>
+        <span>{{ step.label }}</span>
+        <strong>{{ "{:,}".format(step.value) }}</strong>
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
-</section>
-
-{% if quality %}
-<section class="intelligence-detail">
-  <div>
-    <p class="eyebrow">MATCH QUALITY</p>
-    <h2>{{ quality.reviewed }} recommendations reviewed</h2>
-    <p>
-      {% if quality.useful_rate is not none %}
-      {{ quality.useful_rate }}% were marked great or maybe.
-      {% else %}
-      Rate recommendations in Discover to establish an honest quality baseline.
-      {% endif %}
+    <p class="data-footnote">
+      {{ intel.historical_applications }} imported historical applications are kept separate
+      from this live funnel because their original event dates are incomplete.
     </p>
+  </article>
+
+  <article class="intelligence-card">
+    <p class="eyebrow">MARKET CLOCK</p>
+    {% if intel.baseline.trend_ready %}
+    <h2>{{ intel.baseline.new_jobs_24h }} new jobs in 24 hours</h2>
+    <p>{{ intel.baseline.removed_jobs_7d }} listings closed in the last seven days.</p>
+    {% else %}
+    <h2>Building an honest trend baseline</h2>
+    <p>
+      Ferminator has {{ intel.baseline.observed_days }} complete observation days.
+      Market velocity unlocks after 14 days so an initial directory import is not
+      mislabeled as a hiring surge.
+    </p>
+    {% endif %}
+    <div class="baseline-progress" aria-label="Trend baseline progress">
+      <i style="width: {{ [100, (intel.baseline.observed_days / 14 * 100)|round]|min }}%"></i>
+    </div>
+    <small>{{ [14 - intel.baseline.observed_days, 0]|max }} days until trend reporting</small>
+  </article>
+</section>
+
+<section class="intelligence-card intelligence-wide">
+  <div class="section-heading intelligence-heading">
+    <div>
+      <p class="eyebrow">ROLE-FAMILY MARKET MAP</p>
+      <h2>Where supply and alignment meet</h2>
+    </div>
+    <a class="text-action" href="/profile">Tune visibility thresholds →</a>
   </div>
-  <div class="skill-bars">
-    <div><span>Great</span><strong>{{ quality.great }}</strong></div>
-    <div><span>Maybe</span><strong>{{ quality.maybe }}</strong></div>
-    <div><span>Wrong</span><strong>{{ quality.wrong }}</strong></div>
+  <div class="intelligence-table-wrap">
+    <table class="intelligence-table">
+      <thead>
+        <tr>
+          <th>Role family</th>
+          <th>Visible</th>
+          <th>Average fit</th>
+          <th>Best fit</th>
+          <th>Remote</th>
+          <th>Median pay</th>
+          <th>Floor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for family in intel.role_families %}
+        <tr>
+          <td><strong>{{ family.label }}</strong></td>
+          <td>{{ family.count }}</td>
+          <td>{{ family.average_score }}</td>
+          <td>{{ family.maximum_score }}</td>
+          <td>{{ family.remote_rate }}%</td>
+          <td>{{ "$%sK"|format(family.median_salary) if family.median_salary else "Building" }}</td>
+          <td>{{ family.threshold }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">No visible role families yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
-{% endif %}
 
-{% if source_health %}
-<section class="intelligence-detail">
-  <div>
+<section class="intelligence-split">
+  <article class="intelligence-card">
+    <p class="eyebrow">RECURRING MATCH SIGNALS</p>
+    <h2>Evidence appearing in visible roles</h2>
+    <p class="section-copy">
+      Counted once per job. These are current listing signals—not fabricated demand scores.
+    </p>
+    <div class="signal-list">
+      {% for skill in intel.skills %}
+      <div>
+        <span>{{ skill.label }}</span>
+        <div class="bar"><i style="width: {{ skill.share }}%"></i></div>
+        <strong>{{ skill.count }}</strong>
+        <small>{{ skill.average_score }} avg fit</small>
+      </div>
+      {% else %}
+      <p>Signals will appear when visible matches contain profile-backed evidence.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="intelligence-card">
+    <p class="eyebrow">WHY JOBS FALL OUT</p>
+    <h2>The matcher’s most common gates</h2>
+    <div class="reason-list">
+      {% for reason in intel.exclusions %}
+      <div><span>{{ reason.concern }}</span><strong>{{ "{:,}".format(reason.count) }}</strong></div>
+      {% else %}
+      <p>No exclusion reasons are available yet.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="intelligence-card intelligence-wide">
+  <div class="section-heading intelligence-heading">
+    <div>
+      <p class="eyebrow">SOURCE PRODUCTIVITY</p>
+      <h2>Which ATS networks produce useful opportunities</h2>
+      <p class="section-copy">Yield is matcher-eligible jobs per 1,000 active listings.</p>
+    </div>
+  </div>
+  <div class="intelligence-table-wrap">
+    <table class="intelligence-table">
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Boards</th>
+          <th>Active jobs</th>
+          <th>Eligible</th>
+          <th>Visible</th>
+          <th>Strong</th>
+          <th>Yield / 1K</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for source in intel.providers %}
+        <tr>
+          <td><strong>{{ source.provider|title }}</strong></td>
+          <td>{{ source.boards }}</td>
+          <td>{{ "{:,}".format(source.active_jobs) }}</td>
+          <td>{{ source.eligible_jobs }}</td>
+          <td>{{ source.visible_jobs }}</td>
+          <td>{{ source.strong_jobs }}</td>
+          <td>{{ source.yield }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">Provider metrics require a live scan.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="intelligence-split">
+  <article class="intelligence-card source-status-card">
     <p class="eyebrow">SOURCE HEALTH</p>
-    <h2>Every board must prove it ran.</h2>
-    {% if source_health.latest_scan %}
+    <h2>
+      {{ intel.source_summary.healthy }}/{{ intel.source_summary.total }}
+      boards healthy
+    </h2>
+    {% if intel.source_summary.latest_scan %}
     <p>
-      Latest scan: {{ source_health.latest_scan.status }} ·
-      {{ source_health.latest_scan.succeeded_count }}/{{ source_health.latest_scan.board_count }}
-      boards succeeded · {{ source_health.latest_scan.scored_job_count }} jobs scored.
+      Latest scan: {{ intel.source_summary.latest_scan.status }} ·
+      {{ intel.source_summary.latest_scan.succeeded_count }}/{{ intel.source_summary.latest_scan.board_count }}
+      boards · {{ "{:,}".format(intel.source_summary.latest_scan.scored_job_count) }} jobs
+      {% if intel.source_summary.scan_minutes %}· {{ intel.source_summary.scan_minutes }} min{% endif %}
     </p>
     {% else %}
-    <p>No full scan has been recorded yet.</p>
+    <p>No production scan has been recorded.</p>
     {% endif %}
-  </div>
-  <div class="skill-bars">
-    {% for board in source_health.boards %}
-    <div>
-      <span>{{ board.company }} · {{ board.provider|title }}</span>
-      <strong>{{ board.validation_status }}</strong>
+    {% if intel.source_summary.exceptions %}
+    <div class="source-exceptions">
+      {% for board in intel.source_summary.exceptions %}
+      <div>
+        <strong>{{ board.company }} · {{ board.provider|title }}</strong>
+        <span>{{ board.validation_status }} · {{ board.last_error_code or "No error code" }}</span>
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
+    {% else %}
+    <p class="all-clear">No source exceptions require attention.</p>
+    {% endif %}
+  </article>
 
-<section class="editorial-insight">
-  <span class="insight-number">01</span>
-  <div>
-    <p class="eyebrow">WHAT THIS MEANS</p>
-    <h2>“Enablement” is becoming operating infrastructure—not a training function.</h2>
-    <p>Roles increasingly combine workflow design, executive influence, technical communication,
-      and measurable adoption. That combination maps unusually well to your search thesis.</p>
-  </div>
+  <article class="intelligence-card">
+    <p class="eyebrow">CALIBRATION CONFIDENCE</p>
+    <h2>{{ intel.quality.reviewed }} live recommendations rated</h2>
+    {% if intel.quality.useful_rate is not none %}
+    <p>{{ intel.quality.useful_rate }}% were marked Great or Maybe.</p>
+    {% else %}
+    <p>
+      The 58-record Calibration V1 corpus is frozen, but the live matcher still needs
+      your Great, Maybe, and Wrong ratings to learn its current failure modes.
+    </p>
+    <a class="button button-secondary" href="/discover">Rate visible matches</a>
+    {% endif %}
+    <div class="quality-counts">
+      <span>Great <strong>{{ intel.quality.great }}</strong></span>
+      <span>Maybe <strong>{{ intel.quality.maybe }}</strong></span>
+      <span>Wrong <strong>{{ intel.quality.wrong }}</strong></span>
+    </div>
+  </article>
+</section>
+
+<section class="insight-stack">
+  {% for insight in intel.insights %}
+  <article class="editorial-insight">
+    <span class="insight-number">{{ "%02d"|format(loop.index) }}</span>
+    <div>
+      <p class="eyebrow">WHAT THIS MEANS</p>
+      <h2>{{ insight.title }}</h2>
+      <p>{{ insight.body }}</p>
+    </div>
+  </article>
+  {% endfor %}
 </section>
 {% endblock %}
