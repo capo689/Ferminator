@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -20,6 +21,32 @@ class TargetTitles(BaseModel):
     adjacent: list[str] = Field(default_factory=list)
 
 
+class RoleFamily(BaseModel):
+    id: str
+    label: str
+    tier: Literal["primary", "adjacent", "edge"] = "adjacent"
+    threshold: int = Field(default=80, ge=0, le=100)
+    aliases: list[str] = Field(min_length=1)
+    description: str = ""
+
+    @field_validator("id")
+    @classmethod
+    def validate_id(cls, value: str) -> str:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,62}", value):
+            raise ValueError("role family id must be lowercase letters, numbers, or hyphens")
+        return value
+
+    @field_validator("aliases")
+    @classmethod
+    def unique_aliases(cls, value: list[str]) -> list[str]:
+        cleaned = [re.sub(r"\s+", " ", item).strip() for item in value]
+        if any(not item for item in cleaned):
+            raise ValueError("role family aliases cannot be empty")
+        if len({item.casefold() for item in cleaned}) != len(cleaned):
+            raise ValueError("role family aliases must be unique within a family")
+        return cleaned
+
+
 class SearchRules(BaseModel):
     enabled: bool = True
     scan_interval_hours: int = Field(default=12, ge=1, le=168)
@@ -29,12 +56,20 @@ class SearchRules(BaseModel):
     employment_types: list[str] = Field(default_factory=lambda: ["full-time"])
     target_seniority: list[str] = Field(default_factory=list)
     target_titles: TargetTitles = Field(default_factory=TargetTitles)
+    role_families: list[RoleFamily] = Field(default_factory=list)
     require_title_match: bool = True
     enforce_default_geography: bool = True
     adjacent_minimum_preferred_hits: int = Field(default=1, ge=0, le=20)
     required_any: list[str] = Field(default_factory=list)
     preferred: list[str] = Field(default_factory=list)
     exclude: dict[str, list[str]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def unique_role_families(self) -> SearchRules:
+        ids = [family.id for family in self.role_families]
+        if len(ids) != len(set(ids)):
+            raise ValueError("role family ids must be unique")
+        return self
 
 
 class NotificationRules(BaseModel):
@@ -97,11 +132,29 @@ class CareerProfile(BaseModel):
 
     @property
     def high_titles(self) -> list[str]:
-        return self.search.target_titles.high
+        values = list(self.search.target_titles.high)
+        for family in self.search.role_families:
+            if family.tier == "primary":
+                values.extend(family.aliases)
+        return list(dict.fromkeys(values))
 
     @property
     def adjacent_titles(self) -> list[str]:
-        return self.search.target_titles.adjacent
+        values = list(self.search.target_titles.adjacent)
+        for family in self.search.role_families:
+            if family.tier != "primary":
+                values.extend(family.aliases)
+        return list(dict.fromkeys(values))
+
+    @property
+    def role_families(self) -> list[RoleFamily]:
+        return self.search.role_families
+
+    def role_family(self, family_id: str) -> RoleFamily:
+        for family in self.role_families:
+            if family.id == family_id:
+                return family
+        raise LookupError(f"Unknown role family: {family_id}")
 
 
 def load_profile(path: str | Path) -> CareerProfile:

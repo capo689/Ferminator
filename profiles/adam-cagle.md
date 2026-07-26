@@ -23,62 +23,215 @@ search:
     - director
     - lead
   target_titles:
-    high:
-      - AI Enablement
-      - Generative AI Enablement
-      - AI Transformation
-      - AI Operations
-      - Generative AI Operations
-      - AI Program
-      - AI Implementation
-      - AI Solutions
-      - Applied AI
-      - AI Governance
-      - AI Innovation
-      - AI Product Operations
-      - Marketing AI Operations
-      - AI Adoption
-      - Knowledge Operations
-      - AI Copywriter
-      - AI Content Systems
-      - AI Content Operations
-      - AI Marketing Engineer
-      - Creative Technologist
-      - Creative AI
-      - AI Creative
-      - Agent Architect
-      - Agentic AI
-      - Applied AI Consultant
-      - AI Workflow Automation
-      - AI Automation
-      - AI Search Strategist
-      - AI Content Strategy
-      - AI Content Design
-      - AI Education
-      - AI Customer Education
-      - Conversation Design
-      - Prompt Design
-      - LLM Operations
-    adjacent:
-      - Developer Advocacy
-      - Developer Relations
-      - Developer Education
-      - Technical Content
-      - Enablement
-      - Customer Education
-      - Implementation Consultant
-      - Solutions Consultant
-      - Digital Transformation
-      - Knowledge Management
-      - Content Operations
-      - Content Strategy
-      - Content Design
-      - Prompt Engineering
-      - Brand Voice
-      - Technical Writer, AI
-      - Product Narrative
-      - AEO
-      - GEO
+    high: []
+    adjacent: []
+  role_families:
+    - id: ai-enablement
+      label: AI Enablement & Adoption
+      tier: primary
+      threshold: 80
+      description: Helping teams understand, adopt, govern, and use AI successfully.
+      aliases:
+        - AI Enablement
+        - Generative AI Enablement
+        - AI Adoption
+        - AI Education
+        - AI Customer Education
+    - id: ai-transformation-operations
+      label: AI Transformation & Operations
+      tier: primary
+      threshold: 80
+      description: Operationalizing AI programs, workflows, governance, and implementation.
+      aliases:
+        - AI Transformation
+        - AI Operations
+        - Generative AI Operations
+        - AI Program
+        - AI Implementation
+        - AI Solutions
+        - Applied AI
+        - AI Governance
+        - AI Innovation
+        - AI Product Operations
+        - Marketing AI Operations
+        - AI Workflow Automation
+        - AI Automation
+        - LLM Operations
+    - id: ai-content-systems
+      label: AI Content Systems
+      tier: primary
+      threshold: 80
+      description: Building governed AI systems for content, voice, and knowledge.
+      aliases:
+        - AI Content Systems
+        - AI Content Operations
+        - AI Content Strategy
+        - AI Content Design
+        - Knowledge Operations
+        - Brand Voice AI
+    - id: creative-ai-technology
+      label: Creative AI & Technology
+      tier: primary
+      threshold: 80
+      description: Hands-on creative technology, agents, and applied AI solutions.
+      aliases:
+        - AI Marketing Engineer
+        - Creative Technologist
+        - Creative AI
+        - AI Creative
+        - Agent Architect
+        - Agentic AI
+        - Applied AI Consultant
+    - id: copywriting
+      label: Copywriting
+      tier: primary
+      threshold: 65
+      description: Senior, hands-on copywriting across advertising, brand, digital, and direct response.
+      aliases:
+        - Copywriter
+        - Senior Copywriter
+        - Lead Copywriter
+        - Advertising Copywriter
+        - Agency Copywriter
+        - Brand Copywriter
+        - Marketing Copywriter
+        - Creative Copywriter
+        - Digital Copywriter
+        - Web Copywriter
+        - Website Copywriter
+        - B2B Copywriter
+        - B2C Copywriter
+        - Direct Response Copywriter
+        - Technical Copywriter
+        - UX Copywriter
+        - Product Copywriter
+        - Content Copywriter
+        - SEO Copywriter
+        - Email Copywriter
+        - Ecommerce Copywriter
+        - E-commerce Copywriter
+        - Social Copywriter
+        - Freelance Copywriter
+        - Contract Copywriter
+        - AI Copywriter
+        - Copy Lead
+        - Copy Supervisor
+        - Group Copy Supervisor
+    - id: creative-direction-copy
+      label: Copy & Creative Direction
+      tier: adjacent
+      threshold: 75
+      description: Copy-led creative direction and senior creative team leadership.
+      aliases:
+        - Associate Creative Director Copy
+        - Associate Creative Director, Copy
+        - ACD Copy
+        - Creative Director Copy
+        - Creative Director, Copy
+        - Group Creative Director Copy
+        - Executive Creative Director Copy
+        - Head of Copy
+        - VP Copy
+    - id: content-strategy-brand
+      label: Content & Brand Strategy
+      tier: adjacent
+      threshold: 75
+      description: Brand voice, messaging, editorial direction, and content strategy.
+      aliases:
+        - Content Strategy
+        - Content Strategist
+        - Senior Content Strategist
+        - Content Director
+        - Director of Content
+        - Editorial Director
+        - Brand Strategist
+        - Brand Strategy
+        - Messaging Strategist
+        - Brand Voice
+        - Product Narrative
+    - id: technical-content-education
+      label: Technical Content & Education
+      tier: adjacent
+      threshold: 80
+      description: Translating technical products into useful education and content.
+      aliases:
+        - Technical Content
+        - Technical Writer AI
+        - Technical Writer, AI
+        - AI Technical Writer
+        - Developer Education
+        - Developer Advocacy
+        - Developer Relations
+        - Customer Education
+    - id: ai-search
+      label: AI Search & Discoverability
+      tier: primary
+      threshold: 80
+      description: AI search, AEO, GEO, and modern organic discoverability.
+      aliases:
+        - AI Search Strategist
+        - AI SEO
+        - AEO Strategist
+        - GEO Strategist
+        - Generative Engine Optimization
+        - Answer Engine Optimization
+    - id: conversation-prompt-design
+      label: Conversation & Prompt Design
+      tier: primary
+      threshold: 80
+      description: Designing useful, safe conversational and prompt-driven experiences.
+      aliases:
+        - Conversation Design
+        - Conversation Designer
+        - Prompt Design
+        - Prompt Designer
+        - Prompt Engineering
+        - Prompt Engineer
+    - id: content-creative-operations
+      label: Content & Creative Operations
+      tier: adjacent
+      threshold: 75
+      description: Systems, workflows, and governance for content and creative teams.
+      aliases:
+        - Content Operations
+        - Creative Operations
+        - Knowledge Management
+        - Content Design
+        - Content Designer
+    - id: consulting-transformation
+      label: AI & Digital Consulting
+      tier: adjacent
+      threshold: 85
+      description: Client-facing implementation and transformation work with strong AI relevance.
+      aliases:
+        - AI Implementation Consultant
+        - AI Solutions Consultant
+        - Digital Transformation Consultant
+        - Generative AI Consultant
+    - id: product-marketing-narrative
+      label: Product Marketing & Narrative
+      tier: edge
+      threshold: 90
+      description: Product positioning and narrative roles that require unusually strong fit.
+      aliases:
+        - Product Marketing Manager
+        - Product Marketing Director
+        - Director of Product Marketing
+        - Product Marketing Lead
+        - Product Narrative Lead
+        - Go-to-Market Narrative
+    - id: agency-creative-leadership
+      label: Agency & Creative Leadership
+      tier: edge
+      threshold: 90
+      description: Broad creative leadership roles shown only when the evidence is exceptional.
+      aliases:
+        - Head of Creative
+        - VP Creative
+        - Creative Operations Director
+        - Integrated Creative Director
+        - Campaign Strategist
+        - Creative Strategist
   require_title_match: true
   enforce_default_geography: true
   adjacent_minimum_preferred_hits: 1

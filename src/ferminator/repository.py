@@ -396,6 +396,57 @@ class PostgresRepository:
             )
         return result
 
+    def role_thresholds(self, profile_slug: str) -> dict[str, int]:
+        """Return saved role-family threshold overrides for a named profile."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select t.family_id, t.threshold
+                from public.profile_role_thresholds t
+                join public.profiles p on p.id = t.profile_id
+                where p.slug = %s
+                """,
+                (profile_slug,),
+            ).fetchall()
+        return {row["family_id"]: int(row["threshold"]) for row in rows}
+
+    def set_role_threshold(
+        self,
+        profile_slug: str,
+        family_id: str,
+        threshold: int,
+    ) -> None:
+        if not 0 <= threshold <= 100:
+            raise ValueError("Threshold must be between 0 and 100")
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                insert into public.profile_role_thresholds (
+                  profile_id, family_id, threshold
+                )
+                select id, %s, %s from public.profiles where slug = %s
+                on conflict (profile_id, family_id) do update set
+                  threshold = excluded.threshold,
+                  updated_at = now()
+                returning profile_id
+                """,
+                (family_id, threshold, profile_slug),
+            ).fetchone()
+            if row is None:
+                raise LookupError("Profile not found")
+
+    def reset_role_threshold(self, profile_slug: str, family_id: str) -> None:
+        with self.connection() as conn:
+            conn.execute(
+                """
+                delete from public.profile_role_thresholds t
+                using public.profiles p
+                where t.profile_id = p.id
+                  and p.slug = %s and t.family_id = %s
+                """,
+                (profile_slug, family_id),
+            )
+
     def pipeline(self, profile_slug: str) -> dict[str, list[dict]]:
         matches = {
             item["id"]: item

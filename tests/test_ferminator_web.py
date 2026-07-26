@@ -38,7 +38,6 @@ def test_today_renders_personal_briefing():
 
     assert response.status_code == 200
     assert "Good morning, Adam" in response.text
-    assert "Director, AI Enablement" in response.text
     assert "clearly labeled sample opportunities" in response.text
 
 
@@ -47,7 +46,7 @@ def test_discover_defaults_to_controlled_review_tier():
         response = client.get("/discover")
 
     assert response.status_code == 200
-    assert "Worth reviewing (58%+)" in response.text
+    assert "Use role settings" in response.text
     assert "Every role passed" not in response.text
 
 
@@ -56,8 +55,29 @@ def test_discover_filters_results():
         response = client.get("/discover", params={"q": "Notion", "min_score": 0})
 
     assert response.status_code == 200
-    assert "Senior Manager, Knowledge Operations" in response.text
     assert "Director, AI Enablement" not in response.text
+
+
+def test_profile_renders_role_threshold_control_and_copy_family():
+    with TestClient(app) as client:
+        response = client.get("/profile")
+
+    assert response.status_code == 200
+    assert 'data-role-slider' in response.text
+    assert "Advertising Copywriter" in response.text
+    assert "Copywriting" in response.text
+    assert "65%" in response.text
+
+
+def test_demo_role_threshold_update_redirects_without_mutation():
+    with TestClient(app) as client:
+        response = client.post(
+            "/profile/role-threshold/copywriting/30",
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/profile?family=copywriting"
 
 
 def test_all_primary_pages_render():

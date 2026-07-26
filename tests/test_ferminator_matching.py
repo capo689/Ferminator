@@ -8,7 +8,7 @@ from ferminator.domain import (
     NormalizedJob,
     WorkplaceType,
 )
-from ferminator.matching import score_job
+from ferminator.matching import matched_role_family, score_job
 from ferminator.profiles import load_profile
 
 
@@ -145,3 +145,34 @@ def test_profile_backed_technical_evidence_earns_career_credit():
     assert result.score >= profile.notifications.minimum_score
     assert result.component_scores["career_evidence"] >= 15
     assert "Career evidence: AI agents" in result.matched_evidence
+
+
+def test_advertising_copywriter_is_a_primary_eligible_role():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    job = make_job(
+        title="Senior Advertising Copywriter",
+        description_text=(
+            "Lead brand voice, executive communication, content systems, "
+            "and creative technology for integrated campaigns."
+        ),
+    )
+
+    result = score_job(profile, job)
+    family = matched_role_family(profile, job.title)
+
+    assert result.eligible
+    assert family is not None
+    assert family.id == "copywriting"
+    assert family.threshold == 65
+    assert "Role family: Copywriting" in result.matched_evidence
+
+
+def test_product_marketing_is_kept_as_a_high_threshold_edge_case():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+
+    family = matched_role_family(profile, "Director of Product Marketing")
+
+    assert family is not None
+    assert family.id == "product-marketing-narrative"
+    assert family.tier == "edge"
+    assert family.threshold == 90

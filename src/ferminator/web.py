@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 
 from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
+from ferminator.matching import matched_role_family
 from ferminator.observability import configure_logging, safe_request_id
 from ferminator.profiles import CareerProfile, load_profile
 from ferminator.repository import PostgresRepository
@@ -215,12 +216,49 @@ def _repository() -> PostgresRepository:
     return PostgresRepository(database_url, min_size=1, max_size=2)
 
 
+def _apply_role_thresholds(
+    profile: CareerProfile,
+    matches: list[dict],
+    overrides: dict[str, int],
+) -> list[dict]:
+    """Annotate and filter matches using each role family's visibility floor."""
+    result = []
+    for item in matches:
+        family = matched_role_family(profile, item["title"])
+        if family is None:
+            continue
+        threshold = overrides.get(family.id, family.threshold)
+        annotated = {
+            **item,
+            "role_family_id": family.id,
+            "role_family": family.label,
+            "role_threshold": threshold,
+        }
+        if item["score"] >= threshold:
+            result.append(annotated)
+    return result
+
+
 def _matches(profile: CareerProfile, *, minimum_score: float = 0) -> list[dict]:
     if get_settings().demo_mode:
-        return scored_jobs(profile)
+        return _apply_role_thresholds(
+            profile,
+            [
+                item
+                for item in scored_jobs(profile)
+                if item["score"] >= minimum_score
+            ],
+            {},
+        )
     repository = _repository()
     try:
-        return repository.web_matches(profile.profile.slug, minimum_score=minimum_score)
+        matches = repository.web_matches(
+            profile.profile.slug,
+            minimum_score=minimum_score,
+            limit=5000,
+        )
+        overrides = repository.role_thresholds(profile.profile.slug)
+        return _apply_role_thresholds(profile, matches, overrides)
     finally:
         repository.close()
 
@@ -228,29 +266,19 @@ def _matches(profile: CareerProfile, *, minimum_score: float = 0) -> list[dict]:
 @app.get("/", response_class=HTMLResponse)
 async def today(request: Request):
     context = _context(request, "today")
-    review_floor = context["profile"].notifications.review_minimum_score
-    strong_floor = context["profile"].notifications.minimum_score
-    matches = _matches(
-        context["profile"],
-        minimum_score=review_floor,
-    )
-    strong_matches = [item for item in matches if item["score"] >= strong_floor]
-    review_matches = [
-        item for item in matches
-        if review_floor <= item["score"] < strong_floor
-    ]
+    matches = _matches(context["profile"])
     context.update(
         {
-            "matches": strong_matches,
-            "review_matches": review_matches[:6],
-            "lead": strong_matches[0] if strong_matches else None,
-            "secondary": strong_matches[1:3],
+            "matches": matches,
+            "review_matches": [],
+            "lead": matches[0] if matches else None,
+            "secondary": matches[1:],
             "stats": {
-                "new_matches": len(strong_matches),
-                "review_matches": len(review_matches),
+                "new_matches": len(matches),
+                "review_matches": 0,
                 "exceptional": sum(
                     item["score"] >= context["profile"].notifications.exceptional_score
-                    for item in strong_matches
+                    for item in matches
                 ),
                 "changed": 2,
                 "followups": 1,
@@ -271,7 +299,7 @@ async def discover(
     effective_minimum = (
         min_score
         if min_score is not None
-        else int(context["profile"].notifications.review_minimum_score)
+        else 0
     )
     matches = _matches(context["profile"], minimum_score=effective_minimum)
     if q:
@@ -289,7 +317,6 @@ async def discover(
             "remote": remote,
             "min_score": effective_minimum,
             "strong_minimum": context["profile"].notifications.minimum_score,
-            "review_minimum": context["profile"].notifications.review_minimum_score,
         }
     )
     return templates.TemplateResponse(request, "discover.html", context=context)
@@ -312,7 +339,18 @@ async def pipeline(request: Request):
 @app.get("/fit/{job_id}", response_class=HTMLResponse)
 async def fit_lens(request: Request, job_id: str):
     context = _context(request, "today")
-    matches = _matches(context["profile"])
+    if get_settings().demo_mode:
+        matches = scored_jobs(context["profile"])
+    else:
+        repository = _repository()
+        try:
+            matches = repository.web_matches(
+                context["profile"].profile.slug,
+                minimum_score=0,
+                limit=5000,
+            )
+        finally:
+            repository.close()
     job = next((item for item in matches if item["id"] == job_id), None)
     if job is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
@@ -472,10 +510,84 @@ async def operations():
 @app.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request):
     context = _context(request, "profile")
-    context["target_count"] = (
-        len(context["profile"].high_titles) + len(context["profile"].adjacent_titles)
-    )
+    profile = context["profile"]
+    raw_matches = scored_jobs(profile) if get_settings().demo_mode else []
+    overrides: dict[str, int] = {}
+    if not get_settings().demo_mode:
+        repository = _repository()
+        try:
+            raw_matches = repository.web_matches(
+                profile.profile.slug,
+                minimum_score=0,
+                limit=5000,
+            )
+            overrides = repository.role_thresholds(profile.profile.slug)
+        finally:
+            repository.close()
+    family_scores: dict[str, list[float]] = defaultdict(list)
+    for item in raw_matches:
+        family = matched_role_family(profile, item["title"])
+        if family:
+            family_scores[family.id].append(float(item["score"]))
+    context["role_families"] = [
+        {
+            **family.model_dump(),
+            "threshold": overrides.get(family.id, family.threshold),
+            "default_threshold": family.threshold,
+            "scores": family_scores[family.id],
+            "visible_count": sum(
+                score >= overrides.get(family.id, family.threshold)
+                for score in family_scores[family.id]
+            ),
+        }
+        for family in profile.role_families
+    ]
+    context["target_count"] = len(profile.role_families)
     return templates.TemplateResponse(request, "profile.html", context=context)
+
+
+@app.post("/profile/role-threshold/{family_id}/{threshold}")
+async def update_role_threshold(
+    request: Request,
+    family_id: str,
+    threshold: int,
+):
+    profile = _profile()
+    try:
+        profile.role_family(family_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if not 0 <= threshold <= 100:
+        raise HTTPException(status_code=400, detail="Threshold must be between 0 and 100")
+    origin = request.headers.get("origin")
+    if origin and origin != str(request.base_url).rstrip("/"):
+        raise HTTPException(status_code=403, detail="Cross-origin action rejected")
+    if not get_settings().demo_mode:
+        repository = _repository()
+        try:
+            repository.set_role_threshold(profile.profile.slug, family_id, threshold)
+        finally:
+            repository.close()
+    return RedirectResponse(f"/profile?family={family_id}", status_code=303)
+
+
+@app.post("/profile/role-threshold-reset/{family_id}")
+async def reset_role_threshold(request: Request, family_id: str):
+    profile = _profile()
+    try:
+        profile.role_family(family_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    origin = request.headers.get("origin")
+    if origin and origin != str(request.base_url).rstrip("/"):
+        raise HTTPException(status_code=403, detail="Cross-origin action rejected")
+    if not get_settings().demo_mode:
+        repository = _repository()
+        try:
+            repository.reset_role_threshold(profile.profile.slug, family_id)
+        finally:
+            repository.close()
+    return RedirectResponse(f"/profile?family={family_id}", status_code=303)
 
 
 @app.get("/healthz")
