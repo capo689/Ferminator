@@ -182,4 +182,4 @@ def test_product_marketing_is_kept_in_the_controlled_review_tier():
     assert family is not None
     assert family.id == "product-marketing-narrative"
     assert family.tier == "edge"
-    assert family.threshold == 50
+    assert family.threshold == 60
