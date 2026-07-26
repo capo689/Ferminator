@@ -543,7 +543,7 @@ def _compile_intelligence(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def today(request: Request):
+def today(request: Request):
     context = _context(request, "today")
     matches = _matches(context["profile"])
     context.update(
@@ -568,7 +568,7 @@ async def today(request: Request):
 
 
 @app.get("/discover", response_class=HTMLResponse)
-async def discover(
+def discover(
     request: Request,
     q: str = Query(default=""),
     sort: str = Query(default="relevance"),
@@ -724,7 +724,7 @@ async def discover(
 
 
 @app.get("/pipeline", response_class=HTMLResponse)
-async def pipeline(request: Request):
+def pipeline(request: Request):
     context = _context(request, "pipeline")
     if get_settings().demo_mode:
         board = demo_pipeline(scored_jobs(context["profile"]))
@@ -772,7 +772,7 @@ async def pipeline(request: Request):
 
 
 @app.get("/fit/{job_id}", response_class=HTMLResponse)
-async def fit_lens(request: Request, job_id: str):
+def fit_lens(request: Request, job_id: str):
     context = _context(request, "today")
     if get_settings().demo_mode:
         matches = scored_jobs(context["profile"])
@@ -836,7 +836,7 @@ async def fit_lens(request: Request, job_id: str):
 
 
 @app.get("/companies", response_class=HTMLResponse)
-async def companies(request: Request):
+def companies(request: Request):
     context = _context(request, "companies")
     if get_settings().demo_mode:
         context["companies"] = demo_companies()
@@ -850,7 +850,7 @@ async def companies(request: Request):
 
 
 @app.post("/actions/{job_id}/{state}")
-async def update_action(request: Request, job_id: str, state: str):
+def update_action(request: Request, job_id: str, state: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
     origin = request.headers.get("origin")
@@ -919,7 +919,7 @@ async def update_action_details(request: Request, job_id: str):
 
 
 @app.post("/pipeline-actions/{job_id}/unsave")
-async def unsave_action(request: Request, job_id: str):
+def unsave_action(request: Request, job_id: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
     _same_origin(request)
@@ -939,7 +939,7 @@ async def unsave_action(request: Request, job_id: str):
 
 
 @app.post("/pipeline-actions/{job_id}/undo")
-async def undo_action(request: Request, job_id: str):
+def undo_action(request: Request, job_id: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
     _same_origin(request)
@@ -958,7 +958,7 @@ async def undo_action(request: Request, job_id: str):
 
 
 @app.post("/feedback/{job_id}/clear")
-async def clear_feedback(request: Request, job_id: str):
+def clear_feedback(request: Request, job_id: str):
     if get_settings().demo_mode:
         return RedirectResponse("/discover", status_code=303)
     _same_origin(request)
@@ -1003,7 +1003,7 @@ async def update_feedback(
 
 
 @app.post("/pipeline-actions/{job_id}/dismiss")
-async def dismiss_pipeline_action(request: Request, job_id: str):
+def dismiss_pipeline_action(request: Request, job_id: str):
     """Dismiss a pipeline job and capture an explicit poor-fit quality signal."""
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
@@ -1034,7 +1034,7 @@ async def dismiss_pipeline_action(request: Request, job_id: str):
 
 
 @app.get("/feedback/export.md")
-async def export_wrong_feedback():
+def export_wrong_feedback():
     """Download active Wrong verdicts as profile-calibration evidence."""
     profile = _profile()
     if get_settings().demo_mode:
@@ -1058,7 +1058,7 @@ async def export_wrong_feedback():
 
 
 @app.get("/intelligence", response_class=HTMLResponse)
-async def intelligence(request: Request):
+def intelligence(request: Request):
     context = _context(request, "intelligence")
     profile = context["profile"]
     if get_settings().demo_mode:
@@ -1124,7 +1124,7 @@ async def intelligence(request: Request):
 
 
 @app.get("/ops")
-async def operations():
+def operations():
     """Private machine-readable operational state for diagnosis and smoke tests."""
     if get_settings().demo_mode:
         return {"status": "demo", "latest_scan": None, "boards": []}
@@ -1143,7 +1143,7 @@ async def operations():
 
 
 @app.get("/profile", response_class=HTMLResponse)
-async def profile_page(request: Request):
+def profile_page(request: Request):
     context = _context(request, "profile")
     profile = context["profile"]
     raw_matches = scored_jobs(profile) if get_settings().demo_mode else []
@@ -1182,7 +1182,7 @@ async def profile_page(request: Request):
 
 
 @app.post("/profile/role-threshold/{family_id}/{threshold}")
-async def update_role_threshold(
+def update_role_threshold(
     request: Request,
     family_id: str,
     threshold: int,
@@ -1207,7 +1207,7 @@ async def update_role_threshold(
 
 
 @app.post("/profile/role-threshold-reset/{family_id}")
-async def reset_role_threshold(request: Request, family_id: str):
+def reset_role_threshold(request: Request, family_id: str):
     profile = _profile()
     try:
         profile.role_family(family_id)
@@ -1237,7 +1237,7 @@ async def healthz():
 
 
 @app.get("/readyz")
-async def readyz():
+def readyz():
     """Verify that the app and its required live dependency can serve traffic."""
     settings = get_settings()
     if settings.demo_mode:
