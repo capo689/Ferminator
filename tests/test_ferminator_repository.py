@@ -126,6 +126,9 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
     sql = connection.execute.call_args.args[0]
     assert "history_candidates" in sql
     assert "(h.permanent or h.suppress_until > now())" in sql
+    assert "max(pm.profile_version)" in sql
+    assert "p.match_version = m.profile_version" in sql
+    assert "m.job_revision_id = j.current_revision_id" not in sql
 
 
 def test_web_matches_extracts_compensation_from_stored_full_description() -> None:
@@ -166,7 +169,7 @@ def test_web_matches_extracts_compensation_from_stored_full_description() -> Non
     assert match["compensation_text"].startswith("The annual base")
 
 
-def test_job_description_is_loaded_for_one_visible_current_role() -> None:
+def test_job_description_uses_last_complete_score_set_during_rescan() -> None:
     repository = object.__new__(PostgresRepository)
     repository.connection = MagicMock()
     connection = repository.connection.return_value.__enter__.return_value
@@ -178,7 +181,9 @@ def test_job_description_is_loaded_for_one_visible_current_role() -> None:
 
     assert description == "The complete stored job description."
     sql, params = connection.execute.call_args.args
-    assert "m.job_revision_id = j.current_revision_id" in sql
+    assert "max(pm.profile_version)" in sql
+    assert "p.match_version = m.profile_version" in sql
+    assert "m.job_revision_id = j.current_revision_id" not in sql
     assert params == ("adam-cagle", "job-id")
 
 
