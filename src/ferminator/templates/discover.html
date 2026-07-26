@@ -9,34 +9,68 @@
   </div>
 </header>
 
-<form class="command-search" method="get" action="/discover">
+<form class="command-search" method="get" action="/discover" data-discover-form>
   <label for="q">Search opportunities</label>
   <div class="command-row">
     <span aria-hidden="true">⌕</span>
     <input id="q" name="q" value="{{ query }}" placeholder="AI enablement, knowledge operations, company…">
     <button class="button button-primary" type="submit">Search</button>
   </div>
-  <div class="filter-row">
-    <label class="check-filter">
-      <input type="checkbox" name="remote" value="true" {{ "checked" if remote else "" }}>
-      Remote only
+  <div class="discover-controls">
+    <label>
+      Sort
+      <select name="sort">
+        <option value="relevance" {{ "selected" if sort == "relevance" else "" }}>Relevance</option>
+        <option value="newest" {{ "selected" if sort == "newest" else "" }}>Newest</option>
+      </select>
     </label>
     <label>
-      Additional fit floor
+      Posted
+      <select name="posted">
+        {% for value, label in [("anytime", "Anytime"), ("30d", "Last 30 days"), ("7d", "Last 7 days"), ("24h", "Last 24 hours")] %}
+        <option value="{{ value }}" {{ "selected" if posted == value else "" }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Location
+      <select name="location_mode" data-location-mode>
+        {% for value, label in [("remote", "Remote"), ("near", "Near ZIP"), ("remote_or_near", "Remote OR near ZIP"), ("anywhere", "Anywhere")] %}
+        <option value="{{ value }}" {{ "selected" if location_mode == value else "" }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label data-near-control>
+      ZIP
+      <input name="zip" value="{{ zip_code }}" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" aria-describedby="zip-help">
+    </label>
+    <label data-near-control>
+      Radius
+      <select name="radius">
+        {% for value in [10, 25, 50, 100] %}
+        <option value="{{ value }}" {{ "selected" if radius == value else "" }}>{{ value }} miles</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Match floor
       <select name="min_score">
-        {% for value in [0, 58, 70, 80, 90] %}
+        {% for value, label in [(0, "Use role settings"), (68, "Possible (68+)"), (78, "Strong (78+)"), (85, "Excellent (85+)"), (90, "Exceptional (90+)")] %}
         <option value="{{ value }}" {{ "selected" if min_score == value else "" }}>
-          {% if value == 0 %}Use role settings
-          {% elif value == 58 %}Worth reviewing (58%+)
-          {% elif value == 70 %}Strong matches (70%+)
-          {% else %}{{ value }}%+
-          {% endif %}
+          {{ label }}
         </option>
         {% endfor %}
       </select>
     </label>
-    <span class="result-count">{{ matches|length }} opportunities</span>
   </div>
+  <div class="filter-summary">
+    <div class="filter-chips">
+      {% for chip in chips %}<a href="{{ chip.url }}">{{ chip.label }} ×</a>{% endfor %}
+    </div>
+    <span class="result-count" aria-live="polite">{{ matches|length }} opportunities</span>
+    <a class="reset-filters" href="/discover">Reset</a>
+  </div>
+  {% if zip_error %}<p class="form-error" id="zip-help">{{ zip_error }} Near-me results are paused.</p>{% endif %}
 </form>
 
 <div class="results-list">
@@ -53,6 +87,8 @@
       <h2>{{ job.title }}</h2>
       <p class="job-meta">
         {{ job.location }} · {{ job.compensation or "Compensation not disclosed" }}
+        · {{ job.location_category_label }}
+        {% if job.distance_miles is not none %} · {{ job.distance_miles }} mi from {{ zip_code }}{% endif %}
         {% if job.compensation_source == "description" %}
         <span class="source-note">· extracted from full JD</span>
         {% endif %}
@@ -100,17 +136,17 @@
         {% endif %}
       </div>
     </div>
-    <div class="result-score">
-      <strong>{{ job.score|round|int }}</strong>
-      <span>match</span>
+    <div class="result-score score-{{ job.display_band }}" title="Internal relevance: {{ job.score|round(1) }}">
+      <strong>{{ job.display_score }}</strong>
+      <span>{{ job.display_label }}</span>
     </div>
   </article>
   {% else %}
   <div class="empty-state">
     <span>⌕</span>
     <h2>No opportunities match those filters.</h2>
-    <p>Broaden the search or remove the minimum-fit threshold.</p>
-    <a class="button button-secondary" href="/discover">Clear filters</a>
+    <p>Broaden the date, location, or match filters.</p>
+    <a class="button button-secondary" href="/discover">Reset filters</a>
   </div>
   {% endfor %}
 </div>

@@ -175,6 +175,10 @@ def _job_view(job: NormalizedJob, match: MatchResult) -> dict[str, Any]:
         "company_initial": job.company_name[0],
         "department": job.department,
         "location": job.locations[0].label if job.locations else "Location unspecified",
+        "locations": [
+            {"label": location.label, "is_remote": location.is_remote}
+            for location in job.locations
+        ],
         "workplace": job.workplace_type.value,
         "compensation": compensation,
         "score": match.score,
@@ -196,6 +200,8 @@ def _job_view(job: NormalizedJob, match: MatchResult) -> dict[str, Any]:
             job.compensation.interval if job.compensation else None
         ),
         "freshness": freshness,
+        "published_at": job.published_at,
+        "first_seen_at": job.retrieved_at,
         "provider": job.provider.value,
         "job_url": str(job.job_url),
         "apply_url": str(job.apply_url or job.job_url),
