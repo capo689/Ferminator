@@ -71,11 +71,120 @@ class Compensation(BaseModel):
     currency: str | None = None
     interval: str | None = None
     raw_text: str | None = None
+    source: str = "structured"
 
     @field_validator("currency")
     @classmethod
     def normalize_currency(cls, value: str | None) -> str | None:
         return value.upper()[:3] if value else None
+
+
+_MONEY_VALUE = r"(?:\d{1,3}(?:,\d{3})+|\d{2,3}(?:\.\d+)?)\s*[kK]?"
+_RANGE_PATTERN = re.compile(
+    rf"(?P<currency1>USD|CAD|GBP|EUR|[$£€])?\s*"
+    rf"(?P<minimum>{_MONEY_VALUE})\s*"
+    rf"(?:-|–|—|to|through)\s*"
+    rf"(?P<currency2>USD|CAD|GBP|EUR|[$£€])?\s*"
+    rf"(?P<maximum>{_MONEY_VALUE})",
+    re.IGNORECASE,
+)
+_SINGLE_PATTERN = re.compile(
+    rf"(?P<currency>USD|CAD|GBP|EUR|[$£€])\s*(?P<value>{_MONEY_VALUE})",
+    re.IGNORECASE,
+)
+_PAY_CONTEXT = (
+    "base salary",
+    "salary range",
+    "salary",
+    "annual salary",
+    "annual base",
+    "base pay",
+    "pay range",
+    "compensation range",
+    "base compensation",
+    "starting salary",
+)
+
+
+def _money_number(value: str) -> float:
+    normalized = value.replace(",", "").replace(" ", "")
+    multiplier = 1000 if normalized.casefold().endswith("k") else 1
+    if multiplier == 1000:
+        normalized = normalized[:-1]
+    return float(normalized) * multiplier
+
+
+def _currency_code(*markers: str | None) -> str:
+    marker = next((item for item in markers if item), "$").upper()
+    return {"$": "USD", "£": "GBP", "€": "EUR"}.get(marker, marker)
+
+
+def extract_compensation_from_text(value: str | None) -> Compensation | None:
+    """Extract a conservative published pay range from a complete job description."""
+    if not value:
+        return None
+    text = re.sub(r"\s+", " ", value)
+    candidates: list[tuple[int, int, Compensation]] = []
+    for match in _RANGE_PATTERN.finditer(text):
+        before = text[max(0, match.start() - 120):match.start()].casefold()
+        after = text[match.end():min(len(text), match.end() + 70)].casefold()
+        context = f"{before} {after}"
+        has_pay_context = any(term in context for term in _PAY_CONTEXT)
+        has_currency = bool(match.group("currency1") or match.group("currency2"))
+        if not (has_pay_context or has_currency):
+            continue
+        minimum = _money_number(match.group("minimum"))
+        maximum = _money_number(match.group("maximum"))
+        interval = "hour" if re.search(r"(?:per|/)\s*(?:hour|hr)\b|hourly", after) else "year"
+        if interval == "year" and (minimum < 10_000 or maximum > 2_000_000):
+            continue
+        if interval == "hour" and (minimum > 1000 or maximum > 1000):
+            continue
+        if minimum > maximum:
+            minimum, maximum = maximum, minimum
+        context_score = 3 if has_pay_context else 1
+        if "base" in context:
+            context_score += 2
+        if "total compensation" in before[-50:] or "ote" in before[-30:]:
+            context_score -= 2
+        candidates.append(
+            (
+                context_score,
+                -match.start(),
+                Compensation(
+                    minimum=minimum,
+                    maximum=maximum,
+                    currency=_currency_code(
+                        match.group("currency1"),
+                        match.group("currency2"),
+                    ),
+                    interval=interval,
+                    raw_text=match.group(0).strip(),
+                    source="description",
+                ),
+            )
+        )
+    if candidates:
+        return max(candidates, key=lambda item: (item[0], item[1]))[2]
+
+    for match in _SINGLE_PATTERN.finditer(text):
+        before = text[max(0, match.start() - 100):match.start()].casefold()
+        after = text[match.end():min(len(text), match.end() + 50)].casefold()
+        if not any(term in f"{before} {after}" for term in _PAY_CONTEXT):
+            continue
+        amount = _money_number(match.group("value"))
+        interval = "hour" if re.search(r"(?:per|/)\s*(?:hour|hr)\b|hourly", after) else "year"
+        if interval == "year" and not 10_000 <= amount <= 2_000_000:
+            continue
+        return Compensation(
+            minimum=amount,
+            maximum=amount,
+            currency=_currency_code(match.group("currency")),
+            interval=interval,
+            raw_text=match.group(0).strip(),
+            source="description",
+        )
+    return None
 
 
 class NormalizedJob(BaseModel):

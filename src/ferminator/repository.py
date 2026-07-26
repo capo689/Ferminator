@@ -323,14 +323,23 @@ class PostgresRepository:
                 """
                 select j.id, j.title, j.company_name, c.slug as company_slug,
                        j.department, j.workplace_type, j.salary_min, j.salary_max,
-                       j.salary_currency, j.job_url, j.apply_url, j.published_at,
+                       j.salary_currency, j.salary_interval, j.job_url, j.apply_url,
+                       j.published_at,
                        j.first_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
+                       substring(
+                         r.description_text from (
+                           '(?i)(?:base salary|salary range|annual salary|annual base|'
+                           || 'base pay|pay range|compensation range|base compensation|'
+                           || 'starting salary).{0,180}(?:USD|CAD|GBP|EUR|[$£€]).{0,100}'
+                         )
+                       ) as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
                        prior.history_candidates
                 from public.profiles p
                 join public.job_matches m on m.profile_id = p.id
                 join public.jobs j on j.id = m.job_id and j.active
+                join public.job_revisions r on r.id = j.current_revision_id
                 join public.ats_boards b on b.id = j.ats_board_id
                 join public.companies c on c.id = b.company_id
                 left join lateral (
@@ -396,16 +405,27 @@ class PostgresRepository:
             published = item["published_at"] or item["first_seen_at"]
             age_hours = max(0, int((now - published).total_seconds() / 3600))
             salary = None
-            if item["salary_min"] is not None:
-                upper = item["salary_max"] or item["salary_min"]
+            compensation_source = None
+            salary_min = item["salary_min"]
+            salary_max = item["salary_max"]
+            salary_currency = item["salary_currency"]
+            salary_interval = item["salary_interval"]
+            if salary_min is not None:
+                upper = salary_max or salary_min
                 symbol = (
                     "$"
-                    if item["salary_currency"] in {None, "USD"}
-                    else item["salary_currency"]
+                    if salary_currency in {None, "USD"}
+                    else {"GBP": "£", "EUR": "€"}.get(salary_currency, salary_currency)
                 )
-                lower_label = f"{symbol}{float(item['salary_min']) / 1000:,.0f}K"
-                upper_label = f"{symbol}{float(upper) / 1000:,.0f}K"
-                salary = f"{lower_label}–{upper_label}"
+                if salary_interval == "hour":
+                    lower_label = f"{symbol}{float(salary_min):,.0f}"
+                    upper_label = f"{symbol}{float(upper):,.0f}"
+                    salary = f"{lower_label}–{upper_label}/hour"
+                else:
+                    lower_label = f"{symbol}{float(salary_min) / 1000:,.0f}K"
+                    upper_label = f"{symbol}{float(upper) / 1000:,.0f}K"
+                    salary = f"{lower_label}–{upper_label}"
+                compensation_source = compensation_source or "ATS"
             result.append(
                 {
                     **item,
@@ -414,6 +434,7 @@ class PostgresRepository:
                     "company_initial": item["company_name"][0],
                     "workplace": item["workplace_type"],
                     "compensation": salary,
+                    "compensation_source": compensation_source,
                     "score": float(item["score"]),
                     "evidence": item["matched_evidence"],
                     "freshness": (
@@ -426,6 +447,27 @@ class PostgresRepository:
                 }
             )
         return result
+
+    def job_description(self, profile_slug: str, job_id: str) -> str | None:
+        """Return one current full description after verifying profile visibility."""
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                select r.description_text
+                from public.profiles p
+                join public.job_matches m on m.profile_id = p.id
+                join public.jobs j on j.id = m.job_id and j.active
+                join public.job_revisions r on r.id = j.current_revision_id
+                where p.slug = %s
+                  and j.id = %s
+                  and m.eligible
+                  and m.profile_version = p.profile_version
+                  and m.job_revision_id = j.current_revision_id
+                limit 1
+                """,
+                (profile_slug, job_id),
+            ).fetchone()
+        return row["description_text"] if row else None
 
     def role_thresholds(self, profile_slug: str) -> dict[str, int]:
         """Return saved role-family threshold overrides for a named profile."""
