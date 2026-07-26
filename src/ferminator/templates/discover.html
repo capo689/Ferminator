@@ -51,7 +51,12 @@
         </span>
       </div>
       <h2>{{ job.title }}</h2>
-      <p class="job-meta">{{ job.location }} · {{ job.compensation or "Compensation not disclosed" }}</p>
+      <p class="job-meta">
+        {{ job.location }} · {{ job.compensation or "Compensation not disclosed" }}
+        {% if job.compensation_source == "description" %}
+        <span class="source-note">· extracted from full JD</span>
+        {% endif %}
+      </p>
       {% if job.prior_application %}
       <aside class="prior-application" aria-label="Possible prior application">
         <strong>
@@ -70,6 +75,7 @@
       {% if job.concerns %}<p class="concern">{{ job.concerns[0] }}</p>{% endif %}
       <div class="actions">
         <form method="post" action="/actions/{{ job.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
+        <a class="text-action" href="/fit/{{ job.id }}#full-job-description">Full JD + copy</a>
         <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
       </div>
       <div class="feedback-actions" aria-label="Rate this match">

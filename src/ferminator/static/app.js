@@ -28,6 +28,28 @@ document.querySelectorAll(".company-logo[data-initial] img").forEach((image) => 
   });
 });
 
+document.querySelectorAll("[data-copy-target]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const target = document.getElementById(button.dataset.copyTarget);
+    if (!target) return;
+    const originalLabel = button.dataset.copyLabel || button.textContent;
+    try {
+      await navigator.clipboard.writeText(target.textContent.trim());
+      button.textContent = "Copied complete JD";
+    } catch (_error) {
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      button.textContent = "JD selected — copy now";
+    }
+    window.setTimeout(() => {
+      button.textContent = originalLabel;
+    }, 2600);
+  });
+});
+
 const roleControl = document.querySelector("[data-role-control]");
 if (roleControl) {
   const cards = [...roleControl.querySelectorAll("[data-role-family]")];
