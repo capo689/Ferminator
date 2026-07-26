@@ -67,6 +67,7 @@ def test_profile_renders_role_threshold_control_and_copy_family():
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
     assert "65%" in response.text
+    assert "/static/app.js?v=0.4.0" in response.text
 
 
 def test_demo_role_threshold_update_redirects_without_mutation():
