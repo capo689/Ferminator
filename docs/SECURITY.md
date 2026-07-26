@@ -2,7 +2,9 @@
 
 ## Data classification
 
-- Public: job listings, public company and ATS metadata
+- Public: individual job listings and their originating public application URLs
+- Proprietary: the aggregated, validated company directory, ATS board identifiers,
+  source health, and validation evidence
 - Private: career profiles, target constraints, scores, saved jobs, notes,
   application state, contacts, and email destinations
 - Secret: database credentials, SMTP credentials, deploy credentials
@@ -20,12 +22,17 @@ Production mode refuses to start with demo mode or authentication disabled.
 Postgres RLS is enabled for every application table; ingestion writes remain
 service-role only.
 
+The complete company and ATS registry exists only in protected Supabase tables.
+The `anon` and `authenticated` Data API roles have no privileges on those
+tables. Logged-in application users may browse the directory through the
+server-rendered `/companies` page, but the repository, static assets, and
+unauthenticated endpoints contain no bulk registry artifact.
+
 ## Private-alpha posture
 
-Local development may run without authentication. A hosted live-data
-environment must use authenticated profile ownership before containing private
-profile or campaign data. Until that gate passes, hosted preview remains
-clearly labeled demo data only.
+Local development may run without authentication. Hosted live-data environments
+must refuse to start with authentication disabled. The current private alpha
+uses rate-limited shared-password authentication.
 
 ## Retention
 
@@ -42,5 +49,5 @@ Backups expire according to the configured Supabase retention window.
 
 V1 has no generative-AI API and therefore no token-cost or prompt-injection
 surface. ATS requests are curated, rate-limited, retried only within bounds,
-and never accept arbitrary user-provided hosts. Scans use one concurrency group
-and a 30-minute workflow timeout.
+and never accept arbitrary user-provided hosts. Scans use one concurrency group,
+two deterministic registry shards, and a 45-minute workflow timeout.

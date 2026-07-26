@@ -8,7 +8,7 @@ Render's temporary filesystem.
 
 These sources belong in GitHub and are loaded as a small retrieval corpus:
 
-- `config/companies.yaml`: company and ATS board registry;
+- the company and ATS board registry: protected Supabase tables, never local RAG;
 - `profiles/*.md`: one user-confirmed career evidence profile per person;
 - profile role families, aliases, exclusions, thresholds, and search cadence;
 - `calibration/`: reviewed job examples and scoring labels;

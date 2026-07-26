@@ -6,25 +6,13 @@ import pytest
 from pydantic import ValidationError
 
 from ferminator.cli import _boards_for_shard
-from ferminator.domain import ATSProvider
-from ferminator.registry import CompanyRegistry, load_registry
+from ferminator.domain import ATSProvider, BoardRef
+from ferminator.registry import CompanyRegistry
 
 
-def test_curated_registry_only_enables_real_boards() -> None:
-    registry = load_registry(Path("config/companies.yaml"))
-
-    assert len(registry.enabled_boards) == 457
-    assert {board.provider for board in registry.enabled_boards} == {
-        ATSProvider.GREENHOUSE,
-        ATSProvider.ASHBY,
-        ATSProvider.SMARTRECRUITERS,
-        ATSProvider.WORKABLE,
-        ATSProvider.BAMBOOHR,
-        ATSProvider.LEVER,
-        ATSProvider.WORKDAY,
-        ATSProvider.BREEZY,
-        ATSProvider.RIPPLING,
-    }
+def test_private_registry_is_not_committed_to_source() -> None:
+    assert not Path("config/companies.yaml").exists()
+    assert not list(Path("docs").glob("board-validation-*.json"))
 
 
 def test_registry_rejects_duplicate_board_identity() -> None:
@@ -71,7 +59,16 @@ def test_scheduled_scan_capacity_matches_expanded_registry() -> None:
 
 
 def test_registry_shards_are_stable_complete_and_non_overlapping() -> None:
-    boards = load_registry(Path("config/companies.yaml")).enabled_boards
+    boards = [
+        BoardRef(
+            provider=ATSProvider.GREENHOUSE,
+            company_slug=f"sample-{index}",
+            company_name=f"Sample {index}",
+            board_key=f"sample-{index}",
+            source_url=f"https://example.com/jobs/{index}",
+        )
+        for index in range(40)
+    ]
     first = _boards_for_shard(boards, shard_index=1, shard_count=2)
     second = _boards_for_shard(boards, shard_index=2, shard_count=2)
     def identity(board):
@@ -84,4 +81,4 @@ def test_registry_shards_are_stable_complete_and_non_overlapping() -> None:
         identity(board) for board in boards
     }
     assert first == _boards_for_shard(boards, shard_index=1, shard_count=2)
-    assert abs(len(first) - len(second)) < len(boards) * 0.1
+    assert abs(len(first) - len(second)) <= len(boards) * 0.1

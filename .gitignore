@@ -21,3 +21,8 @@ htmlcov/
 .env.*
 !.env.example
 backups/
+private/
+config/companies.*
+*company-directory*.csv
+*company-directory*.json
+*board-validation*.json
