@@ -2,7 +2,7 @@ services:
   - type: web
     name: ferminator-web
     runtime: docker
-    plan: free
+    plan: starter
     branch: main
     healthCheckPath: /healthz
     autoDeployTrigger: checksPass

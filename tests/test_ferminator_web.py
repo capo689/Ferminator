@@ -68,11 +68,21 @@ def test_request_id_is_sanitized():
 
 def test_today_renders_personal_briefing():
     with TestClient(app) as client:
-        response = client.get("/")
+        response = client.get(
+            "/",
+            headers={
+                "host": "ferminator-web.onrender.com",
+                "x-forwarded-proto": "http",
+            },
+        )
 
     assert response.status_code == 200
     assert "Good morning, Adam" in response.text
     assert "clearly labeled sample opportunities" in response.text
+    assert 'href="/static/app.css' in response.text
+    assert 'src="/static/app.js' in response.text
+    assert "http://ferminator-web.onrender.com/static/" not in response.text
+    assert "company-anthropic.svg" not in response.text
 
 
 def test_discover_defaults_to_controlled_review_tier():

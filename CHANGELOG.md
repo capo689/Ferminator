@@ -47,12 +47,22 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
   workflow and alert.
 - Monitor logs now distinguish transient transport failures from application
   health or database-readiness failures.
+- The Render Blueprint now records the live Starter service tier so a future
+  Blueprint sync cannot silently downgrade the production web service.
+
+### Fixed
+
+- Production browser assets now use root-relative HTTPS-safe URLs behind
+  Render's TLS proxy, restoring the complete dashboard interface instead of
+  unstyled HTML.
+- Today-page company marks now use dependable initials instead of requesting
+  nonexistent per-company image files.
 
 ### Production-readiness changes required before public launch
 
 This is a living release gate. Items stay here until completed and verified:
 
-- [ ] Move the web service from Render's sleeping free tier to an appropriate
+- [x] Move the web service from Render's sleeping free tier to an appropriate
   paid instance before public launch.
 - [ ] After that upgrade, reduce the cold-start allowance to a tighter
   production service-level objective; do not let the alpha tolerance conceal

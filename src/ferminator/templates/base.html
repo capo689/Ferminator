@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Ferminator personal career intelligence">
   <title>{% block title %}Ferminator{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='/assets/fonts/font-face.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', path='/design-tokens.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}?v={{ version }}">
-  <script src="{{ url_for('static', path='/app.js') }}?v={{ version }}" defer></script>
+  {# Root-relative assets stay HTTPS behind Render's TLS-terminating proxy. #}
+  <link rel="stylesheet" href="/static/assets/fonts/font-face.css">
+  <link rel="stylesheet" href="/static/design-tokens.css">
+  <link rel="stylesheet" href="/static/app.css?v={{ version }}">
+  <script src="/static/app.js?v={{ version }}" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary">
       <a class="brand" href="/">
-        <img src="{{ url_for('static', path='/assets/svg/ferminator-wordmark-dark.svg') }}"
+        <img src="/static/assets/svg/ferminator-wordmark-dark.svg"
              alt="Ferminator" width="148" height="44">
       </a>
       <nav class="primary-nav">
@@ -46,7 +47,7 @@
     </aside>
     <div class="mobile-bar">
       <a class="brand" href="/">
-        <img src="{{ url_for('static', path='/assets/svg/ferminator-wordmark-dark.svg') }}"
+        <img src="/static/assets/svg/ferminator-wordmark-dark.svg"
              alt="Ferminator" width="140" height="42">
       </a>
       <button class="menu-button" type="button" aria-label="Open navigation" aria-expanded="false">Menu</button>
