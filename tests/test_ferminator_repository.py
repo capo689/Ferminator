@@ -167,6 +167,9 @@ def test_web_matches_extracts_compensation_from_stored_full_description() -> Non
 
     assert match["compensation"] is None
     assert match["compensation_text"].startswith("The annual base")
+    sql = connection.execute.call_args.args[0]
+    assert "r.description_text as compensation_text" in sql
+    assert "substring(" not in sql
 
 
 def test_job_description_uses_last_complete_score_set_during_rescan() -> None:

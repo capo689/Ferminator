@@ -363,13 +363,7 @@ class PostgresRepository:
                        j.published_at,
                        j.first_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
-                       substring(
-                         r.description_text from (
-                           '(?i)(?:base salary|salary range|annual salary|annual base|'
-                           || 'base pay|pay range|compensation range|base compensation|'
-                           || 'starting salary).{0,180}(?:USD|CAD|GBP|EUR|[$£€]).{0,100}'
-                         )
-                       ) as compensation_text,
+                       r.description_text as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
                        prior.history_candidates
                 from effective_profile p
