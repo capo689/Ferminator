@@ -4,22 +4,70 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
+from collections.abc import Callable
 
 import httpx
 
 
-def verify(base_url: str, *, password: str | None = None) -> list[str]:
+def _get_with_cold_start_retry(
+    client: httpx.Client,
+    url: str,
+    *,
+    attempts: int,
+    retry_delay_seconds: float,
+    sleep: Callable[[float], None],
+) -> httpx.Response:
+    """Wake a sleeping free-tier service without hiding a sustained outage."""
+    last_error: httpx.TransportError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return client.get(url)
+        except httpx.TransportError as exc:
+            last_error = exc
+            if attempt == attempts:
+                break
+            print(
+                f"Wake-up attempt {attempt}/{attempts} failed with "
+                f"{type(exc).__name__}; retrying in {retry_delay_seconds:g}s",
+                file=sys.stderr,
+            )
+            sleep(retry_delay_seconds)
+    assert last_error is not None
+    raise last_error
+
+
+def verify(
+    base_url: str,
+    *,
+    password: str | None = None,
+    attempts: int = 3,
+    retry_delay_seconds: float = 10,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[str]:
     base = base_url.rstrip("/")
     auth = ("alpha", password) if password else None
     passed = []
     with httpx.Client(timeout=20, follow_redirects=False) as client:
-        health = client.get(f"{base}/healthz")
+        health = _get_with_cold_start_retry(
+            client,
+            f"{base}/healthz",
+            attempts=attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            sleep=sleep,
+        )
         health.raise_for_status()
         if health.json().get("status") != "ok":
             raise RuntimeError("Health endpoint returned a non-ok state")
         passed.append("healthz")
 
-        ready = client.get(f"{base}/readyz")
+        ready = _get_with_cold_start_retry(
+            client,
+            f"{base}/readyz",
+            attempts=attempts,
+            retry_delay_seconds=retry_delay_seconds,
+            sleep=sleep,
+        )
         ready.raise_for_status()
         if ready.json().get("status") != "ready":
             raise RuntimeError("Readiness endpoint returned a non-ready state")

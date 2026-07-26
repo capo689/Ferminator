@@ -92,6 +92,11 @@ The current evidence-based release decision is recorded in
 completed engineering from the hosted checks that require owner account and
 credential choices.
 
+Material product changes and the living public-production release gate are
+maintained in [CHANGELOG.md](CHANGELOG.md). A change is not production-ready
+merely because it is deployed to the private alpha; every unchecked item in
+that gate must be explicitly resolved or accepted before public launch.
+
 ## Acknowledgments
 
 Special thanks to **Fermin Romero III** for the idea that inspired Ferminator.

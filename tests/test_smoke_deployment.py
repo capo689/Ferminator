@@ -32,6 +32,20 @@ class FakeClient:
         )
 
 
+class ColdStartClient(FakeClient):
+    health_attempts = 0
+
+    def get(self, url, **kwargs):
+        if url.endswith("/healthz"):
+            self.health_attempts += 1
+            if self.health_attempts < 3:
+                raise httpx.ReadTimeout(
+                    "sleeping service",
+                    request=httpx.Request("GET", url),
+                )
+        return super().get(url, **kwargs)
+
+
 def test_deployment_smoke_checks_authenticated_operational_path(monkeypatch):
     monkeypatch.setattr(httpx, "Client", FakeClient)
 
@@ -41,3 +55,42 @@ def test_deployment_smoke_checks_authenticated_operational_path(monkeypatch):
         "dashboard",
         "ops",
     ]
+
+
+def test_deployment_smoke_tolerates_bounded_cold_start(monkeypatch):
+    monkeypatch.setattr(httpx, "Client", ColdStartClient)
+    delays = []
+
+    assert verify(
+        "https://example.com/",
+        attempts=4,
+        retry_delay_seconds=10,
+        sleep=delays.append,
+    ) == ["healthz", "readyz"]
+    assert delays == [10, 10]
+
+
+def test_deployment_smoke_still_fails_after_retry_budget(monkeypatch):
+    class SleepingClient(FakeClient):
+        def get(self, url, **kwargs):
+            raise httpx.ReadTimeout(
+                "still sleeping",
+                request=httpx.Request("GET", url),
+            )
+
+    monkeypatch.setattr(httpx, "Client", SleepingClient)
+    delays = []
+
+    try:
+        verify(
+            "https://example.com/",
+            attempts=3,
+            retry_delay_seconds=5,
+            sleep=delays.append,
+        )
+    except httpx.ReadTimeout:
+        pass
+    else:
+        raise AssertionError("Expected retry exhaustion to preserve the outage")
+
+    assert delays == [5, 5]
