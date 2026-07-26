@@ -256,7 +256,7 @@ search:
     - id: product-marketing-narrative
       label: Product Marketing & Narrative
       tier: edge
-      threshold: 50
+      threshold: 60
       description: Product positioning and narrative roles that require unusually strong fit.
       aliases:
         - Product Marketing Manager
@@ -338,6 +338,7 @@ search:
       - Partner Development
       - Public Relations
       - PR Director
+      - Public Affairs
       - Security
       - Compensation Operations
       - Travel Operations
@@ -350,6 +351,7 @@ search:
       - Forward Deployed Engineer
       - Applied AI Engineer
       - AI Enablement Engineer
+      - AI Deployment Engineer
       - Agentic AI Engineer
       - Salesforce Administrator
 notifications:
