@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import median
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -617,13 +617,40 @@ async def discover(
 async def pipeline(request: Request):
     context = _context(request, "pipeline")
     if get_settings().demo_mode:
-        context["stages"] = demo_pipeline(scored_jobs(context["profile"]))
+        board = demo_pipeline(scored_jobs(context["profile"]))
+        for jobs in board.values():
+            for job in jobs:
+                job.update(
+                    {
+                        "state": next(
+                            state.casefold()
+                            for state, items in board.items()
+                            if job in items
+                        ),
+                        "priority": 0,
+                        "notes": job.get("task", ""),
+                        "follow_up_at": None,
+                        "overdue": False,
+                        "days_in_stage": 0,
+                        "active": True,
+                        "description_text": "",
+                    }
+                )
+        context["pipeline"] = {"stages": board, "terminal": [], "events": []}
     else:
         repository = _repository()
         try:
-            context["stages"] = repository.pipeline(context["profile"].profile.slug)
+            context["pipeline"] = repository.pipeline(context["profile"].profile.slug)
         finally:
             repository.close()
+    context.update(
+        {
+            "changed_job": request.query_params.get("changed"),
+            "changed_from": request.query_params.get("from"),
+            "changed_to": request.query_params.get("to"),
+            "message": request.query_params.get("message"),
+        }
+    )
     return templates.TemplateResponse(request, "pipeline.html", context=context)
 
 
@@ -644,14 +671,22 @@ async def fit_lens(request: Request, job_id: str):
                 context["profile"].profile.slug,
                 job_id,
             )
+            pipeline_data = repository.pipeline(context["profile"].profile.slug)
         finally:
             repository.close()
     job = next((item for item in matches if item["id"] == job_id), None)
+    if job is None and not get_settings().demo_mode:
+        pipeline_jobs = [
+            item
+            for jobs in pipeline_data["stages"].values()
+            for item in jobs
+        ] + pipeline_data["terminal"]
+        job = next((item for item in pipeline_jobs if item["id"] == job_id), None)
     if job is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     job = _apply_visible_compensation(job)
     if not get_settings().demo_mode:
-        job["description_text"] = description_text or ""
+        job["description_text"] = description_text or job.get("description_text", "")
     if not job["evidence"]:
         job["evidence"] = [job["explanation"]]
     component_labels = {
@@ -712,13 +747,107 @@ async def update_action(request: Request, job_id: str, state: str):
         raise HTTPException(status_code=403, detail="Cross-origin action rejected")
     repository = _repository()
     try:
-        repository.set_action(_profile().profile.slug, job_id, state)
+        change = repository.set_action(_profile().profile.slug, job_id, state)
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
         repository.close()
-    destination = "/pipeline" if state != "dismissed" else "/"
+    destination = (
+        "/pipeline?"
+        f"changed={quote(job_id)}&from={quote(change['from_state'] or '')}"
+        f"&to={quote(state)}&message={quote(f'Moved to {state.title()}')}"
+    )
     return RedirectResponse(destination, status_code=303)
+
+
+def _same_origin(request: Request) -> None:
+    origin = request.headers.get("origin")
+    if origin and origin != str(request.base_url).rstrip("/"):
+        raise HTTPException(status_code=403, detail="Cross-origin action rejected")
+
+
+async def _form_fields(request: Request) -> dict[str, str]:
+    body = (await request.body()).decode("utf-8", errors="replace")
+    return {key: values[-1] for key, values in parse_qs(body).items()}
+
+
+@app.post("/pipeline-actions/{job_id}/details")
+async def update_action_details(request: Request, job_id: str):
+    if get_settings().demo_mode:
+        return RedirectResponse("/pipeline", status_code=303)
+    _same_origin(request)
+    fields = await _form_fields(request)
+    follow_up_at = None
+    if fields.get("follow_up_at"):
+        try:
+            follow_up_at = datetime.fromisoformat(fields["follow_up_at"]).replace(
+                tzinfo=UTC
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid follow-up date") from exc
+    try:
+        priority = int(fields.get("priority", "0"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid priority") from exc
+    close_after_save = fields.get("close") == "true"
+    repository = _repository()
+    try:
+        repository.update_action_details(
+            _profile().profile.slug,
+            job_id,
+            notes=fields.get("notes", ""),
+            priority=priority,
+            follow_up_at=follow_up_at,
+            closed_reason=fields.get("closed_reason"),
+        )
+        if close_after_save:
+            repository.set_action(_profile().profile.slug, job_id, "closed")
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        repository.close()
+    return RedirectResponse(
+        f"/pipeline?message={quote('Job details updated')}", status_code=303
+    )
+
+
+@app.post("/pipeline-actions/{job_id}/unsave")
+async def unsave_action(request: Request, job_id: str):
+    if get_settings().demo_mode:
+        return RedirectResponse("/pipeline", status_code=303)
+    _same_origin(request)
+    repository = _repository()
+    try:
+        previous = repository.unsave_action(_profile().profile.slug, job_id)
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        repository.close()
+    return RedirectResponse(
+        "/pipeline?"
+        f"changed={quote(job_id)}&from={quote(previous)}&to="
+        f"&message={quote('Removed from pipeline')}",
+        status_code=303,
+    )
+
+
+@app.post("/pipeline-actions/{job_id}/undo")
+async def undo_action(request: Request, job_id: str):
+    if get_settings().demo_mode:
+        return RedirectResponse("/pipeline", status_code=303)
+    _same_origin(request)
+    repository = _repository()
+    try:
+        restored = repository.undo_action(_profile().profile.slug, job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        repository.close()
+    label = restored.title() if restored else "Discover"
+    return RedirectResponse(
+        f"/pipeline?message={quote(f'Undone — restored to {label}')}",
+        status_code=303,
+    )
 
 
 @app.post("/feedback/{job_id}/{verdict}")
@@ -748,6 +877,36 @@ async def update_feedback(
     finally:
         repository.close()
     return RedirectResponse("/discover", status_code=303)
+
+
+@app.post("/pipeline-actions/{job_id}/dismiss")
+async def dismiss_pipeline_action(request: Request, job_id: str):
+    """Dismiss a pipeline job and capture an explicit poor-fit quality signal."""
+    if get_settings().demo_mode:
+        return RedirectResponse("/pipeline", status_code=303)
+    _same_origin(request)
+    repository = _repository()
+    try:
+        try:
+            repository.set_match_feedback(
+                _profile().profile.slug,
+                job_id,
+                "wrong",
+                reason="Dismissed from pipeline as poor fit",
+            )
+        except LookupError:
+            # A closed listing can remain in the durable pipeline after its
+            # current match is no longer feedback-eligible.
+            pass
+        repository.set_action(_profile().profile.slug, job_id, "dismissed")
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        repository.close()
+    return RedirectResponse(
+        f"/pipeline?message={quote('Dismissed and matcher feedback recorded')}",
+        status_code=303,
+    )
 
 
 @app.get("/intelligence", response_class=HTMLResponse)

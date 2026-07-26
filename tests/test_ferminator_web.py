@@ -81,7 +81,7 @@ def test_profile_renders_role_threshold_control_and_copy_family():
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
     assert "65%" in response.text
-    assert "/static/app.js?v=0.5.0" in response.text
+    assert "/static/app.js?v=0.6.0" in response.text
 
 
 def test_demo_role_threshold_update_redirects_without_mutation():
@@ -101,6 +101,20 @@ def test_all_primary_pages_render():
             response = client.get(path)
             assert response.status_code == 200, path
             assert "Ferminator" in response.text
+
+
+def test_pipeline_exposes_reversible_movement_and_campaign_controls():
+    with TestClient(app) as client:
+        response = client.get("/pipeline")
+
+    assert response.status_code == 200
+    assert "data-pipeline-board" in response.text
+    assert "data-pipeline-search" in response.text
+    assert "data-move-select" in response.text
+    assert "Unsave" in response.text
+    assert "Archive" in response.text
+    assert "Close with outcome" in response.text
+    assert "Follow-up" in response.text
 
 
 def test_intelligence_uses_calculated_snapshot_not_fake_thirty_day_claims():
