@@ -2,8 +2,21 @@ name: Scheduled ATS scan
 
 on:
   workflow_dispatch:
+    inputs:
+      shard:
+        description: Registry shard to scan
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - "1"
+          - "2"
   schedule:
-    - cron: "17 2,14 * * *"
+    - cron: "5 8,16 * * *"
+      timezone: America/Los_Angeles
+    - cron: "35 8,16 * * *"
+      timezone: America/Los_Angeles
 
 concurrency:
   group: ferminator-scan
@@ -15,7 +28,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +51,13 @@ jobs:
       - name: Ingest enabled boards
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
-        run: ferminator scan
+          REQUESTED_SHARD: ${{ github.event_name == 'workflow_dispatch' && inputs.shard || (github.event.schedule == '35 8,16 * * *' && '2' || '1') }}
+        run: |
+          if [ "$REQUESTED_SHARD" = "all" ]; then
+            ferminator scan --workers 16
+          else
+            ferminator scan --workers 16 --shard-index "$REQUESTED_SHARD" --shard-count 2
+          fi
 
       - name: Publish scan summary
         if: always()
