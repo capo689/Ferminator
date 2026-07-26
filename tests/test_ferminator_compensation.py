@@ -30,6 +30,19 @@ def test_extracts_k_notation_and_hourly_ranges() -> None:
     assert (hourly.minimum, hourly.maximum, hourly.interval) == (72, 96, "hour")
 
 
+def test_extracts_range_split_across_hosted_board_html() -> None:
+    compensation = extract_compensation_from_text(
+        '<div class="title">The annual salary range for this full-time position is</div>'
+        '<div class="pay-range"><span>$66,000</span>'
+        '<span class="divider">&amp;mdash;</span><span>$124,000 USD</span></div>'
+    )
+
+    assert compensation is not None
+    assert compensation.minimum == 66000
+    assert compensation.maximum == 124000
+    assert compensation.interval == "year"
+
+
 def test_does_not_mistake_benefit_numbers_for_salary() -> None:
     assert extract_compensation_from_text(
         "Benefits include a $1,500 learning stipend and a 401(k) match."

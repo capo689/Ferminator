@@ -124,7 +124,13 @@ def extract_compensation_from_text(value: str | None) -> Compensation | None:
     """Extract a conservative published pay range from a complete job description."""
     if not value:
         return None
-    text = re.sub(r"\s+", " ", html.unescape(value))
+    decoded = value
+    for _ in range(3):
+        unescaped = html.unescape(decoded)
+        if unescaped == decoded:
+            break
+        decoded = unescaped
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", decoded))
     candidates: list[tuple[int, int, Compensation]] = []
     for match in _RANGE_PATTERN.finditer(text):
         before = text[max(0, match.start() - 120) : match.start()].casefold()
