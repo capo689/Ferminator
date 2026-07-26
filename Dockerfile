@@ -18,7 +18,6 @@ RUN pip install --prefix=/install --require-hashes -r requirements.lock
 COPY pyproject.toml README.md ./
 COPY src/ src/
 COPY profiles/ profiles/
-COPY config/ config/
 RUN pip install --prefix=/install --no-deps .
 
 FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
@@ -26,7 +25,6 @@ FROM python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5
 WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/profiles /app/profiles
-COPY --from=builder /build/config /app/config
 
 # Pin the runtime UID and keep the image read-only compatible.
 RUN useradd --create-home --uid 1000 --shell /bin/bash ferminator
