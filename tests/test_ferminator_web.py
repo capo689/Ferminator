@@ -64,11 +64,16 @@ def test_description_compensation_is_added_only_to_visible_result() -> None:
             "compensation": None,
             "compensation_source": None,
             "compensation_text": "The annual base salary range is $175,000–$215,000.",
+            "concerns": [
+                "Compensation is not disclosed.",
+                "Confirm travel expectations.",
+            ],
         }
     )
 
     assert visible["compensation"] == "$175K–$215K"
     assert visible["compensation_source"] == "description"
+    assert visible["concerns"] == ["Confirm travel expectations."]
     assert "compensation_text" not in visible
 
 
@@ -81,7 +86,7 @@ def test_profile_renders_role_threshold_control_and_copy_family():
     assert "Advertising Copywriter" in response.text
     assert "Copywriting" in response.text
     assert "65%" in response.text
-    assert "/static/app.js?v=0.6.2" in response.text
+    assert "/static/app.js?v=0.6.3" in response.text
 
 
 def test_demo_role_threshold_update_redirects_without_mutation():
