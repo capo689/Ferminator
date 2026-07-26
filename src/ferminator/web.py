@@ -6,10 +6,10 @@ import logging
 import time
 from collections import Counter, defaultdict, deque
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import median
-from urllib.parse import parse_qs, quote, urlsplit
+from urllib.parse import parse_qs, quote, urlencode, urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -18,7 +18,14 @@ from fastapi.templating import Jinja2Templates
 
 from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
+from ferminator.display_score import match_display
 from ferminator.domain import extract_compensation_from_text
+from ferminator.geography import (
+    is_remote_job,
+    job_distance_miles,
+    location_category,
+    lookup_zip,
+)
 from ferminator.matching import matched_role_family
 from ferminator.observability import configure_logging, safe_request_id
 from ferminator.profiles import CareerProfile, load_profile
@@ -588,31 +595,144 @@ async def today(request: Request):
 async def discover(
     request: Request,
     q: str = Query(default=""),
-    remote: bool = Query(default=False),
+    sort: str = Query(default="relevance"),
+    posted: str = Query(default="anytime"),
+    location_mode: str | None = Query(default=None),
+    zip_code: str | None = Query(default=None, alias="zip"),
+    radius: int | None = Query(default=None),
     min_score: int | None = Query(default=None, ge=0, le=100),
 ):
     context = _context(request, "discover")
-    effective_minimum = (
-        min_score
-        if min_score is not None
-        else 0
-    )
-    matches = _matches(context["profile"], minimum_score=effective_minimum)
+    profile = context["profile"]
+    rules = profile.search
+    sort = sort if sort in {"relevance", "newest"} else "relevance"
+    posted = posted if posted in {"anytime", "30d", "7d", "24h"} else "anytime"
+    location_mode = location_mode or rules.default_location_mode
+    if location_mode not in {"remote", "near", "remote_or_near", "anywhere"}:
+        location_mode = rules.default_location_mode
+    zip_code = (zip_code or rules.default_zip).strip()
+    radius = radius if radius in {10, 25, 50, 100} else rules.default_radius_miles
+    origin = lookup_zip(zip_code)
+    zip_error = None if origin else "Enter a valid five-digit US ZIP code."
+    effective_minimum = min_score or 0
+
+    matches = _matches(profile, minimum_score=0)
+    for item in matches:
+        display = match_display(item["score"])
+        item.update(
+            {
+                "display_score": display.score,
+                "display_label": display.label,
+                "display_band": display.band,
+            }
+        )
     if q:
         needle = q.casefold()
         matches = [
             item for item in matches
             if needle in f"{item['title']} {item['company']} {item['department']}".casefold()
         ]
-    if remote:
-        matches = [item for item in matches if item["workplace"] == "remote"]
+    if effective_minimum:
+        matches = [
+            item for item in matches if item["display_score"] >= effective_minimum
+        ]
+    if posted != "anytime":
+        window = {"30d": timedelta(days=30), "7d": timedelta(days=7), "24h": timedelta(hours=24)}
+        cutoff = datetime.now(UTC) - window[posted]
+        matches = [
+            item
+            for item in matches
+            if (item.get("published_at") or item.get("first_seen_at")) >= cutoff
+        ]
+    for item in matches:
+        distance = job_distance_miles(item, origin) if origin else None
+        category, category_label = location_category(item, distance, radius)
+        item.update(
+            {
+                "distance_miles": round(distance) if distance is not None else None,
+                "location_category": category,
+                "location_category_label": category_label,
+            }
+        )
+    if location_mode != "anywhere":
+        matches = [
+            item
+            for item in matches
+            if (
+                location_mode == "remote"
+                and is_remote_job(item)
+                or location_mode == "near"
+                and item["distance_miles"] is not None
+                and item["distance_miles"] <= radius
+                or location_mode == "remote_or_near"
+                and (
+                    is_remote_job(item)
+                    or item["distance_miles"] is not None
+                    and item["distance_miles"] <= radius
+                )
+            )
+        ]
+    def date_value(item: dict) -> datetime:
+        return item.get("published_at") or item.get("first_seen_at")
+
+    if sort == "newest":
+        matches.sort(key=lambda item: (date_value(item), item["score"]), reverse=True)
+    else:
+        matches.sort(key=lambda item: (item["score"], date_value(item)), reverse=True)
+
+    params = {
+        "q": q,
+        "sort": sort,
+        "posted": posted,
+        "location_mode": location_mode,
+        "zip": zip_code,
+        "radius": radius,
+        "min_score": effective_minimum,
+    }
+    chips = []
+    labels = {
+        "30d": "Last 30 days",
+        "7d": "Last 7 days",
+        "24h": "Last 24 hours",
+        "remote": "Remote",
+        "near": f"Within {radius} mi of {zip_code}",
+        "remote_or_near": f"Remote or within {radius} mi",
+    }
+    defaults = {
+        "q": "",
+        "sort": "relevance",
+        "posted": "anytime",
+        "location_mode": rules.default_location_mode,
+        "zip": rules.default_zip,
+        "radius": rules.default_radius_miles,
+        "min_score": 0,
+    }
+    for key, value in params.items():
+        radius_is_inactive = (
+            key == "radius" and location_mode not in {"near", "remote_or_near"}
+        )
+        if value == defaults[key] or radius_is_inactive:
+            continue
+        chip_params = {**params, key: defaults[key]}
+        label = (
+            f"Search: {value}" if key == "q"
+            else "Newest first" if key == "sort"
+            else labels.get(str(value), f"{key.replace('_', ' ').title()}: {value}")
+        )
+        chips.append({"label": label, "url": f"/discover?{urlencode(chip_params)}"})
     context.update(
         {
             "matches": matches,
             "query": q,
-            "remote": remote,
+            "sort": sort,
+            "posted": posted,
+            "location_mode": location_mode,
+            "zip_code": zip_code,
+            "zip_error": zip_error,
+            "radius": radius,
             "min_score": effective_minimum,
-            "strong_minimum": context["profile"].notifications.minimum_score,
+            "chips": chips,
+            "strong_minimum": profile.notifications.minimum_score,
         }
     )
     return templates.TemplateResponse(request, "discover.html", context=context)

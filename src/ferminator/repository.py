@@ -366,6 +366,7 @@ class PostgresRepository:
                        feedback.verdict as feedback_verdict,
                        r.description_text as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
+                       locations.records as locations,
                        prior.history_candidates
                 from effective_profile p
                 join effective_matches m on m.profile_id = p.id
@@ -383,6 +384,19 @@ class PostgresRepository:
                   ) desc nulls last, is_primary desc, is_remote desc, label
                   limit 1
                 ) l on true
+                left join lateral (
+                  select jsonb_agg(jsonb_build_object(
+                    'label', jl.label,
+                    'city', jl.city,
+                    'region', jl.region,
+                    'country', jl.country,
+                    'country_code', jl.country_code,
+                    'is_primary', jl.is_primary,
+                    'is_remote', jl.is_remote
+                  ) order by jl.is_primary desc, jl.is_remote desc, jl.label) as records
+                  from public.job_locations jl
+                  where jl.job_id = j.id
+                ) locations on true
                 left join lateral (
                   select f.verdict
                   from public.match_feedback f
