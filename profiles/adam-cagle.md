@@ -41,6 +41,11 @@ search:
         - AI Adoption
         - AI Education
         - AI Customer Education
+        - Technology Enablement
+        - AI Learning
+        - AI Training
+        - AI Outcomes
+        - AI Success
     - id: ai-transformation-operations
       label: AI Transformation & Operations
       tier: primary
@@ -61,6 +66,12 @@ search:
         - AI Workflow Automation
         - AI Automation
         - LLM Operations
+        - AI Context Operations
+        - AI Deployment
+        - AI Workflow
+        - AI Production
+        - AI Automation Partner
+        - Automation & AI
     - id: ai-content-systems
       label: AI Content Systems
       tier: primary
@@ -73,6 +84,10 @@ search:
         - AI Content Design
         - Knowledge Operations
         - Brand Voice AI
+        - Conversational AI Manager
+        - AI Knowledge Base
+        - Knowledge Base & Conversational AI
+        - AI Editorial
     - id: creative-ai-technology
       label: Creative AI & Technology
       tier: primary
@@ -153,6 +168,22 @@ search:
         - Messaging Strategist
         - Brand Voice
         - Product Narrative
+        - Editorial Content
+        - Editorial Lead
+        - Head of Editorial
+        - Head of Content
+        - Content Marketing Manager
+        - Content Marketing Director
+        - Brand Content
+        - Brand Marketing Lead
+        - Head of Brand Marketing
+        - Communications Lead
+        - Communications Manager
+        - Head of Communications
+        - Digital Communications
+        - Executive Communications
+        - CEO Communications
+        - Content Writer
     - id: technical-content-education
       label: Technical Content & Education
       tier: adjacent
@@ -167,6 +198,10 @@ search:
         - Developer Advocacy
         - Developer Relations
         - Customer Education
+        - Learning Experience Designer
+        - Learning Content
+        - Training Content
+        - Product Education
     - id: ai-search
       label: AI Search & Discoverability
       tier: primary
@@ -202,6 +237,12 @@ search:
         - Knowledge Management
         - Content Design
         - Content Designer
+        - Content Governance
+        - Creative Producer
+        - Creative Production
+        - Campaign Operations
+        - Editorial Operations
+        - Knowledge Base Manager
     - id: consulting-transformation
       label: AI & Digital Consulting
       tier: adjacent
@@ -224,6 +265,18 @@ search:
         - Product Marketing Lead
         - Product Narrative Lead
         - Go-to-Market Narrative
+        - Head of Product Marketing
+        - VP Product Marketing
+        - Vice President Product Marketing
+        - Product Marketing
+        - Growth Marketing Director
+        - Director, Growth Marketing
+        - Director of Growth Marketing
+        - Head of Growth Marketing
+        - Head of Growth & Marketing
+        - Digital Marketing Strategist
+        - B2B Marketing Manager
+        - Integrated Marketing Manager
     - id: agency-creative-leadership
       label: Agency & Creative Leadership
       tier: edge
@@ -236,6 +289,9 @@ search:
         - Integrated Creative Director
         - Campaign Strategist
         - Creative Strategist
+        - Direct Mail Lead
+        - Brand Creative Lead
+        - Principal Creative Producer
   require_title_match: true
   enforce_default_geography: true
   adjacent_minimum_preferred_hits: 1

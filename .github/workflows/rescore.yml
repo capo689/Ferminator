@@ -44,4 +44,8 @@ jobs:
       - name: Refresh matches from shared corpus
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
-        run: ferminator rescore --profile-path "${{ inputs.profile }}"
+        run: |
+          ferminator rescore --profile-path "${{ inputs.profile }}"
+          ferminator discover-audit \
+            --profile-path "${{ inputs.profile }}" \
+            --minimum-visible 30

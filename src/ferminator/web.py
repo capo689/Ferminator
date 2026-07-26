@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 
 from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
+from ferminator.discover_visibility import apply_role_thresholds
 from ferminator.display_score import match_display
 from ferminator.domain import extract_compensation_from_text
 from ferminator.feedback import WRONG_REASON_LABELS, render_calibration_markdown
@@ -232,21 +233,10 @@ def _apply_role_thresholds(
     overrides: dict[str, int],
 ) -> list[dict]:
     """Annotate and filter matches using each role family's visibility floor."""
-    result = []
-    for item in matches:
-        family = matched_role_family(profile, item["title"])
-        if family is None:
-            continue
-        threshold = overrides.get(family.id, family.threshold)
-        annotated = {
-            **item,
-            "role_family_id": family.id,
-            "role_family": family.label,
-            "role_threshold": threshold,
-        }
-        if item["score"] >= threshold:
-            result.append(_apply_visible_compensation(annotated))
-    return result
+    return [
+        _apply_visible_compensation(item)
+        for item in apply_role_thresholds(profile, matches, overrides)
+    ]
 
 
 def _apply_visible_compensation(item: dict) -> dict:

@@ -16,6 +16,10 @@ from rich.table import Table
 from ferminator.adapters import ADAPTERS
 from ferminator.digest import compose_digest, send_smtp
 from ferminator.directory import parse_company_csv, parse_seed_html, validate_candidates
+from ferminator.discover_visibility import (
+    apply_default_discover_filters,
+    apply_role_thresholds,
+)
 from ferminator.domain import ATSProvider, BoardRef
 from ferminator.ingestion import IngestionResult, run_bulk_ingestion
 from ferminator.ledger import parse_master_ledger
@@ -349,6 +353,47 @@ def rescore(profile_path: Path) -> None:
         f"[green]{career_profile.profile.display_name}: rescored "
         f"{len(active_jobs)} active jobs[/green]"
     )
+
+
+@cli.command("discover-audit")
+@click.option(
+    "--profile-path",
+    type=click.Path(exists=True, path_type=Path),
+    default=Path("profiles/adam-cagle.md"),
+    show_default=True,
+)
+@click.option("--minimum-visible", type=click.IntRange(1), default=1, show_default=True)
+def discover_audit(profile_path: Path, minimum_visible: int) -> None:
+    """Verify the actual default Discover result after every suppression layer."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    career_profile = load_profile(profile_path)
+    repository = PostgresRepository(database_url)
+    try:
+        database_matches = repository.web_matches(
+            career_profile.profile.slug,
+            minimum_score=0,
+            limit=5000,
+        )
+        thresholded = apply_role_thresholds(
+            career_profile,
+            database_matches,
+            repository.role_thresholds(career_profile.profile.slug),
+        )
+        visible = apply_default_discover_filters(career_profile, thresholded)
+    finally:
+        repository.close()
+    console.print(
+        f"{career_profile.profile.display_name}: "
+        f"{len(database_matches)} eligible after ledger suppression · "
+        f"{len(thresholded)} after role thresholds · "
+        f"{len(visible)} visible with default feedback and geography"
+    )
+    if len(visible) < minimum_visible:
+        raise click.ClickException(
+            f"Default Discover has {len(visible)} jobs; expected at least {minimum_visible}"
+        )
 
 
 @cli.command("scan")
