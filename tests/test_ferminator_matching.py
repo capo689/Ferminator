@@ -146,6 +146,8 @@ def test_unconventional_title_can_advance_from_jd_function_evidence():
 
     assert result.eligible
     assert "Role family inferred from JD evidence" in result.matched_evidence
+    assert result.score <= 59
+    assert any("Controlled review" in concern for concern in result.concerns)
 
 
 def test_jd_keywords_do_not_rescue_body_only_engineering_title():

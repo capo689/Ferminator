@@ -341,6 +341,8 @@ search:
       - Public Affairs
       - Strategic Partnerships
       - Art Director
+      - Hyperscaler Operations
+      - Threat Research
       - Security
       - Compensation Operations
       - Travel Operations

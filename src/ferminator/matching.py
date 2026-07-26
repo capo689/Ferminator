@@ -323,6 +323,8 @@ def _calibration_adjustment(
                 "av-over-ip",
                 "dante",
                 "clinical outcomes",
+                "cardiometabolic",
+                "health product",
             ),
         )
         if specialist_hits >= 2:
@@ -544,7 +546,8 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             r"\b(?:engineer|architect|developer|scientist|analytics?|"
             r"infrastructure|grc|information technology|it engineer|"
             r"technical program manager|systems? (?:manager|architect)|"
-            r"product manager|product owner|incident|finance|fellow)\b",
+            r"product manager|product owner|incident|finance|fellows?|"
+            r"architecture|system integrator)\b",
             title,
             re.I,
         )
@@ -754,6 +757,11 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
         adjustment -= 15
         calibration_concerns.append("Per-word engagement with undisclosed economics")
     score = round(max(0.0, min(100.0, score + adjustment)), 2)
+    if title_role_family is None and score > 59:
+        score = 59.0
+        calibration_concerns.append(
+            "Controlled review: role family is inferred from JD rather than title"
+        )
     components["functional_calibration"] = round(adjustment, 2)
     evidence.extend(calibration_evidence)
     concerns.extend(calibration_concerns)
