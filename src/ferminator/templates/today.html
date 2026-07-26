@@ -33,10 +33,7 @@
 <article class="lead-opportunity">
   <div class="opportunity-main">
     <div class="company-row">
-      <span class="company-logo" data-initial="{{ lead.company_initial }}">
-        <img src="{{ url_for('static', path='/assets/svg/company-' ~ lead.company_slug ~ '.svg') }}"
-             alt="" width="42" height="42">
-      </span>
+      <span class="company-logo" aria-hidden="true">{{ lead.company_initial }}</span>
       <span>{{ lead.company }}</span>
       <span class="new-pill">Just surfaced · {{ lead.freshness }}</span>
     </div>
@@ -72,10 +69,7 @@
   {% for job in secondary %}
   <article class="opportunity-card">
     <div class="company-row">
-      <span class="company-logo small" data-initial="{{ job.company_initial }}">
-        <img src="{{ url_for('static', path='/assets/svg/company-' ~ job.company_slug ~ '.svg') }}"
-             alt="" width="31" height="31">
-      </span>
+      <span class="company-logo small" aria-hidden="true">{{ job.company_initial }}</span>
       <span>{{ job.company }}</span>
       <span class="score-chip">{{ job.score|round|int }}%</span>
     </div>
