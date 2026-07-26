@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
+from statistics import median
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -262,6 +264,10 @@ def _apply_visible_compensation(item: dict) -> dict:
         **item,
         "compensation": label,
         "compensation_source": "description",
+        "compensation_minimum": inferred.minimum,
+        "compensation_maximum": upper,
+        "compensation_currency": inferred.currency,
+        "compensation_interval": inferred.interval,
     }
 
 
@@ -287,6 +293,265 @@ def _matches(profile: CareerProfile, *, minimum_score: float = 0) -> list[dict]:
         return _apply_role_thresholds(profile, matches, overrides)
     finally:
         repository.close()
+
+
+def _compile_intelligence(
+    profile: CareerProfile,
+    matches: list[dict],
+    market_data: dict,
+    source_health: dict,
+    quality: dict,
+    overrides: dict[str, int],
+) -> dict:
+    """Build an honest, explainable snapshot from current production facts."""
+    overview = market_data["overview"]
+    visible_count = len(matches)
+    strong_count = sum(
+        item["score"] >= profile.notifications.minimum_score for item in matches
+    )
+    exceptional_count = sum(
+        item["score"] >= profile.notifications.exceptional_score for item in matches
+    )
+    remote_count = sum(item["workplace"] == "remote" for item in matches)
+    remote_rate = round(100 * remote_count / visible_count) if visible_count else 0
+
+    annual_salaries = [
+        (item["compensation_minimum"] + item["compensation_maximum"]) / 2
+        for item in matches
+        if item.get("compensation_minimum") is not None
+        and item.get("compensation_maximum") is not None
+        and item.get("compensation_currency") in {None, "USD"}
+        and item.get("compensation_interval") in {None, "year", "annual", "annually"}
+    ]
+    median_salary = round(median(annual_salaries) / 1000) if annual_salaries else None
+    salary_coverage = (
+        round(100 * len(annual_salaries) / visible_count) if visible_count else 0
+    )
+
+    family_data: dict[str, dict] = {}
+    skill_counts: Counter[str] = Counter()
+    skill_score_totals: Counter[str] = Counter()
+    provider_visible: Counter[str] = Counter()
+    for item in matches:
+        provider_visible[item["provider"]] += 1
+        family_id = item["role_family_id"]
+        family = family_data.setdefault(
+            family_id,
+            {
+                "id": family_id,
+                "label": item["role_family"],
+                "threshold": item["role_threshold"],
+                "count": 0,
+                "scores": [],
+                "remote": 0,
+                "salaries": [],
+            },
+        )
+        family["count"] += 1
+        family["scores"].append(float(item["score"]))
+        family["remote"] += item["workplace"] == "remote"
+        if (
+            item.get("compensation_minimum") is not None
+            and item.get("compensation_maximum") is not None
+            and item.get("compensation_currency") in {None, "USD"}
+            and item.get("compensation_interval") in {
+                None,
+                "year",
+                "annual",
+                "annually",
+            }
+        ):
+            family["salaries"].append(
+                (item["compensation_minimum"] + item["compensation_maximum"]) / 2
+            )
+        job_skills = {
+            evidence.split(":", 1)[1].strip()
+            for evidence in item.get("evidence", [])
+            if evidence.startswith("Preferred evidence:")
+        }
+        for skill in job_skills:
+            skill_counts[skill] += 1
+            skill_score_totals[skill] += float(item["score"])
+
+    role_families = []
+    for family in family_data.values():
+        role_families.append(
+            {
+                "id": family["id"],
+                "label": family["label"],
+                "count": family["count"],
+                "average_score": round(sum(family["scores"]) / family["count"], 1),
+                "maximum_score": round(max(family["scores"]), 1),
+                "remote_rate": round(100 * family["remote"] / family["count"]),
+                "median_salary": (
+                    round(median(family["salaries"]) / 1000)
+                    if family["salaries"]
+                    else None
+                ),
+                "threshold": family["threshold"],
+            }
+        )
+    role_families.sort(
+        key=lambda item: (item["maximum_score"], item["count"]),
+        reverse=True,
+    )
+
+    skills = [
+        {
+            "label": skill,
+            "count": count,
+            "share": round(100 * count / visible_count) if visible_count else 0,
+            "average_score": round(skill_score_totals[skill] / count, 1),
+        }
+        for skill, count in skill_counts.most_common(8)
+    ]
+
+    providers = []
+    for row in market_data["providers"]:
+        active = int(row["active_jobs"])
+        eligible = int(row["eligible_jobs"])
+        provider = str(row["provider"])
+        providers.append(
+            {
+                "provider": provider,
+                "boards": int(row["board_count"]),
+                "active_jobs": active,
+                "eligible_jobs": eligible,
+                "visible_jobs": provider_visible[provider],
+                "strong_jobs": int(row["strong_jobs"]),
+                "yield": round(1000 * eligible / active, 1) if active else 0,
+            }
+        )
+
+    boards = source_health.get("boards", [])
+    source_exceptions = [
+        board for board in boards if board["validation_status"] != "healthy"
+    ]
+    latest_scan = source_health.get("latest_scan")
+    scan_minutes = None
+    if latest_scan and latest_scan.get("finished_at"):
+        scan_minutes = round(
+            (latest_scan["finished_at"] - latest_scan["started_at"]).total_seconds() / 60,
+            1,
+        )
+
+    observed_since = overview.get("observed_since")
+    observed_days = (
+        max(0, (datetime.now(UTC) - observed_since).days) if observed_since else 0
+    )
+    trend_ready = observed_days >= 14
+    active_jobs = int(overview["active_jobs"])
+    raw_eligible = int(overview["eligible_jobs"])
+    relevant_yield = round(100 * raw_eligible / active_jobs, 2) if active_jobs else 0
+    maximum_score = float(overview["maximum_score"] or 0)
+    leader = next((item for item in providers if item["strong_jobs"]), None)
+
+    insights = [
+        {
+            "title": "Your market is selective.",
+            "body": (
+                f"{raw_eligible:,} of {active_jobs:,} active jobs passed the matcher "
+                f"({relevant_yield}%). Coverage is broad; relevance is intentionally narrow."
+            ),
+        },
+        {
+            "title": "Remote supply is not the bottleneck.",
+            "body": (
+                f"{remote_count} of {visible_count} visible opportunities are remote "
+                f"({remote_rate}%). Role quality and calibration matter more than location."
+            ),
+        },
+    ]
+    if maximum_score < 80:
+        insights.append(
+            {
+                "title": "The scoring ceiling is still compressed.",
+                "body": (
+                    f"The current best score is {maximum_score:g}. Calibration V1 contains "
+                    "credible 80–96 opportunities, so current scores should rank jobs—not "
+                    "be treated as final apply probabilities."
+                ),
+            }
+        )
+    if leader:
+        insights.append(
+            {
+                "title": f"{leader['provider'].title()} is producing the strongest volume.",
+                "body": (
+                    f"It currently contributes {leader['strong_jobs']} of "
+                    f"{strong_count} visible jobs scoring "
+                    f"{profile.notifications.minimum_score}+."
+                ),
+            }
+        )
+
+    return {
+        "generated_at": datetime.now(UTC),
+        "cards": [
+            {
+                "label": "Market searched",
+                "value": f"{active_jobs:,}",
+                "note": f"Across {len(boards):,} enabled company boards",
+            },
+            {
+                "label": "Visible opportunities",
+                "value": f"{visible_count:,}",
+                "note": f"{relevant_yield}% of the active market",
+            },
+            {
+                "label": f"Score {profile.notifications.minimum_score}+",
+                "value": f"{strong_count:,}",
+                "note": f"{exceptional_count} at {profile.notifications.exceptional_score}+",
+            },
+            {
+                "label": "Remote share",
+                "value": f"{remote_rate}%",
+                "note": f"{remote_count} visible remote roles",
+            },
+            {
+                "label": "Median visible pay",
+                "value": f"${median_salary}K" if median_salary else "Building",
+                "note": f"{salary_coverage}% salary coverage",
+            },
+            {
+                "label": "Current score ceiling",
+                "value": f"{maximum_score:g}",
+                "note": "Ranking signal, not application probability",
+            },
+        ],
+        "funnel": [
+            {"label": "Active jobs scanned", "value": active_jobs},
+            {"label": "Matcher eligible", "value": raw_eligible},
+            {"label": "Visible after role rules", "value": visible_count},
+            {"label": f"Score {profile.notifications.minimum_score}+", "value": strong_count},
+            {"label": "Saved in Ferminator", "value": int(overview["saved_jobs"])},
+            {"label": "Applied in Ferminator", "value": int(overview["tracked_applications"])},
+            {"label": "Interviewing or offer", "value": int(overview["active_responses"])},
+        ],
+        "historical_applications": int(overview["historical_applications"]),
+        "role_families": role_families,
+        "skills": skills,
+        "providers": providers,
+        "quality": quality,
+        "source_summary": {
+            "healthy": len(boards) - len(source_exceptions),
+            "total": len(boards),
+            "exceptions": source_exceptions,
+            "latest_scan": latest_scan,
+            "scan_minutes": scan_minutes,
+        },
+        "baseline": {
+            "observed_days": observed_days,
+            "trend_ready": trend_ready,
+            "new_jobs_24h": int(overview["new_jobs_24h"]),
+            "removed_jobs_7d": int(overview["removed_jobs_7d"]),
+        },
+        "thresholds_wide_open": bool(overrides) and all(
+            threshold == 0 for threshold in overrides.values()
+        ),
+        "exclusions": market_data["exclusions"],
+        "insights": insights,
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -488,33 +753,67 @@ async def update_feedback(
 @app.get("/intelligence", response_class=HTMLResponse)
 async def intelligence(request: Request):
     context = _context(request, "intelligence")
-    quality = None
-    source_health = None
-    if not get_settings().demo_mode:
+    profile = context["profile"]
+    if get_settings().demo_mode:
+        overrides = {family.id: 0 for family in profile.role_families}
+        matches = _apply_role_thresholds(profile, scored_jobs(profile), overrides)
+        market_data = {
+            "overview": {
+                "observed_since": datetime.now(UTC),
+                "active_jobs": len(matches),
+                "scored_jobs": len(matches),
+                "eligible_jobs": len(matches),
+                "score_70_plus": sum(item["score"] >= 70 for item in matches),
+                "score_80_plus": sum(item["score"] >= 80 for item in matches),
+                "score_88_plus": sum(item["score"] >= 88 for item in matches),
+                "maximum_score": max((item["score"] for item in matches), default=0),
+                "remote_eligible": sum(
+                    item["workplace"] == "remote" for item in matches
+                ),
+                "structured_salary_eligible": sum(
+                    item["compensation"] is not None for item in matches
+                ),
+                "saved_jobs": 0,
+                "tracked_applications": 0,
+                "active_responses": 0,
+                "historical_applications": 0,
+                "new_jobs_24h": len(matches),
+                "removed_jobs_7d": 0,
+            },
+            "providers": [],
+            "exclusions": [],
+        }
+        source_health = {"latest_scan": None, "boards": []}
+        quality = {
+            "reviewed": 0,
+            "great": 0,
+            "maybe": 0,
+            "wrong": 0,
+            "useful_rate": None,
+            "wrong_reasons": [],
+        }
+    else:
         repository = _repository()
         try:
-            quality = repository.match_quality(context["profile"].profile.slug)
+            raw_matches = repository.web_matches(
+                profile.profile.slug,
+                minimum_score=0,
+                limit=5000,
+            )
+            overrides = repository.role_thresholds(profile.profile.slug)
+            matches = _apply_role_thresholds(profile, raw_matches, overrides)
+            quality = repository.match_quality(profile.profile.slug)
             source_health = repository.source_health()
+            market_data = repository.market_intelligence(profile.profile.slug)
         finally:
             repository.close()
-    context.update(
-        {
-            "quality": quality,
-            "source_health": source_health,
-            "market": [
-                {"label": "AI enablement roles", "value": "+18%", "direction": "up"},
-                {"label": "Remote leadership roles", "value": "−7%", "direction": "down"},
-                {"label": "Median relevant salary", "value": "$192K", "direction": "flat"},
-                {"label": "Active watched companies", "value": "11", "direction": "up"},
-            ],
-            "skills": [
-                ("AI adoption", 88),
-                ("Cross-functional leadership", 76),
-                ("Enablement", 71),
-                ("Knowledge systems", 58),
-                ("Technical writing", 49),
-            ],
-        }
+    context["intelligence"] = _compile_intelligence(
+        profile,
+        matches,
+        market_data,
+        source_health,
+        quality,
+        overrides,
     )
     return templates.TemplateResponse(request, "intelligence.html", context=context)
 
