@@ -5,36 +5,17 @@ Validated: 2026-07-25
 
 ## Source policy
 
-`config/companies.yaml` is the Git-controlled source of truth. A board is added
-only after its official public ATS endpoint returns a structurally valid feed
-with at least one current job. Historical job links are provenance, not proof
-that a board is currently usable.
-
-The supplied living Ashby/Greenhouse list contained 69 unique boards when the
-final validation ran:
-
-- 67 returned valid feeds with one or more current jobs.
-- `navtechnologies` returned a valid but empty Greenhouse feed and was excluded.
-- `transcarent` returned HTTP 404 and was excluded.
-
-The original evidence is `docs/board-validation-2026-07-25.json`. The expanded
-CSV sweep and corrected targeted retests are recorded in
-`docs/board-validation-2026-07-25-expanded.json` and
-`docs/board-validation-2026-07-25-corrected-retests.json`.
-
-The expanded source contained 411 company boards across nine named providers.
-Ferminator tested 384 no-key boards, rejected 47 empty, dead, malformed, or
-unsafe responses, and admitted 343 after corrected retests. Those results were
-merged with the prior curated set, producing 377 enabled boards across nine
-supported no-key providers. The 27 supplied Jobvite URLs redirected away from
-the named company and were excluded; Jobvite's documented feed also requires
-credentials.
+The protected Supabase registry is the runtime source of truth. A board is
+admitted only after its official public ATS endpoint returns a structurally
+valid feed with at least one current job. The master registry and validation
+evidence are proprietary operational data and must never be committed to the
+public repository.
 
 ## Keeping the directory current
 
 Every twice-daily scan:
 
-1. mirrors the Git registry into `companies` and `ats_boards`;
+1. reads enabled sources from protected `companies` and `ats_boards` tables;
 2. fetches every enabled source through its production adapter;
 3. records validation time, last success, consecutive failures, and a safe
    error code;
@@ -49,13 +30,14 @@ To evaluate an updated saved HTML or CSV master list before changing the
 registry:
 
 ```bash
-ferminator directory-check path/to/master-list.html \
+ferminator directory-check /private/master-list.html \
   --workers 8 \
-  --json-output docs/board-validation-YYYY-MM-DD.json
+  --json-output /private/board-validation-YYYY-MM-DD.json
 ```
 
 The command exits non-zero if any source is unreachable, malformed, or empty.
-Use `directory-merge` with its JSON evidence to add only successful sources.
+Use `directory-merge` with private JSON evidence and a private registry export,
+then use `registry-import` to update Supabase. Never commit those artifacts.
 
 ## Bulk-ingestion design
 

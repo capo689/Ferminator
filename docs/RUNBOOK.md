@@ -16,7 +16,7 @@ all agree before treating zero jobs as a real source state.
 
 ## Adapter incident
 
-1. Disable only the failing board in `config/companies.yaml`.
+1. Disable only the failing board in the protected Supabase registry.
 2. Preserve the response shape and error code without secrets or personal data.
 3. Run fixture tests and a bounded `ferminator ats-smoke`.
 4. Re-enable after two successful validations.

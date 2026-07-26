@@ -12,7 +12,7 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from ferminator.domain import BoardRef, NormalizedJob
+from ferminator.domain import ATSProvider, BoardRef, NormalizedJob
 from ferminator.ingestion import IngestionResult, LifecyclePlan
 from ferminator.ledger import (
     ParsedLedger,
@@ -126,6 +126,36 @@ class PostgresRepository:
                 ),
             ).fetchone()
         return str(row["id"])
+
+    def enabled_boards(self) -> list[BoardRef]:
+        """Load the private scan registry from Postgres without exposing it to clients."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select
+                  c.slug as company_slug,
+                  c.name as company_name,
+                  b.provider,
+                  b.board_key,
+                  b.source_url,
+                  b.region
+                from public.ats_boards b
+                join public.companies c on c.id = b.company_id
+                where c.enabled and b.enabled
+                order by c.priority desc, lower(c.name), b.provider, b.board_key
+                """
+            ).fetchall()
+        return [
+            BoardRef(
+                provider=ATSProvider(row["provider"]),
+                company_slug=row["company_slug"],
+                company_name=row["company_name"],
+                board_key=row["board_key"],
+                source_url=row["source_url"],
+                region=row["region"],
+            )
+            for row in rows
+        ]
 
     def active_jobs(self) -> list[tuple[str, str, NormalizedJob]]:
         """Return job and revision identities with their normalized payload."""
@@ -1543,7 +1573,7 @@ class PostgresRepository:
         return str(row["id"])
 
     def sync_registry(self, registry: CompanyRegistry) -> tuple[int, int]:
-        """Idempotently mirror the Git-controlled registry into the live directory."""
+        """Import a private local registry into the live database."""
         company_count = 0
         board_count = 0
         with self.connection() as conn, conn.transaction():
@@ -1597,7 +1627,7 @@ class PostgresRepository:
                             board.region,
                             str(board.source_url),
                             company.enabled and board.enabled,
-                            json.dumps({"managed_by": "config/companies.yaml"}),
+                            json.dumps({"managed_by": "private_database_registry"}),
                         ),
                     )
                     board_count += 1
