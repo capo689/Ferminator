@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from ferminator.domain import NormalizedJob, WorkplaceType
-from ferminator.profiles import CareerProfile
+from ferminator.profiles import CareerProfile, RoleFamily
 
 _US_LOCATION_MARKERS = (
     "united states",
@@ -48,6 +48,19 @@ def _contains(text: str, phrase: str) -> bool:
 
 def _matched(text: str, phrases: list[str]) -> list[str]:
     return [phrase for phrase in phrases if _contains(text, phrase)]
+
+
+def matched_role_family(profile: CareerProfile, title: str) -> RoleFamily | None:
+    """Return the most specific configured family represented in a job title."""
+    tier_priority = {"primary": 2, "adjacent": 1, "edge": 0}
+    candidates = [
+        (max(len(alias) for alias in family.aliases if _contains(title, alias)), family)
+        for family in profile.role_families
+        if any(_contains(title, alias) for alias in family.aliases)
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: (item[0], tier_priority[item[1].tier]))[1]
 
 
 def _employment_matches(value: str, accepted: list[str]) -> bool:
@@ -156,6 +169,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
 
     high = _matched(title, profile.high_titles)
     adjacent = _matched(title, profile.adjacent_titles)
+    role_family = matched_role_family(profile, title)
     if profile.search.require_title_match and not (high or adjacent):
         return MatchResult(
             eligible=False,
@@ -214,7 +228,12 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     components: dict[str, float] = {}
     evidence: list[str] = []
 
-    if high:
+    if role_family:
+        role_factor = {"primary": 1.0, "adjacent": 0.82, "edge": 0.72}[role_family.tier]
+        evidence.append(f"Role family: {role_family.label}")
+        evidence.extend(f"Target title: {item}" for item in high)
+        evidence.extend(f"Adjacent title: {item}" for item in adjacent)
+    elif high:
         role_factor = 1.0
         evidence.extend(f"Target title: {item}" for item in high)
     elif adjacent:

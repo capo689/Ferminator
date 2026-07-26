@@ -3,26 +3,77 @@
 {% block content %}
 <header class="page-hero compact">
   <div>
-    <p class="eyebrow">SEARCH PROFILE</p>
-    <h1>{{ profile.profile.display_name }}'s career thesis.</h1>
-    <p class="hero-copy">Human-readable intent, deterministic rules, transparent results.</p>
+    <p class="eyebrow">CAREER RADAR</p>
+    <h1>{{ profile.profile.display_name }}'s search, tuned role by role.</h1>
+    <p class="hero-copy">Choose a role family, set the minimum fit worth seeing, and Ferminator ranks everything that clears the bar.</p>
   </div>
   <span class="status-pill">✓ Profile valid</span>
 </header>
 
 <section class="profile-layout">
   <div class="profile-primary">
-    <article class="profile-section">
-      <p class="eyebrow">TARGET DIRECTION</p>
-      <h2>Primary roles</h2>
-      <div class="tag-cloud">
-        {% for title in profile.high_titles %}<span class="tag strong">{{ title }}</span>{% endfor %}
+    <article class="profile-section role-control" data-role-control>
+      <div class="role-control-heading">
+        <div>
+          <p class="eyebrow">ROLE CONTROLS</p>
+          <h2>What should make the cut?</h2>
+        </div>
+        <p>One control, every career direction. Click a role to tune it.</p>
       </div>
-      <h3>Adjacent opportunities</h3>
-      <div class="tag-cloud">
-        {% for title in profile.adjacent_titles %}<span class="tag">{{ title }}</span>{% endfor %}
+
+      {% for tier, tier_label in [("primary", "Primary roles"), ("adjacent", "Adjacent roles"), ("edge", "Edge cases")] %}
+      <div class="role-tier">
+        <h3>{{ tier_label }}</h3>
+        <div class="role-family-grid">
+          {% for family in role_families if family.tier == tier %}
+          <button
+            type="button"
+            class="role-family-card{% if loop.first and tier == 'primary' %} selected{% endif %}"
+            data-role-family
+            data-id="{{ family.id }}"
+            data-label="{{ family.label }}"
+            data-description="{{ family.description }}"
+            data-threshold="{{ family.threshold }}"
+            data-default-threshold="{{ family.default_threshold }}"
+            data-scores="{{ family.scores|join(',') }}"
+            data-aliases="{{ family.aliases|join(' · ') }}"
+          >
+            <span>
+              <strong>{{ family.label }}</strong>
+              <small>{{ family.visible_count }} matches visible</small>
+            </span>
+            <b>{{ family.threshold }}%</b>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="threshold-console">
+        <div class="threshold-copy">
+          <p class="eyebrow" data-role-tier>SELECTED ROLE</p>
+          <h3 data-role-label></h3>
+          <p data-role-description></p>
+          <details>
+            <summary>Titles Ferminator recognizes</summary>
+            <p data-role-aliases></p>
+          </details>
+        </div>
+        <div class="threshold-editor">
+          <div class="threshold-readout">
+            <span>Minimum fit</span>
+            <strong><output data-role-output>80</output>%</strong>
+          </div>
+          <input data-role-slider type="range" min="0" max="100" step="1" value="80" aria-label="Minimum fit threshold">
+          <p><strong data-role-count>0</strong> current jobs clear this threshold.</p>
+          <div class="threshold-actions">
+            <form method="post" data-role-save><button class="button" type="submit">Save threshold</button></form>
+            <form method="post" data-role-reset><button class="button button-secondary" type="submit">Use recommended</button></form>
+          </div>
+        </div>
       </div>
     </article>
+
     <article class="profile-section">
       <p class="eyebrow">PREFERRED SIGNALS</p>
       <div class="preference-list">
@@ -31,13 +82,12 @@
     </article>
   </div>
   <aside class="profile-summary">
-    <div><span>Profile version</span><strong>{{ profile.schema_version }}</strong></div>
-    <div><span>Target concepts</span><strong>{{ target_count }}</strong></div>
+    <div><span>Role families</span><strong>{{ target_count }}</strong></div>
+    <div><span>Recognized titles</span><strong>{{ profile.high_titles|length + profile.adjacent_titles|length }}</strong></div>
     <div><span>Scan cadence</span><strong>{{ profile.search.scan_interval_hours }}h</strong></div>
-    <div><span>Digest threshold</span><strong>{{ profile.notifications.minimum_score }}%</strong></div>
+    <div><span>Ranking</span><strong>Best fit first</strong></div>
     <div><span>Default geography</span><strong>{{ profile.search.default_geography[0] }}</strong></div>
-    <p>Update <code>{{ profile.source_path }}</code> to recalibrate the search.</p>
+    <p>Hard exclusions still protect the search from sales, engineering, and other known false positives.</p>
   </aside>
 </section>
 {% endblock %}
-
