@@ -97,6 +97,11 @@ maintained in [CHANGELOG.md](CHANGELOG.md). A change is not production-ready
 merely because it is deployed to the private alpha; every unchecked item in
 that gate must be explicitly resolved or accepted before public launch.
 
+The installable onboarding workflow lives in
+`plugins/ferminator-profile-builder`. It turns a résumé, confirmed professional
+sources, and a guided user interview into a Markdown profile, then validates
+the result against Ferminator's intake contract.
+
 ## Acknowledgments
 
 Special thanks to **Fermin Romero III** for the idea that inspired Ferminator.

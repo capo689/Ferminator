@@ -5,6 +5,14 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ## Unreleased
 
+### Added
+
+- Ferminator Profile Builder, a distributable skills-only plugin that converts
+  resumes, confirmed public career sources, and a guided interview into a
+  schema-validated Ferminator Markdown profile.
+- Standalone profile-contract validation, evidence/provenance safeguards,
+  onboarding interview guidance, and a canonical profile template.
+
 ### Changed
 
 - Production monitoring now treats Render free-tier cold starts as a bounded
