@@ -866,6 +866,21 @@ async def undo_action(request: Request, job_id: str):
     )
 
 
+@app.post("/feedback/{job_id}/clear")
+async def clear_feedback(request: Request, job_id: str):
+    if get_settings().demo_mode:
+        return RedirectResponse("/discover", status_code=303)
+    _same_origin(request)
+    repository = _repository()
+    try:
+        repository.clear_match_feedback(_profile().profile.slug, job_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        repository.close()
+    return RedirectResponse("/discover", status_code=303)
+
+
 @app.post("/feedback/{job_id}/{verdict}")
 async def update_feedback(
     request: Request,

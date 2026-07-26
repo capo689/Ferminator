@@ -363,6 +363,7 @@ class PostgresRepository:
                        j.published_at,
                        j.first_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
+                       feedback.verdict as feedback_verdict,
                        r.description_text as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
                        prior.history_candidates
@@ -382,6 +383,12 @@ class PostgresRepository:
                   ) desc nulls last, is_primary desc, is_remote desc, label
                   limit 1
                 ) l on true
+                left join lateral (
+                  select f.verdict
+                  from public.match_feedback f
+                  where f.profile_id = p.id and f.job_id = j.id
+                  limit 1
+                ) feedback on true
                 left join lateral (
                   select jsonb_agg(jsonb_build_object(
                     'title', h.title,
@@ -1028,36 +1035,110 @@ class PostgresRepository:
         reason: str | None = None,
     ) -> None:
         """Capture a durable quality verdict against the exact scored revision."""
-        if verdict not in {"great", "maybe", "wrong"}:
+        if verdict not in {"great", "maybe", "wrong", "duplicate"}:
             raise ValueError("Unsupported match verdict")
         clean_reason = reason.strip()[:500] if reason and reason.strip() else None
         with self.connection() as conn, conn.transaction():
-            row = conn.execute(
+            target = conn.execute(
+                """
+                select p.id as profile_id, j.id as job_id, m.job_revision_id,
+                       m.profile_version, m.score, m.component_scores
+                from public.profiles p
+                join public.jobs j on j.id = %s
+                join lateral (
+                  select fm.job_revision_id, fm.profile_version, fm.score,
+                         fm.component_scores
+                  from public.job_matches fm
+                  where fm.profile_id = p.id and fm.job_id = j.id
+                  order by fm.profile_version desc, fm.updated_at desc
+                  limit 1
+                ) m on true
+                where p.slug = %s
+                """,
+                (job_id, profile_slug),
+            ).fetchone()
+            if target is None:
+                raise LookupError("Current profile match not found")
+            previous = conn.execute(
+                """
+                select verdict from public.match_feedback
+                where profile_id = %s and job_id = %s
+                """,
+                (target["profile_id"], target["job_id"]),
+            ).fetchone()
+            conn.execute(
                 """
                 insert into public.match_feedback (
                   profile_id, job_id, job_revision_id, profile_version, verdict,
                   reason, score_at_feedback, component_scores
-                )
-                select p.id, j.id, m.job_revision_id, m.profile_version, %s, %s,
-                       m.score, m.component_scores
-                from public.profiles p
-                join public.jobs j on j.id = %s
-                join public.job_matches m on m.profile_id = p.id
-                  and m.job_id = j.id
-                  and m.profile_version = p.profile_version
-                  and m.job_revision_id = j.current_revision_id
-                where p.slug = %s
-                on conflict (profile_id, job_id, profile_version, job_revision_id)
-                do update set verdict = excluded.verdict, reason = excluded.reason,
+                ) values (%s, %s, %s, %s, %s, %s, %s, %s)
+                on conflict (profile_id, job_id)
+                do update set job_revision_id = excluded.job_revision_id,
+                              profile_version = excluded.profile_version,
+                              verdict = excluded.verdict,
+                              reason = excluded.reason,
                               score_at_feedback = excluded.score_at_feedback,
                               component_scores = excluded.component_scores,
                               updated_at = now()
-                returning id
                 """,
-                (verdict, clean_reason, job_id, profile_slug),
+                (
+                    target["profile_id"],
+                    target["job_id"],
+                    target["job_revision_id"],
+                    target["profile_version"],
+                    verdict,
+                    clean_reason,
+                    target["score"],
+                    target["component_scores"],
+                ),
+            )
+            conn.execute(
+                """
+                insert into public.match_feedback_events (
+                  profile_id, job_id, action, prior_verdict, verdict
+                ) values (%s, %s, 'set', %s, %s)
+                """,
+                (
+                    target["profile_id"],
+                    target["job_id"],
+                    previous["verdict"] if previous else None,
+                    verdict,
+                ),
+            )
+
+    def clear_match_feedback(self, profile_slug: str, job_id: str) -> None:
+        """Remove a job's active verdict while retaining an audit event."""
+        with self.connection() as conn, conn.transaction():
+            previous = conn.execute(
+                """
+                select f.profile_id, f.job_id, f.verdict
+                from public.match_feedback f
+                join public.profiles p on p.id = f.profile_id
+                where p.slug = %s and f.job_id = %s
+                """,
+                (profile_slug, job_id),
             ).fetchone()
-            if row is None:
-                raise LookupError("Current profile match not found")
+            if previous is None:
+                raise LookupError("No match feedback to undo")
+            conn.execute(
+                """
+                delete from public.match_feedback
+                where profile_id = %s and job_id = %s
+                """,
+                (previous["profile_id"], previous["job_id"]),
+            )
+            conn.execute(
+                """
+                insert into public.match_feedback_events (
+                  profile_id, job_id, action, prior_verdict, verdict
+                ) values (%s, %s, 'cleared', %s, null)
+                """,
+                (
+                    previous["profile_id"],
+                    previous["job_id"],
+                    previous["verdict"],
+                ),
+            )
 
     def match_quality(self, profile_slug: str) -> dict:
         """Return transparent quality metrics from explicit human verdicts."""
@@ -1068,6 +1149,7 @@ class PostgresRepository:
                        count(*) filter (where f.verdict = 'great') as great,
                        count(*) filter (where f.verdict = 'maybe') as maybe,
                        count(*) filter (where f.verdict = 'wrong') as wrong,
+                       count(*) filter (where f.verdict = 'duplicate') as duplicate,
                        avg(f.score_at_feedback) filter (where f.verdict = 'great')
                          as great_average,
                        avg(f.score_at_feedback) filter (where f.verdict = 'wrong')
@@ -1092,10 +1174,11 @@ class PostgresRepository:
             ).fetchall()
         reviewed = int(summary["reviewed"])
         useful = int(summary["great"]) + int(summary["maybe"])
+        rated = useful + int(summary["wrong"])
         return {
             **dict(summary),
             "reviewed": reviewed,
-            "useful_rate": round(100 * useful / reviewed, 1) if reviewed else None,
+            "useful_rate": round(100 * useful / rated, 1) if rated else None,
             "wrong_reasons": [dict(row) for row in reasons],
         }
 
