@@ -1361,6 +1361,31 @@ class PostgresRepository:
             ).fetchone()
         return str(row["id"])
 
+    def fail_interrupted_scans(self) -> int:
+        """Close scan records orphaned by a killed worker.
+
+        Call only while holding ``scan_lock``. Acquiring that session lock proves
+        no other scan process is still active, so every remaining ``running``
+        record is stale.
+        """
+        with self.connection() as conn, conn.transaction():
+            result = conn.execute(
+                """
+                update public.scan_runs
+                set status = 'failed'::public.run_status,
+                    finished_at = now(),
+                    failed_count = greatest(failed_count, board_count - succeeded_count),
+                    error_codes = (
+                      select jsonb_agg(distinct value order by value)
+                      from jsonb_array_elements_text(
+                        coalesce(error_codes, '[]'::jsonb) || '["interrupted"]'::jsonb
+                      ) as errors(value)
+                    )
+                where status = 'running'
+                """
+            )
+        return result.rowcount
+
     def finish_scan(
         self,
         scan_id: str,

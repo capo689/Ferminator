@@ -283,6 +283,26 @@ def quality_eval(profile_path: Path, fixtures: Path, minimum_accuracy: float) ->
         raise click.ClickException("Match-quality gate failed")
 
 
+def _boards_for_shard(
+    boards: list[BoardRef],
+    *,
+    shard_index: int,
+    shard_count: int,
+) -> list[BoardRef]:
+    """Assign board identities to stable, non-overlapping scan shards."""
+    if shard_count == 1:
+        return boards
+    selected = []
+    for board in boards:
+        identity = (
+            f"{board.provider.value}:{board.board_key.casefold()}:{board.region}"
+        ).encode()
+        assigned = int.from_bytes(hashlib.sha256(identity).digest()[:8], "big")
+        if assigned % shard_count + 1 == shard_index:
+            selected.append(board)
+    return selected
+
+
 @cli.command("scan")
 @click.option(
     "--registry",
@@ -293,11 +313,15 @@ def quality_eval(profile_path: Path, fixtures: Path, minimum_accuracy: float) ->
 @click.option("--provider", type=click.Choice([item.value for item in ATSProvider]))
 @click.option("--company")
 @click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
+@click.option("--shard-index", default=1, type=click.IntRange(1, 64), show_default=True)
+@click.option("--shard-count", default=1, type=click.IntRange(1, 64), show_default=True)
 def scan(
     registry_path: Path,
     provider: str | None,
     company: str | None,
     workers: int,
+    shard_index: int,
+    shard_count: int,
 ) -> None:
     """Ingest enabled public boards into Postgres."""
     database_url = os.environ.get("DATABASE_URL")
@@ -309,6 +333,9 @@ def scan(
         boards = [board for board in boards if board.provider.value == provider]
     if company:
         boards = [board for board in boards if board.company_slug == company]
+    if shard_index > shard_count:
+        raise click.ClickException("shard-index cannot be greater than shard-count")
+    boards = _boards_for_shard(boards, shard_index=shard_index, shard_count=shard_count)
     if not boards:
         raise click.ClickException("No enabled boards match the filters")
     repository = PostgresRepository(database_url)
@@ -318,12 +345,17 @@ def scan(
     scored_jobs = 0
     scan_identity = (
         f"{datetime.now(UTC).strftime('%Y%m%d%H')}:"
-        f"{provider or 'all'}:{company or 'all'}"
+        f"{provider or 'all'}:{company or 'all'}:{shard_index}/{shard_count}"
     )
     scan_key = hashlib.sha256(scan_identity.encode()).hexdigest()
     scan_id: str | None = None
     try:
         with repository.scan_lock():
+            interrupted = repository.fail_interrupted_scans()
+            if interrupted:
+                console.print(
+                    f"[yellow]Reconciled {interrupted} interrupted scan record(s)[/yellow]"
+                )
             repository.sync_registry(registry)
             scan_id = repository.start_scan(scan_key, len(boards))
             profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
