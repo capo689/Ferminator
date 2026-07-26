@@ -93,6 +93,8 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
             "salary_min": 180000,
             "salary_max": 220000,
             "salary_currency": "USD",
+            "salary_interval": "year",
+            "compensation_text": None,
             "job_url": "https://example.com/job",
             "apply_url": "https://example.com/apply",
             "published_at": datetime.now(UTC),
@@ -124,3 +126,57 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
     sql = connection.execute.call_args.args[0]
     assert "history_candidates" in sql
     assert "(h.permanent or h.suppress_until > now())" in sql
+
+
+def test_web_matches_extracts_compensation_from_stored_full_description() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    connection.execute.return_value.fetchall.return_value = [
+        {
+            "id": "job-id",
+            "title": "Creative Director",
+            "company_name": "Example",
+            "company_slug": "example",
+            "department": "Creative",
+            "workplace_type": "remote",
+            "salary_min": None,
+            "salary_max": None,
+            "salary_currency": None,
+            "salary_interval": None,
+            "compensation_text": "The annual base salary range is $175,000–$215,000.",
+            "job_url": "https://example.com/job",
+            "apply_url": None,
+            "published_at": datetime.now(UTC),
+            "first_seen_at": datetime.now(UTC),
+            "provider": "greenhouse",
+            "score": 90,
+            "component_scores": {},
+            "matched_evidence": [],
+            "concerns": [],
+            "explanation": "Strong match",
+            "location": "Remote — United States",
+            "history_candidates": [],
+        }
+    ]
+
+    match = repository.web_matches("adam-cagle")[0]
+
+    assert match["compensation"] is None
+    assert match["compensation_text"].startswith("The annual base")
+
+
+def test_job_description_is_loaded_for_one_visible_current_role() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    connection.execute.return_value.fetchone.return_value = {
+        "description_text": "The complete stored job description."
+    }
+
+    description = repository.job_description("adam-cagle", "job-id")
+
+    assert description == "The complete stored job description."
+    sql, params = connection.execute.call_args.args
+    assert "m.job_revision_id = j.current_revision_id" in sql
+    assert params == ("adam-cagle", "job-id")

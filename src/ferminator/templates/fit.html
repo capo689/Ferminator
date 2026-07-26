@@ -5,7 +5,11 @@
 <header class="fit-hero">
   <div>
     <h1>{{ job.title }}</h1>
-    <p class="hero-copy">{{ job.company }} · {{ job.location }} · {{ job.compensation or "Compensation unknown" }} · {{ job.freshness }}</p>
+    <p class="hero-copy">
+      {{ job.company }} · {{ job.location }} · {{ job.compensation or "Compensation unknown" }}
+      {% if job.compensation_source == "description" %}· pay extracted from full JD{% endif %}
+      · {{ job.freshness }}
+    </p>
   </div>
   <div class="fit-score"><strong>{{ job.score|round|int }}%</strong><span>alignment</span></div>
   <div class="fit-components" aria-label="Score composition">
@@ -51,5 +55,28 @@
     <h2>Best next move</h2>
     <p>Lead with the strongest mapped evidence and address the named gap directly.</p>
   </aside>
+</section>
+<section class="full-jd" id="full-job-description">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">SOURCE TEXT</p>
+      <h2>Complete job description</h2>
+    </div>
+    {% if job.description_text %}
+    <button
+      class="button button-secondary"
+      type="button"
+      data-copy-target="job-description-text"
+      data-copy-label="Copy complete JD"
+    >Copy complete JD</button>
+    {% endif %}
+  </div>
+  {% if job.description_text %}
+  <div class="jd-copy-source" id="job-description-text">{{ job.description_text }}</div>
+  {% else %}
+  <div class="empty-state compact">
+    <p>The ATS did not provide description text. Use the original listing link above.</p>
+  </div>
+  {% endif %}
 </section>
 {% endblock %}

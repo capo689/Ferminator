@@ -209,7 +209,13 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
 
     floor = profile.search.compensation.minimum_base_annual
     comp = job.compensation
-    if floor and comp and comp.maximum is not None and comp.maximum < floor:
+    if (
+        floor
+        and comp
+        and comp.interval in {None, "year", "annual", "annually"}
+        and comp.maximum is not None
+        and comp.maximum < floor
+    ):
         return MatchResult(
             eligible=False,
             score=0,

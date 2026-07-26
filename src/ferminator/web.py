@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 
 from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
+from ferminator.domain import extract_compensation_from_text
 from ferminator.matching import matched_role_family
 from ferminator.observability import configure_logging, safe_request_id
 from ferminator.profiles import CareerProfile, load_profile
@@ -235,8 +236,33 @@ def _apply_role_thresholds(
             "role_threshold": threshold,
         }
         if item["score"] >= threshold:
-            result.append(annotated)
+            result.append(_apply_visible_compensation(annotated))
     return result
+
+
+def _apply_visible_compensation(item: dict) -> dict:
+    """Extract JD pay only after a role has passed the user's visibility rules."""
+    compensation_text = item.pop("compensation_text", None)
+    if item.get("compensation") or not compensation_text:
+        return item
+    inferred = extract_compensation_from_text(compensation_text)
+    if inferred is None or inferred.minimum is None:
+        return item
+    upper = inferred.maximum or inferred.minimum
+    symbol = (
+        "$"
+        if inferred.currency in {None, "USD"}
+        else {"GBP": "£", "EUR": "€"}.get(inferred.currency, inferred.currency)
+    )
+    if inferred.interval == "hour":
+        label = f"{symbol}{inferred.minimum:,.0f}–{symbol}{upper:,.0f}/hour"
+    else:
+        label = f"{symbol}{inferred.minimum / 1000:,.0f}K–{symbol}{upper / 1000:,.0f}K"
+    return {
+        **item,
+        "compensation": label,
+        "compensation_source": "description",
+    }
 
 
 def _matches(profile: CareerProfile, *, minimum_score: float = 0) -> list[dict]:
@@ -349,11 +375,18 @@ async def fit_lens(request: Request, job_id: str):
                 minimum_score=0,
                 limit=5000,
             )
+            description_text = repository.job_description(
+                context["profile"].profile.slug,
+                job_id,
+            )
         finally:
             repository.close()
     job = next((item for item in matches if item["id"] == job_id), None)
     if job is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
+    job = _apply_visible_compensation(job)
+    if not get_settings().demo_mode:
+        job["description_text"] = description_text or ""
     if not job["evidence"]:
         job["evidence"] = [job["explanation"]]
     component_labels = {
