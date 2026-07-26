@@ -339,6 +339,8 @@ search:
       - Public Relations
       - PR Director
       - Public Affairs
+      - Strategic Partnerships
+      - Art Director
       - Security
       - Compensation Operations
       - Travel Operations
