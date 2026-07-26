@@ -39,7 +39,7 @@ jobs:
       - name: Validate profile and calibration gate
         run: |
           ferminator profile validate "${{ inputs.profile }}"
-          pytest tests/test_ferminator_calibration_v2.py
+          ferminator quality-eval
 
       - name: Refresh matches from shared corpus
         env:
