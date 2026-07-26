@@ -6,8 +6,7 @@
     <p class="eyebrow">{{ now if now else "TODAY'S BRIEFING" }}</p>
     <h1>Good morning, {{ display_name }}.</h1>
     <p class="hero-copy">
-      {% if matches %}{{ matches|length }} strong opportunities deserve attention.
-      {% elif review_matches %}{{ review_matches|length }} credible roles are worth a closer look.
+      {% if matches %}{{ matches|length }} profile-qualified opportunities, ranked by fit.
       {% else %}The market scan is complete; no role currently clears your evidence threshold.{% endif %}
     </p>
   </div>
@@ -16,7 +15,7 @@
 
 <section class="signal-strip" aria-label="Daily signals">
   <div><strong>{{ stats.new_matches }}</strong><span>new matches</span></div>
-  <div><strong>{{ stats.review_matches }}</strong><span>worth reviewing</span></div>
+  <div><strong>{{ profile.role_families|length }}</strong><span>role families searched</span></div>
   <div><strong>{{ stats.exceptional }}</strong><span>exceptional fits</span></div>
   <div><strong>{{ stats.changed }}</strong><span>saved roles changed</span></div>
   <div><strong>{{ stats.followups }}</strong><span>follow-up due</span></div>
@@ -119,29 +118,4 @@
 </section>
 {% endif %}
 
-{% if review_matches %}
-<section class="section-heading">
-  <div>
-    <p class="eyebrow">WORTH REVIEWING · 58–69</p>
-    <h2>Credible, but not automatic yeses</h2>
-  </div>
-  <span class="quiet">Every role passed the same hard eligibility rules</span>
-</section>
-<div class="secondary-grid">
-  {% for job in review_matches %}
-  <article class="opportunity-card">
-    <div class="company-row">
-      <span class="company-logo small">{{ job.company_initial }}</span>
-      <span>{{ job.company }}</span>
-      <span class="score-chip">{{ job.score|round|int }}%</span>
-    </div>
-    <h3>{{ job.title }}</h3>
-    <p class="job-meta">{{ job.location }} · {{ job.compensation or "Compensation not disclosed" }}</p>
-    <p>{{ job.evidence[0] if job.evidence else job.explanation }}</p>
-    {% if job.concerns %}<p class="concern">{{ job.concerns[0] }}</p>{% endif %}
-    <a href="/fit/{{ job.id }}">Review fit <span>→</span></a>
-  </article>
-  {% endfor %}
-</div>
-{% endif %}
 {% endblock %}
