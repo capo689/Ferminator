@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from ferminator.domain import NormalizedJob, WorkplaceType
+from ferminator.domain import NormalizedJob, WorkplaceType, extract_compensation_from_text
 from ferminator.profiles import CareerProfile, RoleFamily
 
 _US_LOCATION_MARKERS = (
@@ -539,6 +539,39 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             explanation="Gateway 3 — the title is outside the supported career function.",
         )
 
+    if title_role_family is None:
+        body_only_technical = re.search(
+            r"\b(?:engineer|architect|developer|scientist|analytics?|"
+            r"infrastructure|grc|information technology|it engineer|"
+            r"technical program manager|systems? (?:manager|architect)|"
+            r"product manager|product owner|incident|finance|fellow)\b",
+            title,
+            re.I,
+        )
+        if body_only_technical:
+            return MatchResult(
+                eligible=False,
+                score=0,
+                concerns=[
+                    "JD keywords cannot override an unsupported technical or specialist title."
+                ],
+                explanation="Gateway 3 — body-only evidence conflicted with the title function.",
+            )
+        business_title_anchor = re.search(
+            r"\b(?:lead|manager|director|strategist|partner|program|operations|"
+            r"communications?|content|marketing|copy|creative|editorial|"
+            r"enablement|adoption|transformation|automation|experience)\b",
+            title,
+            re.I,
+        )
+        if not business_title_anchor:
+            return MatchResult(
+                eligible=False,
+                score=0,
+                concerns=["The JD signal lacked a plausible business-function title anchor."],
+                explanation="Gateway 3 — body-only evidence lacked title support.",
+            )
+
     required = profile.search.required_any
     if required and not _matched(text, required):
         return MatchResult(
@@ -576,7 +609,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     # advances with uncertainty and is handled in the refined score.
     floor = profile.search.compensation.minimum_base_annual
     hourly_floor = profile.search.compensation.minimum_contract_hourly
-    comp = job.compensation
+    comp = job.compensation or extract_compensation_from_text(job.description_text)
     if (
         floor
         and comp

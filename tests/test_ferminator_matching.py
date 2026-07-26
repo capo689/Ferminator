@@ -148,6 +148,23 @@ def test_unconventional_title_can_advance_from_jd_function_evidence():
     assert "Role family inferred from JD evidence" in result.matched_evidence
 
 
+def test_jd_keywords_do_not_rescue_body_only_engineering_title():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="Staff Engineer, Developer Experience",
+            description_text=(
+                "Own AI adoption and AI enablement programs using AI agents, "
+                "workflow automation, guardrails, and human approval."
+            ),
+        ),
+    )
+
+    assert not result.eligible
+    assert result.explanation.startswith("Gateway 3")
+
+
 def test_hard_disqualifier_precedes_compensation():
     profile = load_profile(Path("profiles/adam-cagle.md"))
     result = score_job(
@@ -180,6 +197,23 @@ def test_explicit_low_compensation_is_gateway_four():
         ),
     )
 
+    assert result.explanation.startswith("Gateway 4")
+
+
+def test_gateway_four_extracts_compensation_from_stored_jd():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            compensation=None,
+            description_text=(
+                "Lead enterprise AI adoption and workflow automation. "
+                "The salary range for this role is $60,000—$80,000 per year."
+            ),
+        ),
+    )
+
+    assert not result.eligible
     assert result.explanation.startswith("Gateway 4")
 
 
