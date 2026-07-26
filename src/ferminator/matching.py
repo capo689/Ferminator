@@ -50,17 +50,40 @@ def _matched(text: str, phrases: list[str]) -> list[str]:
     return [phrase for phrase in phrases if _contains(text, phrase)]
 
 
-def matched_role_family(profile: CareerProfile, title: str) -> RoleFamily | None:
-    """Return the most specific configured family represented in a job title."""
+def matched_role_family(
+    profile: CareerProfile,
+    title: str,
+    evidence_text: str = "",
+) -> RoleFamily | None:
+    """Return the strongest family from the title, falling back to JD evidence."""
     tier_priority = {"primary": 2, "adjacent": 1, "edge": 0}
-    candidates = [
+    title_candidates = [
         (max(len(alias) for alias in family.aliases if _contains(title, alias)), family)
         for family in profile.role_families
         if any(_contains(title, alias) for alias in family.aliases)
     ]
-    if not candidates:
+    if title_candidates:
+        return max(
+            title_candidates,
+            key=lambda item: (item[0], tier_priority[item[1].tier]),
+        )[1]
+    if not evidence_text:
         return None
-    return max(candidates, key=lambda item: (item[0], tier_priority[item[1].tier]))[1]
+    body_candidates = [
+        (
+            sum(_contains(evidence_text, alias) for alias in family.aliases),
+            max(len(alias) for alias in family.aliases if _contains(evidence_text, alias)),
+            family,
+        )
+        for family in profile.role_families
+        if any(_contains(evidence_text, alias) for alias in family.aliases)
+    ]
+    if not body_candidates:
+        return None
+    return max(
+        body_candidates,
+        key=lambda item: (item[0], item[1], tier_priority[item[2].tier]),
+    )[2]
 
 
 def _employment_matches(value: str, accepted: list[str]) -> bool:
@@ -444,11 +467,45 @@ class MatchResult:
 
 
 def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
-    """Apply hard eligibility followed by transparent weighted ranking."""
+    """Apply largest-safe-cut gateways followed by transparent fit ranking."""
     text = job.search_document
     title = job.title
     concerns: list[str] = []
 
+    # Gateway 1: geography is the largest safe cut for a location-bound search.
+    location_text = " ".join(location.label for location in job.locations)
+    if (
+        profile.search.enforce_default_geography
+        and any("united states" in item.casefold() for item in profile.search.default_geography)
+        and not _is_us_compatible_location(job, location_text)
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[
+                f"Location is outside the configured US search: {location_text or 'unknown'}."
+            ],
+            explanation="Gateway 1 — geography rejected this job.",
+        )
+
+    # Gateway 2: broad functional recall. A title signal is strongest; an
+    # unconventional title may advance when its JD contains both a configured
+    # role family and at least one major profile concept.
+    high = _matched(title, profile.high_titles)
+    adjacent = _matched(title, profile.adjacent_titles)
+    title_role_family = matched_role_family(profile, title)
+    preferred_hits = _matched(text, profile.search.preferred)
+    role_family = title_role_family or matched_role_family(profile, title, text)
+    body_function_signal = bool(role_family and preferred_hits)
+    if profile.search.require_title_match and not (high or adjacent or body_function_signal):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=["No supported title or JD function signal appeared."],
+            explanation="Gateway 2 — functional relevance rejected this job.",
+        )
+
+    # Gateway 3: decisive function and eligibility negatives.
     excluded_phrases = profile.search.exclude.get("phrases", [])
     excluded_titles = profile.search.exclude.get("title_phrases", [])
     blocked = _matched(text, excluded_phrases) + _matched_title_exclusions(
@@ -460,7 +517,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=[f"Excluded phrase: {phrase}" for phrase in blocked],
-            explanation="The job failed a profile exclusion rule.",
+            explanation="Gateway 3 — a hard disqualifier rejected this job.",
         )
 
     structural_title_blocks = (
@@ -479,7 +536,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=[f"Functionally excluded title: {structural_match}"],
-            explanation="The title denotes a career function outside the profile evidence.",
+            explanation="Gateway 3 — the title is outside the supported career function.",
         )
 
     required = profile.search.required_any
@@ -488,7 +545,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=["None of the required concepts appeared."],
-            explanation="The job did not satisfy any required concept.",
+            explanation="Gateway 3 — the job missed a required profile concept.",
         )
 
     if (
@@ -500,21 +557,9 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=[f"Employment type is {job.employment_type}."],
-            explanation="The job failed the profile employment-type rule.",
+            explanation="Gateway 3 — employment type rejected this job.",
         )
 
-    high = _matched(title, profile.high_titles)
-    adjacent = _matched(title, profile.adjacent_titles)
-    role_family = matched_role_family(profile, title)
-    if profile.search.require_title_match and not (high or adjacent):
-        return MatchResult(
-            eligible=False,
-            score=0,
-            concerns=["No target or adjacent concept appeared in the title."],
-            explanation="Description-only keyword overlap is not sufficient for eligibility.",
-        )
-
-    preferred_hits = _matched(text, profile.search.preferred)
     if (
         adjacent
         and not high
@@ -524,24 +569,11 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=["The adjacent title lacked supporting profile evidence."],
-            explanation="A broad adjacent title needs evidence in the job description.",
+            explanation="Gateway 3 — an adjacent title lacked supporting JD evidence.",
         )
 
-    location_text = " ".join(location.label for location in job.locations)
-    if (
-        profile.search.enforce_default_geography
-        and any("united states" in item.casefold() for item in profile.search.default_geography)
-        and not _is_us_compatible_location(job, location_text)
-    ):
-        return MatchResult(
-            eligible=False,
-            score=0,
-            concerns=[
-                f"Location is outside the configured US search: {location_text or 'unknown'}."
-            ],
-            explanation="The job failed the profile geography rule.",
-        )
-
+    # Gateway 4: only explicit incompatible compensation rejects. Missing pay
+    # advances with uncertainty and is handled in the refined score.
     floor = profile.search.compensation.minimum_base_annual
     hourly_floor = profile.search.compensation.minimum_contract_hourly
     comp = job.compensation
@@ -556,14 +588,14 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             eligible=False,
             score=0,
             concerns=[f"Published maximum {comp.maximum:g} is below the configured floor."],
-            explanation="The disclosed compensation failed a hard profile rule.",
+            explanation="Gateway 4 — disclosed compensation is below the annual floor.",
         )
     if floor and comp is None and not profile.search.allow_jobs_without_compensation:
         return MatchResult(
             eligible=False,
             score=0,
             concerns=["Compensation is not disclosed."],
-            explanation="The profile requires disclosed compensation.",
+            explanation="Gateway 4 — the profile requires disclosed compensation.",
         )
     if (
         hourly_floor
@@ -578,7 +610,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             concerns=[
                 f"Published hourly maximum {comp.maximum:g} is below the configured contract floor."
             ],
-            explanation="The disclosed contract compensation failed a hard profile rule.",
+            explanation="Gateway 4 — disclosed compensation is below the contract floor.",
         )
 
     weights = profile.scoring
@@ -586,8 +618,14 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     evidence: list[str] = []
 
     if role_family:
-        role_factor = {"primary": 1.0, "adjacent": 0.82, "edge": 0.72}[role_family.tier]
+        role_factor = (
+            {"primary": 1.0, "adjacent": 0.82, "edge": 0.72}[role_family.tier]
+            if title_role_family
+            else {"primary": 0.48, "adjacent": 0.42, "edge": 0.36}[role_family.tier]
+        )
         evidence.append(f"Role family: {role_family.label}")
+        if not title_role_family:
+            evidence.append("Role family inferred from JD evidence")
         evidence.extend(f"Target title: {item}" for item in high)
         evidence.extend(f"Adjacent title: {item}" for item in adjacent)
     elif high:
@@ -687,7 +725,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     evidence.extend(calibration_evidence)
     concerns.extend(calibration_concerns)
     strongest = ", ".join(item for item in evidence[:3]) or "limited direct evidence"
-    explanation = f"Score {score:g}: strongest signals are {strongest}."
+    explanation = f"Gateway 5 — refined fit score {score:g}: strongest signals are {strongest}."
     return MatchResult(
         eligible=True,
         score=score,

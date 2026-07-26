@@ -7,6 +7,12 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Added
 
+- Largest-safe-cut match gateways for geography, functional recall, hard
+  disqualifiers, compensation, and refined fit.
+- Per-gateway rescore accounting and an exact default-Discover production
+  acceptance gate.
+- JD-backed role-family discovery for unconventional titles that still contain
+  meaningful career-function evidence.
 - Calibration V2, a frozen 61-job human-review corpus with 11 Great, 8 Maybe,
   40 Wrong, and 2 Duplicate outcomes.
 - A release gate that preserves all reviewed Great/Maybe jobs while rejecting
@@ -26,6 +32,10 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Changed
 
+- Exact identity deduplication remains cheap and early; fuzzy
+  application-history review is deferred until after refined matching.
+- Adam's production acceptance floor now requires at least 40 genuinely visible
+  jobs after role thresholds, feedback, ledger suppression, and geography.
 - Adam's visibility floors now represent a controlled-review floor rather than
   requiring every candidate to clear an already-calibrated display score.
 - Contract compensation now enforces a $60/hour floor independently of the

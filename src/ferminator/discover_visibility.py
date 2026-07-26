@@ -19,7 +19,11 @@ def apply_role_thresholds(
     """Annotate and filter matches using each role family's visibility floor."""
     result = []
     for item in matches:
-        family = matched_role_family(profile, item["title"])
+        family = matched_role_family(
+            profile,
+            item["title"],
+            item.get("compensation_text") or item.get("description_text") or "",
+        )
         if family is None:
             continue
         threshold = overrides.get(family.id, family.threshold)
@@ -65,4 +69,3 @@ def apply_default_discover_filters(
         ):
             result.append(item)
     return result
-

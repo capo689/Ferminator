@@ -48,7 +48,7 @@ def test_strong_job_is_eligible_and_explainable():
     assert result.score >= profile.notifications.minimum_score
     assert result.component_scores["role_alignment"] == 30
     assert "Target title: AI Enablement" in result.matched_evidence
-    assert result.explanation.startswith("Score")
+    assert result.explanation.startswith("Gateway 5")
 
 
 def test_excluded_title_is_ineligible():
@@ -115,6 +115,72 @@ def test_foreign_remote_role_is_ineligible():
 
     assert not result.eligible
     assert "outside the configured US search" in result.concerns[0]
+    assert result.explanation.startswith("Gateway 1")
+
+
+def test_geography_precedes_other_rejection_work():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="Senior Software Engineer, AI Transformation",
+            locations=[JobLocation(label="India - Remote", is_primary=True, is_remote=True)],
+        ),
+    )
+
+    assert result.explanation.startswith("Gateway 1")
+
+
+def test_unconventional_title_can_advance_from_jd_function_evidence():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="Strategic Programs Lead",
+            description_text=(
+                "Own AI adoption and AI enablement programs using AI agents, "
+                "workflow automation, guardrails, and human approval."
+            ),
+        ),
+    )
+
+    assert result.eligible
+    assert "Role family inferred from JD evidence" in result.matched_evidence
+
+
+def test_hard_disqualifier_precedes_compensation():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="Senior Software Engineer, AI Transformation",
+            compensation=Compensation(
+                minimum=40000,
+                maximum=50000,
+                currency="USD",
+                interval="year",
+            ),
+        ),
+    )
+
+    assert result.explanation.startswith("Gateway 3")
+
+
+def test_explicit_low_compensation_is_gateway_four():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            compensation=Compensation(
+                minimum=40000,
+                maximum=50000,
+                currency="USD",
+                interval="year",
+            )
+        ),
+    )
+
+    assert result.explanation.startswith("Gateway 4")
 
 
 def test_us_remote_role_remains_eligible():
