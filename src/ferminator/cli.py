@@ -111,20 +111,36 @@ def ats_smoke(
 
 
 @cli.command("registry-validate")
-@click.option(
-    "--path",
-    type=click.Path(exists=True, path_type=Path),
-    default=Path("config/companies.yaml"),
-)
-def registry_validate(path: Path) -> None:
-    """Validate the curated company registry."""
+def registry_validate() -> None:
+    """Validate the private database registry without printing its contents."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    repository = PostgresRepository(database_url)
+    boards = repository.enabled_boards()
+    if not boards:
+        raise click.ClickException("Private registry contains no enabled boards")
+    providers = sorted({board.provider.value for board in boards})
+    console.print(
+        f"[green]Private registry valid[/green]: {len(boards)} enabled boards "
+        f"across {len(providers)} providers"
+    )
+
+
+@cli.command("registry-import")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+def registry_import(path: Path) -> None:
+    """Import a private local registry file into Postgres."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
     registry = load_registry(path)
-    table = Table("Company", "Provider", "Board", "Status")
-    for company in registry.companies:
-        for board in company.boards:
-            status = "enabled" if company.enabled and board.enabled else "disabled"
-            table.add_row(company.name, board.provider.value, board.board_key, status)
-    console.print(table)
+    repository = PostgresRepository(database_url)
+    companies, boards = repository.sync_registry(registry)
+    console.print(
+        f"[green]Private registry imported[/green]: "
+        f"{companies} companies, {boards} boards"
+    )
 
 
 @cli.command("directory-check")
@@ -189,7 +205,7 @@ def directory_check(seed_path: Path, workers: int, json_output: Path | None) -> 
     "--registry",
     "registry_path",
     type=click.Path(exists=True, path_type=Path),
-    default=Path("config/companies.yaml"),
+    required=True,
 )
 @click.option("--output", type=click.Path(path_type=Path), required=True)
 def directory_merge(validation_path: Path, registry_path: Path, output: Path) -> None:
@@ -304,19 +320,12 @@ def _boards_for_shard(
 
 
 @cli.command("scan")
-@click.option(
-    "--registry",
-    "registry_path",
-    type=click.Path(exists=True, path_type=Path),
-    default=Path("config/companies.yaml"),
-)
 @click.option("--provider", type=click.Choice([item.value for item in ATSProvider]))
 @click.option("--company")
 @click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
 @click.option("--shard-index", default=1, type=click.IntRange(1, 64), show_default=True)
 @click.option("--shard-count", default=1, type=click.IntRange(1, 64), show_default=True)
 def scan(
-    registry_path: Path,
     provider: str | None,
     company: str | None,
     workers: int,
@@ -327,8 +336,8 @@ def scan(
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise click.ClickException("DATABASE_URL is required")
-    registry = load_registry(registry_path)
-    boards = registry.enabled_boards
+    repository = PostgresRepository(database_url)
+    boards = repository.enabled_boards()
     if provider:
         boards = [board for board in boards if board.provider.value == provider]
     if company:
@@ -338,7 +347,6 @@ def scan(
     boards = _boards_for_shard(boards, shard_index=shard_index, shard_count=shard_count)
     if not boards:
         raise click.ClickException("No enabled boards match the filters")
-    repository = PostgresRepository(database_url)
     failed = False
     succeeded = 0
     errors: list[str] = []
@@ -356,7 +364,6 @@ def scan(
                 console.print(
                     f"[yellow]Reconciled {interrupted} interrupted scan record(s)[/yellow]"
                 )
-            repository.sync_registry(registry)
             scan_id = repository.start_scan(scan_key, len(boards))
             profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
             profile_ids = {

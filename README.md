@@ -33,7 +33,7 @@ remain outside the no-key release. See
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 .venv/bin/ferminator profile validate
-.venv/bin/ferminator registry-validate
+DATABASE_URL=postgresql://... .venv/bin/ferminator registry-validate
 .venv/bin/uvicorn ferminator.web:app --reload
 ```
 
@@ -41,15 +41,18 @@ Validate a saved HTML source list or `company,ats,board_url` CSV before adding
 its boards:
 
 ```bash
-ferminator directory-check master-list.html --workers 8 \
-  --json-output docs/board-validation-YYYY-MM-DD.json
+ferminator directory-check /private/master-list.html --workers 8 \
+  --json-output /private/board-validation-YYYY-MM-DD.json
 ```
 
 Merge only the successful results into the registry:
 
 ```bash
-ferminator directory-merge docs/board-validation-YYYY-MM-DD.json \
-  --output config/companies.yaml
+ferminator directory-merge /private/board-validation.json \
+  --registry /private/current-registry.yaml \
+  --output /private/updated-registry.yaml
+DATABASE_URL=postgresql://... \
+  ferminator registry-import /private/updated-registry.yaml
 ```
 
 The UI starts in clearly labeled demo mode. Live ingestion requires

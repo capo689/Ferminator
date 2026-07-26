@@ -60,3 +60,24 @@ def test_match_feedback_is_reversible_and_supports_duplicates() -> None:
     assert "create table public.match_feedback_events" in sql
     assert "alter table public.match_feedback_events enable row level security" in sql
     assert "match_feedback_profile_job_key unique (profile_id, job_id)" in sql
+
+
+def test_company_registry_is_not_available_through_client_roles() -> None:
+    sql = migration_sql().casefold()
+
+    assert (
+        'drop policy if exists "authenticated_read_companies" '
+        "on public.companies"
+    ) in sql
+    assert (
+        'drop policy if exists "authenticated_read_boards" '
+        "on public.ats_boards"
+    ) in sql
+    assert (
+        "revoke all privileges on table public.companies "
+        "from anon, authenticated"
+    ) in sql
+    assert (
+        "revoke all privileges on table public.ats_boards "
+        "from anon, authenticated"
+    ) in sql

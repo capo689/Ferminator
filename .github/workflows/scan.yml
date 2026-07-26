@@ -44,6 +44,8 @@ jobs:
           pip install --no-deps .
 
       - name: Validate configuration
+        env:
+          DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
         run: |
           ferminator profile validate
           ferminator registry-validate

@@ -79,9 +79,8 @@ class CompanyRegistry(BaseModel):
         return [board for company in companies for board in company.board_refs()]
 
 
-def load_registry(path: str | Path = "config/companies.yaml") -> CompanyRegistry:
+def load_registry(path: str | Path) -> CompanyRegistry:
     payload = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("company registry must be a mapping")
     return CompanyRegistry.model_validate(payload)
-
