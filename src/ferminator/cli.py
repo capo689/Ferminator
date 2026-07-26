@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -339,13 +340,14 @@ def rescore(profile_path: Path) -> None:
         )
         profile_version = repository.profile_version(profile_id)
         active_jobs = repository.active_jobs()
+        scored_matches = [
+            (job_id, revision_id, score_job(career_profile, job))
+            for job_id, revision_id, job in active_jobs
+        ]
         repository.store_matches(
             profile_id=profile_id,
             profile_version=profile_version,
-            matches=[
-                (job_id, revision_id, score_job(career_profile, job))
-                for job_id, revision_id, job in active_jobs
-            ],
+            matches=scored_matches,
         )
     finally:
         repository.close()
@@ -353,6 +355,18 @@ def rescore(profile_path: Path) -> None:
         f"[green]{career_profile.profile.display_name}: rescored "
         f"{len(active_jobs)} active jobs[/green]"
     )
+    gateway_counts = Counter(
+        (
+            match.explanation.split(" — ", 1)[0]
+            if match.explanation.startswith("Gateway ")
+            else "Legacy/unclassified"
+        )
+        for _, _, match in scored_matches
+    )
+    table = Table("Gateway outcome", "Jobs")
+    for gateway, count in sorted(gateway_counts.items()):
+        table.add_row(gateway, f"{count:,}")
+    console.print(table)
 
 
 @cli.command("discover-audit")
