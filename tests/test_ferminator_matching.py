@@ -73,6 +73,16 @@ def test_ai_labeled_software_engineering_role_is_ineligible():
     assert "Software Engineer" in result.concerns[0]
 
 
+def test_ai_enablement_engineering_false_positive_is_ineligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+
+    result = score_job(profile, make_job(title="Sr. AI Enablement Engineer"))
+
+    assert not result.eligible
+    assert result.score == 0
+    assert "AI Enablement Engineer" in result.concerns[0]
+
+
 def test_reordered_excluded_engineering_title_is_ineligible():
     profile = load_profile(Path("profiles/adam-cagle.md"))
 

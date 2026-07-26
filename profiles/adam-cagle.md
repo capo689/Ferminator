@@ -289,6 +289,7 @@ search:
       - Software Engineer
       - Forward Deployed Engineer
       - Applied AI Engineer
+      - AI Enablement Engineer
       - Agentic AI Engineer
       - Salesforce Administrator
 notifications:
