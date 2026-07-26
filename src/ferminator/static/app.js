@@ -88,13 +88,19 @@ if (wrongDialog) {
   const close = () => wrongDialog.close();
 
   document.querySelectorAll("[data-wrong-feedback]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       form.action = `/feedback/${button.dataset.jobId}/wrong`;
       jobLabel.textContent = button.dataset.jobLabel;
       reasonCode.value = button.dataset.reasonCode || "";
       reasonNote.value = button.dataset.reasonNote || "";
-      wrongDialog.showModal();
-      reasonCode.focus();
+      // Open after the triggering click fully settles. This prevents the same
+      // pointer action from reaching the modal's submit button in some browsers.
+      window.setTimeout(() => {
+        wrongDialog.showModal();
+        reasonCode.focus();
+      }, 0);
     });
   });
   wrongDialog.querySelector("[data-wrong-close]").addEventListener("click", close);
