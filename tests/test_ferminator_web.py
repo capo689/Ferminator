@@ -1,7 +1,10 @@
+import time
 from pathlib import Path
+from threading import Event, Thread
 
 from fastapi.testclient import TestClient
 
+import ferminator.web as web
 from ferminator import __version__
 from ferminator.settings import get_settings
 from ferminator.web import _apply_visible_compensation, _failed_auth, app
@@ -25,6 +28,34 @@ def test_readyz_reports_demo_readiness():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ready", "database": "demo"}
+
+
+def test_slow_dashboard_work_does_not_starve_health_check(monkeypatch):
+    query_started = Event()
+    release_query = Event()
+    original_matches = web._matches
+
+    def slow_matches(*args, **kwargs):
+        query_started.set()
+        assert release_query.wait(timeout=3)
+        return original_matches(*args, **kwargs)
+
+    monkeypatch.setattr(web, "_matches", slow_matches)
+    with TestClient(app) as client:
+        dashboard = Thread(target=lambda: client.get("/discover"))
+        dashboard.start()
+        assert query_started.wait(timeout=1)
+
+        started = time.perf_counter()
+        response = client.get("/healthz")
+        duration = time.perf_counter() - started
+
+        release_query.set()
+        dashboard.join(timeout=3)
+
+    assert response.status_code == 200
+    assert duration < 1
+    assert not dashboard.is_alive()
 
 
 def test_request_id_is_sanitized():
