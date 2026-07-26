@@ -1,44 +1,217 @@
 {% extends "base.html" %}
 {% block title %}Pipeline · Ferminator{% endblock %}
 {% block content %}
-<header class="page-hero compact">
+<header class="page-hero compact pipeline-hero">
   <div>
     <p class="eyebrow">YOUR CAMPAIGN</p>
-    <h1>Momentum, without the spreadsheet.</h1>
-    <p class="hero-copy">Every opportunity, task, and follow-up in one calm workspace.</p>
+    <h1>Move the work forward.</h1>
+    <p class="hero-copy">Every saved role has a next move—and every move can be corrected.</p>
   </div>
   <a class="button button-primary" href="/discover">Find opportunities</a>
 </header>
 
-<section class="pipeline-board" aria-label="Application pipeline">
-  {% for stage, jobs in stages.items() %}
-  <div class="pipeline-column">
+{% if message %}
+<aside class="pipeline-toast" role="status">
+  <span>{{ message }}</span>
+  {% if changed_job %}
+  <form method="post" action="/pipeline-actions/{{ changed_job }}/undo">
+    <button class="text-action" type="submit">Undo</button>
+  </form>
+  {% endif %}
+</aside>
+{% endif %}
+
+{% set active_count = namespace(value=0) %}
+{% set overdue_count = namespace(value=0) %}
+{% for jobs in pipeline.stages.values() %}
+  {% set active_count.value = active_count.value + jobs|length %}
+  {% for job in jobs %}
+    {% if job.overdue %}{% set overdue_count.value = overdue_count.value + 1 %}{% endif %}
+  {% endfor %}
+{% endfor %}
+
+<section class="pipeline-command" aria-label="Pipeline controls" data-pipeline-controls>
+  <label class="pipeline-search">
+    <span>Search campaign</span>
+    <input type="search" placeholder="Company, title, or note…" data-pipeline-search>
+  </label>
+  <label>
+    <span>Show</span>
+    <select data-pipeline-filter>
+      <option value="all">All active · {{ active_count.value }}</option>
+      <option value="attention">Needs attention · {{ overdue_count.value }}</option>
+      <option value="priority">Priority roles</option>
+      <option value="stale">Untouched 7+ days</option>
+    </select>
+  </label>
+  <label>
+    <span>Sort cards</span>
+    <select data-pipeline-sort>
+      <option value="priority">Priority</option>
+      <option value="score">Match score</option>
+      <option value="followup">Follow-up</option>
+      <option value="age">Time in stage</option>
+    </select>
+  </label>
+  <button class="button button-secondary" type="button" data-history-toggle>
+    History · {{ pipeline.terminal|length }}
+  </button>
+</section>
+
+<section class="campaign-pulse" aria-label="Campaign pulse">
+  <div><strong>{{ active_count.value }}</strong><span>active opportunities</span></div>
+  <div class="{{ 'needs-attention' if overdue_count.value else '' }}">
+    <strong>{{ overdue_count.value }}</strong><span>overdue follow-ups</span>
+  </div>
+  <div>
+    <strong>{{ pipeline.stages.Applied|length }}</strong><span>applications in market</span>
+  </div>
+  <div>
+    <strong>{{ pipeline.stages.Interviewing|length }}</strong><span>active interviews</span>
+  </div>
+</section>
+
+<section class="pipeline-board" aria-label="Application pipeline" data-pipeline-board>
+  {% for stage, jobs in pipeline.stages.items() %}
+  {% set state = stage|lower %}
+  <div class="pipeline-column" data-pipeline-stage="{{ state }}">
     <header>
-      <h2>{{ stage }}</h2>
-      <span>{{ jobs|length }}</span>
+      <div><small>{{ "%02d"|format(loop.index) }}</small><h2>{{ stage }}</h2></div>
+      <span data-stage-count>{{ jobs|length }}</span>
     </header>
-    {% for job in jobs %}
-    <article class="pipeline-card">
-      <div class="company-row">
-        <span class="company-logo small">{{ job.company_initial }}</span>
-        <span>{{ job.company }}</span>
-        <span class="score-chip">{{ job.score|round|int }}%</span>
-      </div>
-      <h3>{{ job.title }}</h3>
-      <p>{{ job.location }}</p>
-      {% if job.task %}
-      <div class="task-line">
-        <span>○</span>
-        <span>{{ job.task }}</span>
-        <strong>{{ job.due }}</strong>
-      </div>
-      {% endif %}
-    </article>
-    {% else %}
-    <div class="column-empty">Nothing here yet</div>
-    {% endfor %}
+    <div class="pipeline-dropzone" data-pipeline-dropzone>
+      {% for job in jobs %}
+      <article class="pipeline-card {{ 'is-overdue' if job.overdue else '' }} {{ 'is-closed-listing' if not job.active else '' }}"
+               draggable="true"
+               data-pipeline-card
+               data-job-id="{{ job.id }}"
+               data-search="{{ job.company }} {{ job.title }} {{ job.notes }}"
+               data-priority="{{ job.priority }}"
+               data-score="{{ job.score }}"
+               data-days="{{ job.days_in_stage }}"
+               data-followup="{{ job.follow_up_at.isoformat() if job.follow_up_at else '' }}">
+        <div class="pipeline-card-top">
+          <div class="company-row">
+            <span class="company-logo small">{{ job.company_initial }}</span>
+            <span>{{ job.company }}</span>
+          </div>
+          <button class="drag-handle" type="button" aria-label="Drag {{ job.title }}">⠿</button>
+        </div>
+        <h3><a href="/fit/{{ job.id }}">{{ job.title }}</a></h3>
+        <p class="pipeline-meta">
+          {{ job.location }}{% if job.compensation %} · {{ job.compensation }}{% endif %}
+        </p>
+        <div class="pipeline-signals">
+          <span class="score-chip">{{ job.score|round|int }} match</span>
+          {% if job.priority > 0 %}<span class="priority-chip">Priority {{ job.priority }}</span>{% endif %}
+          {% if not job.active %}<span class="closed-chip">Listing closed</span>{% endif %}
+        </div>
+
+        {% if job.notes or job.follow_up_at %}
+        <div class="task-line {{ 'overdue' if job.overdue else '' }}">
+          <span aria-hidden="true">{{ "!" if job.overdue else "○" }}</span>
+          <span>{{ job.notes or "Follow up" }}</span>
+          {% if job.follow_up_at %}
+          <strong>{{ job.follow_up_at.strftime("%b %-d") }}</strong>
+          {% endif %}
+        </div>
+        {% else %}
+        <p class="stage-age">{{ job.days_in_stage }} days in {{ stage|lower }}</p>
+        {% endif %}
+
+        <label class="move-control">
+          <span>Move to</span>
+          <select data-move-select aria-label="Move {{ job.title }} to another stage">
+            {% for target in ["Considering", "Preparing", "Applied", "Interviewing", "Offer"] %}
+            <option value="{{ target|lower }}" {{ "selected" if target == stage else "" }}>{{ target }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <details class="pipeline-details">
+          <summary>Manage</summary>
+          <div class="pipeline-detail-body">
+            <div class="pipeline-links">
+              <a href="/fit/{{ job.id }}">Fit &amp; complete JD</a>
+              <a href="{{ job.apply_url }}" target="_blank" rel="noopener">Original listing ↗</a>
+            </div>
+            <form method="post" action="/pipeline-actions/{{ job.id }}/details" class="pipeline-edit-form">
+              <label>Notes
+                <textarea name="notes" rows="3" maxlength="4000" placeholder="Next move, contact, positioning…">{{ job.notes }}</textarea>
+              </label>
+              <div class="pipeline-form-row">
+                <label>Priority
+                  <select name="priority">
+                    {% for value, label in [(0, "Normal"), (3, "High"), (6, "Critical")] %}
+                    <option value="{{ value }}" {{ "selected" if job.priority == value else "" }}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label>Follow-up
+                  <input type="datetime-local" name="follow_up_at"
+                         value="{{ job.follow_up_at.strftime('%Y-%m-%dT%H:%M') if job.follow_up_at else '' }}">
+                </label>
+              </div>
+              <button class="button button-primary compact-button" type="submit">Save details</button>
+            </form>
+            <div class="pipeline-danger-zone">
+              {% if state in ["considering", "preparing"] %}
+              <form method="post" action="/pipeline-actions/{{ job.id }}/unsave">
+                <button class="text-action" type="submit">Unsave</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/actions/{{ job.id }}/archived">
+                <button class="text-action" type="submit">Archive</button>
+              </form>
+              <form method="post" action="/pipeline-actions/{{ job.id }}/dismiss">
+                <button class="text-action danger" type="submit">Dismiss as poor fit</button>
+              </form>
+              <details class="close-menu">
+                <summary>Close with outcome</summary>
+                <form method="post" action="/pipeline-actions/{{ job.id }}/details">
+                  <input type="hidden" name="notes" value="{{ job.notes }}">
+                  <input type="hidden" name="priority" value="{{ job.priority }}">
+                  <label>Outcome
+                    <select name="closed_reason" required>
+                      <option value="rejected">Rejected</option>
+                      <option value="withdrawn">Withdrew</option>
+                      <option value="role-filled">Role filled</option>
+                      <option value="ghosted">No response</option>
+                      <option value="duplicate">Duplicate</option>
+                      <option value="no-longer-interested">No longer interested</option>
+                    </select>
+                  </label>
+                  <button class="text-action" type="submit" name="close" value="true">Close job</button>
+                </form>
+              </details>
+            </div>
+          </div>
+        </details>
+      </article>
+      {% else %}
+      <div class="column-empty">Drop an opportunity here</div>
+      {% endfor %}
+    </div>
   </div>
   {% endfor %}
 </section>
-{% endblock %}
 
+<section class="pipeline-history" data-pipeline-history hidden>
+  <div class="section-heading">
+    <div><p class="eyebrow">CAMPAIGN MEMORY</p><h2>Archived and closed opportunities</h2></div>
+  </div>
+  <div class="history-list">
+    {% for job in pipeline.terminal %}
+    <article>
+      <div><strong>{{ job.title }}</strong><span>{{ job.company }} · {{ job.state|title }}</span></div>
+      <span>{{ job.closed_reason or "No outcome recorded" }}</span>
+      <form method="post" action="/actions/{{ job.id }}/considering">
+        <button class="text-action" type="submit">Reopen</button>
+      </form>
+    </article>
+    {% else %}
+    <p class="column-empty">Nothing archived or closed yet.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ferminator"
-version = "0.4.0"
+version = "0.6.0"
 description = "Profile-driven career intelligence across public ATS job boards"
 requires-python = ">=3.11"
 license = { text = "MIT" }

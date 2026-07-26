@@ -91,3 +91,122 @@ if (roleControl) {
   const requested = new URLSearchParams(window.location.search).get("family");
   selectRole(cards.find((card) => card.dataset.id === requested) || cards[0]);
 }
+
+const pipelineBoard = document.querySelector("[data-pipeline-board]");
+if (pipelineBoard) {
+  const cards = [...pipelineBoard.querySelectorAll("[data-pipeline-card]")];
+  const search = document.querySelector("[data-pipeline-search]");
+  const filter = document.querySelector("[data-pipeline-filter]");
+  const sort = document.querySelector("[data-pipeline-sort]");
+
+  const moveJob = async (card, state) => {
+    const current = card.closest("[data-pipeline-stage]")?.dataset.pipelineStage;
+    if (
+      state === "applied" &&
+      current !== "applied" &&
+      !window.confirm("Mark this job as applied? This creates permanent application history.")
+    ) {
+      const select = card.querySelector("[data-move-select]");
+      if (select && current) select.value = current;
+      return;
+    }
+    card.classList.add("is-moving");
+    try {
+      const response = await fetch(`/actions/${card.dataset.jobId}/${state}`, {
+        method: "POST",
+        headers: { "X-Pipeline-Request": "true" },
+      });
+      if (!response.ok) throw new Error(`Move failed: ${response.status}`);
+      window.location.assign(response.url);
+    } catch (_error) {
+      card.classList.remove("is-moving");
+      const status = document.createElement("div");
+      status.className = "pipeline-toast error";
+      status.setAttribute("role", "alert");
+      status.textContent = "That move did not save. The card is still in its previous stage.";
+      document.body.appendChild(status);
+      window.setTimeout(() => status.remove(), 4000);
+    }
+  };
+
+  cards.forEach((card) => {
+    card.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/plain", card.dataset.jobId);
+      event.dataTransfer.effectAllowed = "move";
+      card.classList.add("is-dragging");
+    });
+    card.addEventListener("dragend", () => card.classList.remove("is-dragging"));
+    card.querySelector("[data-move-select]")?.addEventListener("change", (event) => {
+      moveJob(card, event.target.value);
+    });
+  });
+
+  pipelineBoard.querySelectorAll("[data-pipeline-stage]").forEach((column) => {
+    column.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      column.classList.add("is-drop-target");
+    });
+    column.addEventListener("dragleave", () => column.classList.remove("is-drop-target"));
+    column.addEventListener("drop", (event) => {
+      event.preventDefault();
+      column.classList.remove("is-drop-target");
+      const jobId = event.dataTransfer.getData("text/plain");
+      const card = cards.find((item) => item.dataset.jobId === jobId);
+      if (card && card.closest("[data-pipeline-stage]") !== column) {
+        moveJob(card, column.dataset.pipelineStage);
+      }
+    });
+  });
+
+  const refresh = () => {
+    const needle = (search?.value || "").trim().toLowerCase();
+    const mode = filter?.value || "all";
+    cards.forEach((card) => {
+      const matchesText = !needle || card.dataset.search.toLowerCase().includes(needle);
+      const matchesMode =
+        mode === "all" ||
+        (mode === "attention" && card.classList.contains("is-overdue")) ||
+        (mode === "priority" && Number(card.dataset.priority) > 0) ||
+        (mode === "stale" && Number(card.dataset.days) >= 7);
+      card.hidden = !(matchesText && matchesMode);
+    });
+    pipelineBoard.querySelectorAll("[data-pipeline-stage]").forEach((column) => {
+      const visible = [...column.querySelectorAll("[data-pipeline-card]")]
+        .filter((card) => !card.hidden).length;
+      column.querySelector("[data-stage-count]").textContent = String(visible);
+    });
+  };
+
+  const sortCards = () => {
+    const mode = sort?.value || "priority";
+    pipelineBoard.querySelectorAll("[data-pipeline-dropzone]").forEach((zone) => {
+      const items = [...zone.querySelectorAll("[data-pipeline-card]")];
+      items.sort((left, right) => {
+        if (mode === "score") return Number(right.dataset.score) - Number(left.dataset.score);
+        if (mode === "age") return Number(right.dataset.days) - Number(left.dataset.days);
+        if (mode === "followup") {
+          return (left.dataset.followup || "9999").localeCompare(
+            right.dataset.followup || "9999"
+          );
+        }
+        return Number(right.dataset.priority) - Number(left.dataset.priority);
+      });
+      items.forEach((item) => zone.appendChild(item));
+    });
+  };
+
+  search?.addEventListener("input", refresh);
+  filter?.addEventListener("change", refresh);
+  sort?.addEventListener("change", sortCards);
+  sortCards();
+}
+
+const historyToggle = document.querySelector("[data-history-toggle]");
+const pipelineHistory = document.querySelector("[data-pipeline-history]");
+if (historyToggle && pipelineHistory) {
+  historyToggle.addEventListener("click", () => {
+    pipelineHistory.hidden = !pipelineHistory.hidden;
+    historyToggle.setAttribute("aria-expanded", String(!pipelineHistory.hidden));
+    if (!pipelineHistory.hidden) pipelineHistory.scrollIntoView({ behavior: "smooth" });
+  });
+}

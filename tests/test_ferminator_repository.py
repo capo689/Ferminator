@@ -223,3 +223,133 @@ def test_market_intelligence_returns_current_funnel_provider_and_gates() -> None
     )
     provider_sql = connection.execute.call_args_list[1].args[0]
     assert "m.job_revision_id = j.current_revision_id" in provider_sql
+
+
+def test_active_jobs_hydrates_compact_payload_with_canonical_description() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    connection.execute.return_value.fetchall.return_value = [
+        {
+            "job_id": "job-id",
+            "revision_id": "revision-id",
+            "normalized_payload": {
+                "provider": "greenhouse",
+                "board_key": "example",
+                "source_job_id": "123",
+                "company_slug": "example",
+                "company_name": "Example",
+                "title": "Creative Director",
+                "job_url": "https://example.com/job",
+            },
+            "description_text": "Canonical complete job description.",
+        }
+    ]
+
+    jobs = repository.active_jobs()
+
+    assert jobs[0][2].description_text == "Canonical complete job description."
+    assert jobs[0][2].description_html is None
+    assert "r.description_text" in connection.execute.call_args.args[0]
+
+
+def test_pipeline_reads_actions_directly_so_closed_listings_do_not_disappear() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    jobs_cursor = MagicMock()
+    jobs_cursor.fetchall.return_value = []
+    events_cursor = MagicMock()
+    events_cursor.fetchall.return_value = []
+    connection.execute.side_effect = [jobs_cursor, events_cursor]
+
+    pipeline = repository.pipeline("adam-cagle")
+
+    assert list(pipeline["stages"]) == [
+        "Considering",
+        "Preparing",
+        "Applied",
+        "Interviewing",
+        "Offer",
+    ]
+    job_sql = connection.execute.call_args_list[0].args[0]
+    assert "join public.jobs j on j.id = a.job_id" in job_sql
+    assert "j.active" not in job_sql.split("where p.slug", 1)[1]
+
+
+def test_unsave_deletes_bookmark_without_dismissing_or_suppressing_job() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    select_cursor = MagicMock()
+    select_cursor.fetchone.return_value = {
+        "id": "action-id",
+        "profile_id": "profile-id",
+        "job_id": "job-id",
+        "state": "considering",
+    }
+    connection.execute.side_effect = [select_cursor, MagicMock(), MagicMock()]
+
+    previous = repository.unsave_action("adam-cagle", "job-id")
+
+    assert previous == "considering"
+    statements = [call.args[0].casefold() for call in connection.execute.call_args_list]
+    assert any("event_type" in sql and "'unsaved'" in sql for sql in statements)
+    assert any("delete from public.job_actions" in sql for sql in statements)
+    assert all("job_history" not in sql for sql in statements)
+
+
+def test_state_change_records_both_sides_for_reliable_undo() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    previous_cursor = MagicMock()
+    previous_cursor.fetchone.return_value = {
+        "id": "action-id",
+        "state": "considering",
+    }
+    upsert_cursor = MagicMock()
+    upsert_cursor.fetchone.return_value = {
+        "id": "action-id",
+        "profile_id": "profile-id",
+        "job_id": "job-id",
+    }
+    connection.execute.side_effect = [previous_cursor, upsert_cursor, MagicMock()]
+
+    change = repository.set_action("adam-cagle", "job-id", "preparing")
+
+    assert change == {"from_state": "considering", "to_state": "preparing"}
+    event_call = connection.execute.call_args_list[-1]
+    assert "'state_changed'" in event_call.args[0]
+    assert event_call.args[1][-2:] == ("considering", "preparing")
+    upsert_sql = connection.execute.call_args_list[1].args[0]
+    assert "j.active" in upsert_sql
+    assert "public.job_actions existing" in upsert_sql
+
+
+def test_undo_of_first_save_removes_only_the_pipeline_action() -> None:
+    repository = object.__new__(PostgresRepository)
+    repository.connection = MagicMock()
+    connection = repository.connection.return_value.__enter__.return_value
+    event_cursor = MagicMock()
+    event_cursor.fetchone.return_value = {
+        "id": "event-id",
+        "event_type": "state_changed",
+        "from_state": None,
+        "to_state": "considering",
+        "profile_id": "profile-id",
+    }
+    connection.execute.side_effect = [
+        event_cursor,
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+    ]
+
+    restored = repository.undo_action("adam-cagle", "job-id")
+
+    assert restored is None
+    statements = [call.args[0].casefold() for call in connection.execute.call_args_list]
+    assert any("delete from public.job_actions" in sql for sql in statements)
+    assert any("'undo'" in sql for sql in statements)
+    assert any("state_change_undone" in sql for sql in statements)
