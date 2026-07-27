@@ -482,3 +482,76 @@ def test_set_password_requires_matching_twelve_char_password(monkeypatch):
 
     assert short.status_code == 400
     assert mismatch.status_code == 400
+
+
+def test_repository_is_shared_and_survives_call_site_close(monkeypatch):
+    """Regression: _repository() built a new ConnectionPool on every call.
+
+    It is called from ~27 places, so one page paid several TCP + TLS + auth
+    handshakes to an out-of-region database before reading a row. The pool is
+    now process-wide, which means a call site's close() must not tear it down.
+    """
+    monkeypatch.setattr(web, "_shared_repository", None)
+    opened = []
+
+    class Pool:
+        # the real code passes check=ConnectionPool.check_connection
+        check_connection = staticmethod(lambda conn: None)
+
+        def __init__(self, *a, **k):
+            opened.append(1)
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
+    get_settings.cache_clear()
+    monkeypatch.setattr("ferminator.repository.ConnectionPool", Pool)
+    try:
+        first = web._repository()
+        second = web._repository()
+        assert first is second, "the pool must be reused, not rebuilt"
+        assert len(opened) == 1, f"expected one pool, got {len(opened)}"
+
+        first.close()
+        assert first.pool.closed is False, "a call site must not close the shared pool"
+
+        web._close_shared_repository()
+        assert first.pool.closed is True, "shutdown must close it"
+        assert web._shared_repository is None
+    finally:
+        web._shared_repository = None
+        get_settings.cache_clear()
+
+
+def test_set_password_rejects_over_72_bytes(monkeypatch):
+    """bcrypt truncates past 72 bytes, so Supabase 400s. Catch it before the
+    token is spent -- that is what burned a live reset link."""
+    monkeypatch.setenv("FERMINATOR_AUTH_MODE", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "pk")
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    get_settings.cache_clear()
+
+    claimed = {"count": 0}
+
+    class Repository:
+        def claim_password_reset_token(self, token_hash):
+            claimed["count"] += 1
+            return None
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(web, "_repository", Repository)
+    try:
+        response = TestClient(app).post(
+            "/set-password",
+            data={"token": "t", "password": "a" * 73, "confirm": "a" * 73},
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 400
+    assert claimed["count"] == 0, "must reject before spending the token"

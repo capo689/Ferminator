@@ -100,6 +100,7 @@ async def lifespan(_app: FastAPI):
         },
     )
     yield
+    _close_shared_repository()
     logger.info("application_stopped", extra={"event": "shutdown"})
 
 
@@ -279,11 +280,45 @@ def _context(request: Request, active: str) -> dict:
     }
 
 
+class _SharedRepository(PostgresRepository):
+    """Process-wide repository whose close() is deliberately inert.
+
+    Call sites close the repository they obtain. With a shared pool that would
+    tear down connections other in-flight requests are using, so closing is a
+    no-op here and the pool is closed once, on shutdown.
+    """
+
+    def close(self) -> None:
+        return
+
+    def shutdown(self) -> None:
+        PostgresRepository.close(self)
+
+
+_shared_repository: _SharedRepository | None = None
+
+
 def _repository() -> PostgresRepository:
-    database_url = get_settings().database_url
-    if not database_url:
-        raise RuntimeError("DATABASE_URL is required for live dashboard data")
-    return PostgresRepository(database_url, min_size=1, max_size=2)
+    """Return the process-wide repository, opening the pool on first use.
+
+    This used to build a brand new ConnectionPool per call, and it is called
+    from ~27 places, so a single page paid several TCP + TLS + auth handshakes
+    to a database in another region before reading a row.
+    """
+    global _shared_repository
+    if _shared_repository is None:
+        database_url = get_settings().database_url
+        if not database_url:
+            raise RuntimeError("DATABASE_URL is required for live dashboard data")
+        _shared_repository = _SharedRepository(database_url, min_size=2, max_size=10)
+    return _shared_repository
+
+
+def _close_shared_repository() -> None:
+    global _shared_repository
+    if _shared_repository is not None:
+        _shared_repository.shutdown()
+        _shared_repository = None
 
 
 def _apply_role_thresholds(
@@ -642,6 +677,9 @@ async def set_password(request: Request):
 
     if len(password) < 12:
         return fail("Use at least 12 characters.")
+    # bcrypt truncates past 72 bytes, so Supabase rejects anything longer.
+    if len(password.encode("utf-8")) > 72:
+        return fail("Use 72 characters or fewer.")
     if password != confirm:
         return fail("The two passwords do not match.")
 
@@ -658,6 +696,11 @@ async def set_password(request: Request):
         await auth_client.set_user_password(str(claim["auth_user_id"]), password)
     except RuntimeError:
         logger.exception("password_set_failed", extra={"event": "password_set_failed"})
+        release = _repository()
+        try:
+            release.release_password_reset_token(_reset_token_hash(token))
+        finally:
+            release.close()
         return fail("Could not update the password. Try the link again.", status=500)
 
     logger.info(

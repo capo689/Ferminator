@@ -77,6 +77,10 @@ class PostgresRepository:
             max_size=max_size,
             kwargs={"row_factory": dict_row},
             open=True,
+            # A long-lived pool will eventually hold a connection the pooler has
+            # dropped. Check on checkout so a dead socket is replaced rather
+            # than handed to a request.
+            check=ConnectionPool.check_connection,
         )
 
     def close(self) -> None:
@@ -265,6 +269,22 @@ class PostgresRepository:
                 (token_hash,),
             ).fetchone()
         return dict(row) if row else None
+
+    def release_password_reset_token(self, token_hash: str) -> None:
+        """Un-consume a token whose password update did not go through.
+
+        Claiming before the Supabase call meant one failed attempt burned the
+        link and the user had to ask for a new one.
+        """
+        with self.connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                update public.password_reset_tokens
+                set used_at = null
+                where token_hash = %s and used_at is not null
+                """,
+                (token_hash,),
+            )
 
     def profile_for_account(self, account_id: str) -> CareerProfile:
         with self.connection() as conn:
