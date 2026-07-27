@@ -583,26 +583,40 @@ class PostgresRepository:
             rows = conn.execute(
                 """
                 with effective_profile as (
-                  select p.*, (
-                    select max(pm.profile_version)
-                    from public.job_matches pm
-                    where pm.profile_id = p.id
-                  ) as match_version
+                  select p.*
                   from public.profiles p
                   where p.slug = %s
                 ),
-                effective_matches as (
+                -- Discover is sticky: once a job qualifies it stays visible
+                -- until the user actually deals with it. Scoping to the newest
+                -- profile_version rebuilt the list on every rescore, so an
+                -- untouched job silently vanished because a later pass ranked
+                -- it lower. Aggregate across versions instead.
+                job_level as (
+                  select m.job_id,
+                         bool_or(m.eligible) as ever_eligible,
+                         max(m.score) as best_score
+                  from public.job_matches m
+                  join effective_profile p on p.id = m.profile_id
+                  group by m.job_id
+                ),
+                latest_match as (
                   select distinct on (m.job_id) m.*
                   from public.job_matches m
                   join effective_profile p on p.id = m.profile_id
-                    and p.match_version = m.profile_version
-                  order by m.job_id, m.updated_at desc
+                  order by m.job_id, m.profile_version desc, m.updated_at desc
+                ),
+                effective_matches as (
+                  select l.*, jl.best_score, jl.ever_eligible
+                  from latest_match l
+                  join job_level jl on jl.job_id = l.job_id
+                  where jl.ever_eligible
                 ),
                 deduplicated_matches as (
                   select m.*, row_number() over (
                     partition by public.normalize_job_part(j.company_name),
                                  public.normalize_job_part(j.title)
-                    order by m.score desc,
+                    order by m.best_score desc,
                              (j.workplace_type = 'remote') desc,
                              (j.salary_min is not null) desc,
                              j.published_at desc nulls last,
@@ -610,13 +624,13 @@ class PostgresRepository:
                   ) as duplicate_rank
                   from effective_matches m
                   join public.jobs j on j.id = m.job_id
-                  where m.eligible and j.active
+                  where j.active
                 )
                 select j.id, j.title, j.company_name, c.slug as company_slug,
                        j.department, j.workplace_type, j.salary_min, j.salary_max,
                        j.salary_currency, j.salary_interval, j.job_url, j.apply_url,
                        j.published_at, j.source_updated_at, j.first_seen_at,
-                       j.last_seen_at, b.provider, m.score, m.component_scores,
+                       j.last_seen_at, b.provider, m.best_score as score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
                        feedback.verdict as feedback_verdict,
                        feedback.wrong_reason_code as feedback_reason_code,
@@ -694,7 +708,7 @@ class PostgresRepository:
                   from public.job_revisions history
                   where history.job_id = j.id
                 ) revision_history on true
-                where m.eligible and m.score >= %s
+                where m.ever_eligible and m.best_score >= %s
                   and (%s or not exists (
                     select 1 from public.job_history h
                     where h.profile_id = p.id
@@ -705,7 +719,7 @@ class PostgresRepository:
                           || '::' || public.normalize_job_part(j.title)
                       )
                   ))
-                order by m.score desc, j.first_seen_at desc
+                order by m.best_score desc, j.first_seen_at desc
                 limit %s
                 """,
                 (profile_slug, minimum_score, include_suppressed, limit),
