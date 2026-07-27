@@ -200,6 +200,9 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
     assert "deduplicated_matches" in sql
     assert "public.normalize_job_part(j.company_name)" in sql
     assert "m.duplicate_rank = 1" in sql
+    assert "feedback_job.company_name" in sql
+    assert "feedback_job.title" in sql
+    assert "order by (f.job_id = j.id) desc" in sql
     assert "m.job_revision_id = j.current_revision_id" not in sql
 
 

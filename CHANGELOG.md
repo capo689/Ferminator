@@ -63,6 +63,12 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 - Overlapping ATS board records with the same normalized company and title now
   collapse after refined scoring, removing repeated Discover and digest cards
   without spending duplicate work on the full corpus.
+- Profile feedback now follows identical normalized company/title listings
+  across overlapping boards, preventing a rated Wrong or Duplicate job from
+  reappearing through a sibling source record.
+- Direct AI phrase collisions no longer rescue plainly incompatible finance,
+  legal, data-architecture, research, ASIC, field-CTO, or data-governance
+  titles.
 
 ### Production-readiness changes required before public launch
 

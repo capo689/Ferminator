@@ -462,7 +462,18 @@ class PostgresRepository:
                 left join lateral (
                   select f.verdict, f.wrong_reason_code, f.reason
                   from public.match_feedback f
-                  where f.profile_id = p.id and f.job_id = j.id
+                  join public.jobs feedback_job on feedback_job.id = f.job_id
+                  where f.profile_id = p.id
+                    and (
+                      f.job_id = j.id
+                      or (
+                        public.normalize_job_part(feedback_job.company_name)
+                          = public.normalize_job_part(j.company_name)
+                        and public.normalize_job_part(feedback_job.title)
+                          = public.normalize_job_part(j.title)
+                      )
+                    )
+                  order by (f.job_id = j.id) desc, f.updated_at desc
                   limit 1
                 ) feedback on true
                 left join lateral (
