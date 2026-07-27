@@ -335,13 +335,27 @@ class PostgresRepository:
                   join effective_profile p on p.id = m.profile_id
                     and p.match_version = m.profile_version
                   order by m.job_id, m.updated_at desc
+                ),
+                deduplicated_matches as (
+                  select m.*, row_number() over (
+                    partition by public.normalize_job_part(j.company_name),
+                                 public.normalize_job_part(j.title)
+                    order by m.score desc,
+                             (j.workplace_type = 'remote') desc,
+                             (j.salary_min is not null) desc,
+                             j.published_at desc nulls last,
+                             j.id
+                  ) as duplicate_rank
+                  from effective_matches m
+                  join public.jobs j on j.id = m.job_id
+                  where m.eligible and j.active
                 )
                 select j.title, j.company_name, j.job_url, j.apply_url,
                        j.first_seen_at, m.score, m.matched_evidence, m.concerns
                 from effective_profile p
-                join effective_matches m on m.profile_id = p.id
+                join deduplicated_matches m on m.profile_id = p.id
                 join public.jobs j on j.id = m.job_id
-                where m.eligible and j.active
+                where m.duplicate_rank = 1
                   and m.score >= %s
                   and not exists (
                     select 1 from public.job_history h
@@ -387,6 +401,20 @@ class PostgresRepository:
                   join effective_profile p on p.id = m.profile_id
                     and p.match_version = m.profile_version
                   order by m.job_id, m.updated_at desc
+                ),
+                deduplicated_matches as (
+                  select m.*, row_number() over (
+                    partition by public.normalize_job_part(j.company_name),
+                                 public.normalize_job_part(j.title)
+                    order by m.score desc,
+                             (j.workplace_type = 'remote') desc,
+                             (j.salary_min is not null) desc,
+                             j.published_at desc nulls last,
+                             j.id
+                  ) as duplicate_rank
+                  from effective_matches m
+                  join public.jobs j on j.id = m.job_id
+                  where m.eligible and j.active
                 )
                 select j.id, j.title, j.company_name, c.slug as company_slug,
                        j.department, j.workplace_type, j.salary_min, j.salary_max,
@@ -402,8 +430,9 @@ class PostgresRepository:
                        locations.records as locations,
                        prior.history_candidates
                 from effective_profile p
-                join effective_matches m on m.profile_id = p.id
-                join public.jobs j on j.id = m.job_id and j.active
+                join deduplicated_matches m on m.profile_id = p.id
+                  and m.duplicate_rank = 1
+                join public.jobs j on j.id = m.job_id
                 join public.job_revisions r on r.id = j.current_revision_id
                 join public.ats_boards b on b.id = j.ats_board_id
                 join public.companies c on c.id = b.company_id

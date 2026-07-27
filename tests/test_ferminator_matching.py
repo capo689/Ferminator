@@ -150,6 +150,41 @@ def test_unconventional_title_can_advance_from_jd_function_evidence():
     assert any("Controlled review" in concern for concern in result.concerns)
 
 
+def test_jd_ai_vocabulary_does_not_rescue_unrelated_legal_title():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="Director, Privacy Counsel",
+            description_text=(
+                "Advise teams using AI adoption, workflow automation, AI governance, "
+                "APIs, guardrails, and human approval."
+            ),
+        ),
+    )
+
+    assert not result.eligible
+    assert result.explanation.startswith("Gateway 3")
+    assert "did not agree" in result.concerns[0]
+
+
+def test_jd_content_vocabulary_does_not_rescue_unrelated_engineering_program_title():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="Sr. Principal Program Manager, ASIC Post-Silicon Engineering",
+            description_text=(
+                "Own content strategy, brand voice, executive communication, "
+                "workflow design, and cross-functional operations."
+            ),
+        ),
+    )
+
+    assert not result.eligible
+    assert result.explanation.startswith("Gateway 3")
+
+
 def test_jd_keywords_do_not_rescue_body_only_engineering_title():
     profile = load_profile(Path("profiles/adam-cagle.md"))
     result = score_job(

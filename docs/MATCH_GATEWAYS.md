@@ -10,15 +10,18 @@ reject.
    unconventional title whose JD contains both a role-family signal and a
    major profile concept.
 3. **Hard disqualifiers** — reject excluded career functions, mandatory
-   incompatibilities, unsupported employment types, and adjacent roles without
-   supporting JD evidence.
+   incompatibilities, unsupported employment types, adjacent roles without
+   supporting JD evidence, and JD-inferred families that do not agree with the
+   career function named in the title.
 4. **Compensation** — reject only explicitly incompatible annual or hourly
    ranges. Missing compensation advances with an uncertainty flag.
 5. **Refined fit** — rank career evidence, role alignment, skills, seniority,
    geography, compensation, freshness, and function-specific calibration.
-6. **Application and fuzzy duplicate review** — exact ATS/URL identity is
-   handled cheaply during ingestion. Application-history and fuzzy title
-   comparison happen only for jobs that have survived refined matching.
+6. **Application and duplicate review** — exact ATS/URL identity is handled
+   cheaply during ingestion. After refined matching, identical normalized
+   company/title listings from overlapping boards collapse to the richest
+   representative. Application-history and fuzzy title comparison then run
+   only for surviving jobs.
 
 Every rescore prints the number of jobs rejected or accepted at each gateway.
 The production workflow then runs `discover-audit`, which reproduces role

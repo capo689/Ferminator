@@ -57,6 +57,12 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
   unstyled HTML.
 - Today-page company marks now use dependable initials instead of requesting
   nonexistent per-company image files.
+- JD-only role-family inference now requires the title to name a coherent
+  career function, preventing AI/content vocabulary from rescuing unrelated
+  legal, finance, data, engineering, and event roles.
+- Overlapping ATS board records with the same normalized company and title now
+  collapse after refined scoring, removing repeated Discover and digest cards
+  without spending duplicate work on the full corpus.
 
 ### Production-readiness changes required before public launch
 
