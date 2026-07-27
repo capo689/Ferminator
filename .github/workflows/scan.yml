@@ -55,7 +55,11 @@ jobs:
       - name: Ingest enabled boards
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
-          REQUESTED_SHARD: ${{ github.event_name == 'workflow_dispatch' && inputs.shard || (github.event.schedule == '35 8,16 * * *' && '2' || '1') }}
+          # Must match the cron strings above exactly. The 8:35 run takes
+          # shard 2, the 8:00 run takes shard 1; if this string ever drifts
+          # from the schedule, every run silently scans shard 1 and half the
+          # registry stops updating.
+          REQUESTED_SHARD: ${{ github.event_name == 'workflow_dispatch' && inputs.shard || (github.event.schedule == '35 8 * * *' && '2' || '1') }}
         run: |
           if [ "$REQUESTED_SHARD" = "all" ]; then
             ferminator scan --workers 16

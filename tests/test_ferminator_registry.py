@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -53,9 +54,34 @@ def test_scheduled_scan_capacity_matches_expanded_registry() -> None:
 
     assert "timeout-minutes: 45" in workflow
     assert "timezone: America/Los_Angeles" in workflow
-    assert 'cron: "5 8,16 * * *"' in workflow
-    assert 'cron: "35 8,16 * * *"' in workflow
+    assert 'cron: "0 8 * * *"' in workflow
+    assert 'cron: "35 8 * * *"' in workflow
     assert '--shard-index "$REQUESTED_SHARD" --shard-count 2' in workflow
+
+
+def test_shard_selector_matches_a_declared_cron() -> None:
+    """The shard is chosen by comparing github.event.schedule to a literal.
+
+    If that literal ever drifts from the declared schedule the comparison
+    silently fails, every scheduled run takes shard 1, and half the registry
+    stops being scanned with no error anywhere.
+    """
+    workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+
+    declared = set(re.findall(r'cron:\s*"([^"]+)"', workflow))
+    assert declared, "no cron schedules declared"
+
+    selectors = set(re.findall(r"github\.event\.schedule\s*==\s*'([^']+)'", workflow))
+    assert selectors, "no shard selector found"
+
+    unmatched = selectors - declared
+    assert not unmatched, (
+        f"shard selector(s) {sorted(unmatched)} match no declared cron "
+        f"{sorted(declared)}; every run would fall through to shard 1"
+    )
+
+    # Both shards must be reachable: one cron selects shard 2, the rest shard 1.
+    assert len(declared) >= 2, "need at least two scheduled runs to cover both shards"
 
 
 def test_registry_shards_are_stable_complete_and_non_overlapping() -> None:
