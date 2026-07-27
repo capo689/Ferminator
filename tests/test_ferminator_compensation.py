@@ -30,6 +30,29 @@ def test_extracts_k_notation_and_hourly_ranges() -> None:
     assert (hourly.minimum, hourly.maximum, hourly.interval) == (72, 96, "hour")
 
 
+def test_extracts_provider_hourly_rate_without_a_leading_currency_symbol() -> None:
+    compensation = extract_compensation_from_text(
+        "Hourly Pay Rate: 43.10 - 47.86 USD"
+    )
+
+    assert compensation is not None
+    assert compensation.minimum == 43.10
+    assert compensation.maximum == 47.86
+    assert compensation.currency == "USD"
+    assert compensation.interval == "hour"
+
+
+def test_structured_provider_interval_is_normalized_before_matching() -> None:
+    compensation = Compensation(
+        minimum=43.10,
+        maximum=47.86,
+        currency="USD",
+        interval="per-hour-wage",
+    )
+
+    assert compensation.interval == "hour"
+
+
 def test_extracts_range_split_across_hosted_board_html() -> None:
     compensation = extract_compensation_from_text(
         '<div class="title">The annual salary range for this full-time position is</div>'

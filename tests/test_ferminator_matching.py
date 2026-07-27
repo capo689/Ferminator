@@ -267,6 +267,74 @@ def test_gateway_four_extracts_compensation_from_stored_jd():
     assert result.explanation.startswith("Gateway 4")
 
 
+def test_mandatory_residency_timezone_rejects_an_incompatible_remote_role():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="AI Success Manager, Central",
+            description_text=(
+                "Lead AI adoption and workflow automation. This role is remote, "
+                "but candidates must be located in the US Central timezone."
+            ),
+        ),
+    )
+
+    assert not result.eligible
+    assert result.explanation.startswith("Gateway 3")
+    assert "Central" in result.concerns[0]
+    assert "Pacific" in result.concerns[0]
+
+
+def test_timezone_overlap_request_does_not_become_a_residency_rejection():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="AI Success Manager",
+            description_text=(
+                "Lead AI adoption and workflow automation. Collaborate with customers "
+                "during Central time-zone business hours when needed."
+            ),
+        ),
+    )
+
+    assert result.eligible
+
+
+def test_explicit_travel_above_profile_maximum_is_a_hard_disqualifier():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            title="AI Engagement Manager",
+            description_text=(
+                "Lead enterprise AI adoption and workflow automation. Travel could "
+                "reach 50% at peak for on-site customer engagements."
+            ),
+        ),
+    )
+
+    assert not result.eligible
+    assert result.explanation.startswith("Gateway 3")
+    assert "50% travel" in result.concerns[0]
+
+
+def test_travel_at_profile_maximum_remains_eligible():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    result = score_job(
+        profile,
+        make_job(
+            description_text=(
+                "Lead enterprise AI adoption and workflow automation. "
+                "The role requires up to 25% travel."
+            ),
+        ),
+    )
+
+    assert result.eligible
+
+
 def test_us_remote_role_remains_eligible():
     profile = load_profile(Path("profiles/adam-cagle.md"))
     result = score_job(profile, make_job())

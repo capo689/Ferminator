@@ -12,7 +12,8 @@ reject.
 3. **Hard disqualifiers** — reject excluded career functions, mandatory
    incompatibilities, unsupported employment types, adjacent roles without
    supporting JD evidence, and JD-inferred families that do not agree with the
-   career function named in the title.
+   career function named in the title. Explicit residency-timezone conflicts
+   and travel above the profile's configured ceiling also stop here.
 4. **Compensation** — reject only explicitly incompatible annual or hourly
    ranges. Missing compensation advances with an uncertainty flag.
 5. **Refined fit** — rank career evidence, role alignment, skills, seniority,
@@ -30,9 +31,8 @@ thresholds, feedback suppression, application-ledger suppression, and default
 geography. Adam's release gate requires at least 40 opportunities in the actual
 default Discover result.
 
-The 61-job Calibration V2 corpus remains the quality invariant:
+The 85-job Calibration V3 corpus is the current quality invariant:
 
-- all reviewed Great and Maybe jobs must remain visible;
-- all reviewed Wrong jobs must be rejected by matching or hidden by explicit
-  feedback;
+- all 26 reviewed Great and Maybe jobs must remain visible;
+- all 57 reviewed Wrong jobs must be rejected by matching;
 - Duplicate feedback remains profile-specific and reversible.

@@ -7,6 +7,9 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Added
 
+- Calibration V3, an 85-job frozen corpus combining both complete human-review
+  batches with 13 Great, 13 Maybe, 57 Wrong, and 2 Duplicate verdicts.
+- Profile-controlled home timezone and maximum travel percentage gates.
 - Largest-safe-cut match gateways for geography, functional recall, hard
   disqualifiers, compensation, and refined fit.
 - Per-gateway rescore accounting and an exact default-Discover production
@@ -32,6 +35,10 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Changed
 
+- Adam's title vocabulary now distinguishes editorial and technical-content
+  work from PR, internal/corporate communications, generic growth marketing,
+  event content, assessment content, MarTech operations, and crypto-domain
+  specialist roles.
 - Exact identity deduplication remains cheap and early; fuzzy
   application-history review is deferred until after refined matching.
 - Adam's production acceptance floor now requires at least 40 genuinely visible
@@ -56,6 +63,14 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Fixed
 
+- Structured ATS pay-period variants such as `per-hour-wage` now normalize
+  before compensation gating, and unlabeled hourly ranges such as
+  `Hourly Pay Rate: 43.10 - 47.86 USD` are extracted correctly.
+- Explicit incompatible residency timezones and travel requirements above the
+  profile ceiling now fail before refined scoring.
+- Generic visual Creative Director, People/HR automation, enterprise-outcomes,
+  and enterprise-engagement keyword collisions no longer receive inflated
+  applied-AI relevance.
 - Production browser assets now use root-relative HTTPS-safe URLs behind
   Render's TLS proxy, restoring the complete dashboard interface instead of
   unstyled HTML.

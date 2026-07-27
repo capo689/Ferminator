@@ -10,9 +10,11 @@ search:
   default_geography:
     - Remote — United States
   default_zip: "97702"
+  home_timezone: pacific
   default_radius_miles: 50
   default_location_mode: remote_or_near
   allow_jobs_without_compensation: true
+  maximum_travel_percent: 25
   compensation:
     currency: USD
     minimum_base_annual: 100000
@@ -177,12 +179,6 @@ search:
         - Brand Content
         - Brand Marketing Lead
         - Head of Brand Marketing
-        - Communications Lead
-        - Communications Manager
-        - Head of Communications
-        - Digital Communications
-        - Executive Communications
-        - CEO Communications
         - Content Writer
     - id: technical-content-education
       label: Technical Content & Education
@@ -269,14 +265,7 @@ search:
         - VP Product Marketing
         - Vice President Product Marketing
         - Product Marketing
-        - Growth Marketing Director
-        - Director, Growth Marketing
-        - Director of Growth Marketing
-        - Head of Growth Marketing
-        - Head of Growth & Marketing
         - Digital Marketing Strategist
-        - B2B Marketing Manager
-        - Integrated Marketing Manager
     - id: agency-creative-leadership
       label: Agency & Creative Leadership
       tier: edge
@@ -358,6 +347,16 @@ search:
       - AI Deployment Engineer
       - Agentic AI Engineer
       - Salesforce Administrator
+      - CEO Communications
+      - Internal Communications
+      - Corporate Communications
+      - Product Communications
+      - Communications Manager
+      - Growth Marketing
+      - B2B Marketing Manager
+      - Event Manager
+      - Assessment Content
+      - Crypto
 notifications:
   dashboard: true
   email: true
