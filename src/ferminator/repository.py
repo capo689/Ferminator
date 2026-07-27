@@ -419,8 +419,8 @@ class PostgresRepository:
                 select j.id, j.title, j.company_name, c.slug as company_slug,
                        j.department, j.workplace_type, j.salary_min, j.salary_max,
                        j.salary_currency, j.salary_interval, j.job_url, j.apply_url,
-                       j.published_at,
-                       j.first_seen_at, b.provider, m.score, m.component_scores,
+                       j.published_at, j.source_updated_at, j.first_seen_at,
+                       j.last_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
                        feedback.verdict as feedback_verdict,
                        feedback.wrong_reason_code as feedback_reason_code,
@@ -428,7 +428,9 @@ class PostgresRepository:
                        r.description_text as compensation_text,
                        coalesce(l.label, 'Location unspecified') as location,
                        locations.records as locations,
-                       prior.history_candidates
+                       prior.history_candidates,
+                       revision_history.revision_count,
+                       revision_history.latest_revision_at
                 from effective_profile p
                 join deduplicated_matches m on m.profile_id = p.id
                   and m.duplicate_rank = 1
@@ -490,6 +492,12 @@ class PostgresRepository:
                     and h.normalized_company = public.normalize_job_part(j.company_name)
                     and (h.permanent or h.suppress_until > now())
                 ) prior on true
+                left join lateral (
+                  select count(*) as revision_count,
+                         max(observed_at) as latest_revision_at
+                  from public.job_revisions history
+                  where history.job_id = j.id
+                ) revision_history on true
                 where m.eligible and m.score >= %s
                   and (%s or not exists (
                     select 1 from public.job_history h
@@ -568,6 +576,11 @@ class PostgresRepository:
                     "compensation_currency": salary_currency,
                     "compensation_interval": salary_interval,
                     "score": float(item["score"]),
+                    "desirability_score": round(
+                        float(item["score"])
+                        + float((item.get("component_scores") or {}).get("desirability_prior", 0)),
+                        2,
+                    ),
                     "evidence": item["matched_evidence"],
                     "freshness": (
                         f"{age_hours}h ago"

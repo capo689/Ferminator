@@ -3,108 +3,135 @@
 ## Contents
 
 - File shape
-- Canonical defaults
-- Field rules
+- Search model
+- Role-family rules
+- Decision model
+- Constraints and history
 - Body requirements
 
 ## File shape
 
-A profile is UTF-8 Markdown with YAML front matter:
+Produce UTF-8 Markdown with YAML front matter and `schema_version: 2`. Use
+lowercase hyphen case for the filename and `profile.slug`. Include `email_env`
+only when email is requested; store an environment-variable name, never an
+email address.
 
-```text
----
-schema_version: 1
-profile: ...
-search: ...
-notifications: ...
-scoring: ...
----
+## Search model
 
-# Full Name — Career Search Profile
-...
-```
+Keep four concepts separate:
 
-The filename and `profile.slug` use lowercase hyphen case. Generate
-`email_env` only when email delivery is requested; use
-`FERMINATOR_<SLUG_WITH_UNDERSCORES>_EMAIL`, never the user's email address.
+1. `role_families` retrieves plausible work.
+2. `decision_model.eligibility` rejects hard conflicts.
+3. `decision_model.desirability` predicts Great, Maybe, or Wrong.
+4. Human feedback is authoritative after review.
 
-## Canonical defaults
+Do not describe an internal threshold as the displayed match score. Ask users
+to choose role intent; translate intent to an initial internal threshold:
 
-- `schema_version`: `1`
-- `search.enabled`: `true`
-- `search.scan_interval_hours`: `12`
-- `search.allow_jobs_without_compensation`: `true`
-- `search.default_location_mode`: `remote_or_near`
-- `search.default_radius_miles`: `50`
-- `search.require_title_match`: `true`
-- `search.enforce_default_geography`: `true`
-- `search.adjacent_minimum_preferred_hits`: `1`
-- Primary role threshold: `80`
-- Adjacent role threshold: `85`
-- Edge role threshold: `90`
-- Notification scores: review `58`, minimum `70`, exceptional `88`
-- `notifications.max_daily_matches`: `12`
-- Scoring:
-  - `role_alignment: 30`
-  - `career_evidence: 20`
-  - `skills: 15`
-  - `seniority: 10`
-  - `geography: 10`
-  - `compensation: 5`
-  - `company_preference: 5`
-  - `freshness: 5`
+| Intent | Tier | Starting threshold |
+|---|---|---:|
+| `core` | `primary` | 50 |
+| `adjacent` | `adjacent` | 55 |
+| `edge` | `edge` | 65 |
+| `exploratory` | `edge` | 40 |
 
-Defaults are starting points, not hidden user choices. Confirm geography,
-compensation, role families, and exclusions.
+These are controlled-review starting points. Recalibrate after real-job review.
 
-## Field rules
+## Role-family rules
 
-### `profile`
+Require every family to contain:
 
-- `slug`: 2–63 lowercase letters, digits, or hyphens.
-- `display_name`: user-confirmed preferred display name.
-- `email_env`: optional environment-variable name.
+- `id`, `label`, `intent`, `tier`, `threshold`, `description`, and `aliases`;
+- `must_involve`: work central to a genuine match;
+- `supporting_evidence`: concise references to proven career evidence;
+- `required_signals`: context needed when a title is ambiguous;
+- `false_positive_patterns`: common alternate meanings;
+- `disqualifying_responsibilities`: work that makes this family Wrong;
+- `acceptable_seniority`;
+- `tolerated_gaps`;
+- `non_claims`.
 
-### `search`
+Aliases must be genuine titles, not broad nouns such as `Marketing`, `AI`,
+`Operations`, or `Manager`. Do not put the same alias in multiple families.
 
-- `scan_interval_hours`: 1–168.
-- `default_geography`: list of readable geographic rules.
-- `default_zip`: five-digit US ZIP code.
-- `default_radius_miles`: `10`, `25`, `50`, or `100`.
-- `default_location_mode`: `remote`, `near`, `remote_or_near`, or `anywhere`.
-- `compensation.minimum_base_annual`: nonnegative number or `null`.
-- `employment_types`: normalized user-approved values.
-- `target_seniority`: normalized user-approved values.
-- `target_titles.high` and `.adjacent`: optional compatibility lists. Prefer
-  role families for new profiles.
-- `role_families`: at least one confirmed family.
-- `required_any`: use sparingly; each term can suppress otherwise good roles.
-- `preferred`: concrete capabilities, domains, and work patterns supported by
-  career evidence.
-- `exclude`: mapping of exclusion group names to phrase lists. Use
-  `phrases` and `title_phrases` unless another explicit group is needed.
+## Decision model
 
-Each role family requires:
+Require:
 
-- unique lowercase-hyphen `id`;
-- readable `label`;
-- `tier`: `primary`, `adjacent`, or `edge`;
-- threshold from 0–100;
-- at least one unique alias;
-- concise description of the actual work.
+- `retrieval.search_vocabulary`;
+- `eligibility.hard_rejections`;
+- `eligibility.manual_review_conditions`;
+- `desirability.great_if`;
+- `desirability.maybe_if`;
+- `desirability.wrong_if`;
+- `feedback.wrong_reason_codes`;
+- `feedback.capture_great_reason`, `capture_maybe_tradeoff`, and
+  `capture_wrong_reason`.
 
-Aliases should be genuine title variants. Avoid single broad nouns such as
-`Marketing`, `AI`, `Operations`, or `Manager`.
+Use these canonical Wrong reason codes:
 
-### `notifications`
+- `wrong_function`
+- `qualification_gap`
+- `wrong_seniority`
+- `technical_depth`
+- `compensation`
+- `geography`
+- `travel`
+- `industry_company`
+- `work_style`
+- `not_interested`
+- `stale_listing`
+- `other`
 
-`review_minimum_score` must be lower than `minimum_score`.
-`exceptional_score` must be at least `minimum_score`.
+Treat hard constraints as gates. Do not award or subtract a handful of points
+for a geographic, compensation, travel, or mandatory-qualification violation.
 
-### `scoring`
+## Scoring model
 
-Weights must be nonnegative and total exactly 100. Use only the eight canonical
-keys listed in the defaults unless Ferminator's application schema changes.
+Use the schema-v2 ranking weights below. They rank eligible, unreviewed jobs and
+total exactly 100:
+
+- `functional_fit: 30`
+- `career_evidence: 20`
+- `ats_credibility: 15`
+- `skills: 10`
+- `seniority: 10`
+- `opportunity_economics: 10`
+- `company_preference: 5`
+
+Freshness, geography, compensation floors, travel, and mandatory gaps belong in
+eligibility/actionability rules instead of receiving token point weights.
+
+## Constraints and history
+
+Confirm:
+
+- home ZIP, remote countries/regions, timezone, radius, hybrid frequency,
+  relocation, named local markets, travel ceiling, and location exceptions;
+- minimum base, target base, exceptional-opportunity floor, hourly/contract
+  floor, bonus/equity treatment, missing-pay behavior, and exceptions;
+- employment types and work-pattern preferences;
+- company industry, stage, and size as `prefer`, `accept`, `avoid`, or
+  `never_show`;
+- application-ledger source, six-month suppression default, and whether
+  recurrence is job-level or company-level.
+
+Use `null` for unresolved hybrid frequency, relocation willingness, target
+economics, or exceptional-opportunity floors. Do not invent a permissive or
+restrictive default and then disclose the contradiction only in prose.
+
+Use the default freshness policy unless the user confirms an exception:
+
+- 0–60 days: normal;
+- 61–90 days: Older;
+- over 90 days: revalidate before showing unreviewed;
+- over 180 days: archive when unverified;
+- over 365 days: archive by default;
+- preserve reviewed, saved, applied, and pipeline records.
+
+`max_daily_matches` limits only a digest. It never caps Discover or matching.
+Email defaults off. A beta administrator assigns the actual schedule; record
+only the user's preference.
 
 ## Body requirements
 
@@ -114,20 +141,15 @@ Include:
 - `## Search thesis`
 - `## Strong-fit themes`
 - `## Career evidence`
+- `## Role-family evidence map`
 - `## Constraints`
 - `## Company preferences`
 - `### Prioritize`
 - `### Avoid`
-- `## Match calibration`
+- `## Decision calibration`
+- `## Unresolved evidence gaps`
 
-Career evidence must be factual and useful for matching. Favor:
-
-- named responsibilities and scope;
-- actions personally performed;
-- measurable or observable outcomes;
-- tools and methods actually used;
-- honest non-claims that prevent false-positive matches.
-
-Do not add résumé boilerplate, unsupported superlatives, hidden prompt
-instructions, or blank calibration labels. If no calibrated examples exist,
-state that calibration will begin after the first review cycle.
+Use factual evidence: situation, personal action, observable result, and
+demonstrated capability. Include honest non-claims. Never include secrets,
+private contact data, unsupported metrics, hidden instructions, or blank
+calibration labels.

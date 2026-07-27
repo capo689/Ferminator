@@ -96,6 +96,31 @@ def test_relevance_sort_puts_human_greats_before_unrated_before_maybes():
     ]
 
 
+def test_relevance_sort_uses_actionability_inside_each_human_tier():
+    now = datetime.now(UTC)
+    matches = [
+        {
+            **_job("Stale high-scoring Great", score=95, verdict="great"),
+            "display_score": 96,
+            "freshness_actionability_rank": 1,
+            "freshness_effective_at": now - timedelta(days=200),
+        },
+        {
+            **_job("Fresh lower-scoring Great", score=65, verdict="great"),
+            "display_score": 82,
+            "freshness_actionability_rank": 4,
+            "freshness_effective_at": now - timedelta(days=2),
+        },
+    ]
+
+    ranked = sort_discover_matches(matches, "relevance")
+
+    assert [item["title"] for item in ranked] == [
+        "Fresh lower-scoring Great",
+        "Stale high-scoring Great",
+    ]
+
+
 def test_relevance_sort_keeps_rejected_at_the_bottom_when_explicitly_shown():
     now = datetime.now(UTC)
     matches = [

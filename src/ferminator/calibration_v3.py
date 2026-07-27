@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ferminator.calibration_v2 import calibration_job
-from ferminator.matching import matched_role_family, score_job
+from ferminator.matching import desirability_prior, matched_role_family, score_job
 from ferminator.profiles import CareerProfile
 
 CALIBRATION_VERSION = "ferminator_calibration_v3"
@@ -26,6 +26,9 @@ class CalibrationV3Report:
     wrong_filtered: int
     positive_recall: float
     wrong_rejection_rate: float
+    great_average_score: float
+    maybe_average_score: float
+    great_maybe_pairwise_accuracy: float
     disagreements: tuple[dict, ...]
 
 
@@ -55,6 +58,8 @@ def evaluate_calibration_v3(
     positives_visible = 0
     wrong_filtered = 0
     disagreements = []
+    great_scores: list[float] = []
+    maybe_scores: list[float] = []
     for record in records:
         classification = record["human"]["classification"]
         counts[classification] += 1
@@ -64,6 +69,11 @@ def evaluate_calibration_v3(
             record["exact_job_title"],
             record["full_job_description"],
         )
+        ranking_score = result.score + desirability_prior(family)
+        if classification == "great":
+            great_scores.append(ranking_score)
+        elif classification == "maybe":
+            maybe_scores.append(ranking_score)
         visible = bool(family and result.eligible and result.score >= family.threshold)
         if classification in {"great", "maybe"} and visible:
             positives_visible += 1
@@ -87,6 +97,9 @@ def evaluate_calibration_v3(
                 }
             )
     positive_total = counts["great"] + counts["maybe"]
+    pairwise_wins = sum(great > maybe for great in great_scores for maybe in maybe_scores)
+    pairwise_ties = sum(great == maybe for great in great_scores for maybe in maybe_scores)
+    pairwise_total = len(great_scores) * len(maybe_scores)
     return CalibrationV3Report(
         total=len(records),
         **counts,
@@ -94,5 +107,11 @@ def evaluate_calibration_v3(
         wrong_filtered=wrong_filtered,
         positive_recall=round(100 * positives_visible / positive_total, 2),
         wrong_rejection_rate=round(100 * wrong_filtered / counts["wrong"], 2),
+        great_average_score=round(sum(great_scores) / len(great_scores), 2),
+        maybe_average_score=round(sum(maybe_scores) / len(maybe_scores), 2),
+        great_maybe_pairwise_accuracy=round(
+            100 * (pairwise_wins + 0.5 * pairwise_ties) / pairwise_total,
+            2,
+        ),
         disagreements=tuple(disagreements),
     )

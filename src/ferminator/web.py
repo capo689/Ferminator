@@ -22,6 +22,7 @@ from ferminator.discover_visibility import apply_role_thresholds, sort_discover_
 from ferminator.display_score import match_display
 from ferminator.domain import extract_compensation_from_text
 from ferminator.feedback import WRONG_REASON_LABELS, render_calibration_markdown
+from ferminator.freshness import annotate_freshness, apply_default_freshness_policy
 from ferminator.geography import (
     is_remote_job,
     job_distance_miles,
@@ -593,11 +594,12 @@ def discover(
     zip_error = None if origin else "Enter a valid five-digit US ZIP code."
     effective_minimum = min_score or 0
 
-    matches = _matches(profile, minimum_score=0)
+    matches = annotate_freshness(_matches(profile, minimum_score=0))
     if not show_rejected:
         matches = [
             item for item in matches if item.get("feedback_verdict") not in {"wrong", "duplicate"}
         ]
+        matches = apply_default_freshness_policy(matches)
     for item in matches:
         display = match_display(item["score"])
         item.update(
@@ -622,7 +624,7 @@ def discover(
         matches = [
             item
             for item in matches
-            if (item.get("published_at") or item.get("first_seen_at")) >= cutoff
+            if item["freshness_effective_at"] >= cutoff
         ]
     for item in matches:
         distance = job_distance_miles(item, origin) if origin else None

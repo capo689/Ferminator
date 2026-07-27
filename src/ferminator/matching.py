@@ -543,6 +543,24 @@ def _calibration_adjustment(
     return adjustment, evidence, concerns
 
 
+def desirability_prior(role_family: RoleFamily | None) -> float:
+    """Great-vs-Maybe ranking prior learned from Calibration V3.
+
+    Keep this out of eligibility: retrieval recall and Wrong rejection must not
+    change merely because a role family tends to convert from Maybe to Great.
+    """
+    if role_family is None:
+        return 0
+    return {
+        "copywriting": 6,
+        "creative-direction-copy": 5,
+        "content-strategy-brand": 4,
+        "technical-content-education": 3,
+        "product-marketing-narrative": -5,
+        "consulting-transformation": -3,
+    }.get(role_family.id, 0)
+
+
 def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
     """Accept explicit US roles and reject clearly foreign-only remote listings."""
     country_codes = {
@@ -840,7 +858,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             explanation="Gateway 4 — disclosed compensation is below the contract floor.",
         )
 
-    weights = profile.scoring
+    weights = profile.runtime_scoring
     components: dict[str, float] = {}
     evidence: list[str] = []
 
@@ -954,6 +972,7 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             "Controlled review: role family is inferred from JD rather than title"
         )
     components["functional_calibration"] = round(adjustment, 2)
+    components["desirability_prior"] = desirability_prior(role_family)
     evidence.extend(calibration_evidence)
     concerns.extend(calibration_concerns)
     strongest = ", ".join(item for item in evidence[:3]) or "limited direct evidence"
