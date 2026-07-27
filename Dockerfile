@@ -37,8 +37,15 @@ EXPOSE 10000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:10000/healthz', timeout=3)"
 
-# --proxy-headers + --forwarded-allow-ips lets uvicorn honor Render's
-# X-Forwarded-Proto. Without it request.base_url reports http:// behind
-# the TLS-terminating proxy, which breaks scheme-sensitive checks.
+# --proxy-headers lets uvicorn honor Render's X-Forwarded-Proto; without it
+# request.base_url reports http:// behind the TLS-terminating proxy.
+#
+# --forwarded-allow-ips is scoped to RFC1918 (Render fronts us from 10.0.0.0/8)
+# and NOT "*". With "*" uvicorn sets always_trust and returns the LEFTMOST
+# X-Forwarded-For entry, which is client-supplied -- making request.client.host
+# attacker-controlled and defeating the login rate limiter keyed on it.
+# Scoped trust makes uvicorn walk the list in reverse and pick the first
+# untrusted host, i.e. the real client.
 CMD ["uvicorn", "ferminator.web:app", "--host", "0.0.0.0", "--port", "10000", \
-     "--proxy-headers", "--forwarded-allow-ips=*"]
+     "--proxy-headers", \
+     "--forwarded-allow-ips=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1"]

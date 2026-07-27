@@ -391,3 +391,34 @@ def test_same_origin_rejects_foreign_and_downgraded_origins(monkeypatch):
                 raise AssertionError(f"expected 403 for origin {origin}")
     finally:
         get_settings.cache_clear()
+
+
+def test_dockerfile_does_not_blanket_trust_forwarded_headers():
+    """Regression: --forwarded-allow-ips=* makes uvicorn return the LEFTMOST
+    X-Forwarded-For entry, which is client-supplied. That makes
+    request.client.host attacker-controlled and defeats the login rate
+    limiter in _auth_key. Trust must stay scoped to the proxy's own range."""
+    dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text()
+    assert "--proxy-headers" in dockerfile, "proxy headers are load-bearing for the https scheme"
+    assert "--forwarded-allow-ips=*" not in dockerfile
+    assert '"--forwarded-allow-ips=*"' not in dockerfile
+
+
+def test_scoped_forwarded_trust_resolves_the_real_client():
+    """With trust scoped to RFC1918, uvicorn walks X-Forwarded-For in reverse
+    and returns the first untrusted host (the real client) rather than the
+    attacker-supplied leftmost entry."""
+    from uvicorn.middleware.proxy_headers import _TrustedHosts
+
+    scoped = _TrustedHosts("10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1")
+    spoofed_then_real = "203.0.113.99, 198.51.100.7"
+
+    host, _ = scoped.get_trusted_client_address(spoofed_then_real)
+    assert host == "198.51.100.7", "must ignore the client-supplied leftmost entry"
+
+    # The proxy's own peer address must stay trusted, or X-Forwarded-Proto
+    # stops being applied and request.base_url regresses to http://.
+    assert "10.238.20.14" in scoped
+
+    blanket = _TrustedHosts("*")
+    assert blanket.get_trusted_client_address(spoofed_then_real)[0] == "203.0.113.99"
