@@ -280,3 +280,68 @@ def test_rippling_normalization():
 
     assert job.department == "Marketing"
     assert job.workplace_type == WorkplaceType.REMOTE
+
+
+def test_workday_pages_past_the_first_when_total_resets_to_zero():
+    """Regression: Workday reports the real total only on page one and sends 0
+    afterwards. `payload.get("total") or len(rows)` then fell back to the row
+    count, so `len(rows) >= total` was trivially true and every board stopped at
+    exactly 40 jobs. Eight production boards were frozen there."""
+    from ferminator.adapters.workday import WorkdayAdapter
+    from ferminator.domain import ATSProvider, BoardRef
+
+    pages = [
+        {"total": 50, "jobPostings": [{"externalPath": f"/j{i}", "title": f"T{i}"} for i in range(20)]},
+        {"total": 0, "jobPostings": [{"externalPath": f"/j{i}", "title": f"T{i}"} for i in range(20, 40)]},
+        {"total": 0, "jobPostings": [{"externalPath": f"/j{i}", "title": f"T{i}"} for i in range(40, 50)]},
+    ]
+    calls = []
+
+    class Adapter(WorkdayAdapter):
+        def post_json(self, url, payload):
+            calls.append(payload["offset"])
+            return pages[len(calls) - 1]
+
+    board = BoardRef(
+        provider=ATSProvider.WORKDAY,
+        board_key="tenant/site",
+        company_slug="acme",
+        company_name="Acme",
+        source_url="https://tenant.wd1.myworkdayjobs.com/site",
+    )
+    jobs = Adapter().fetch_jobs(board)
+
+    assert len(jobs) == 50, f"stopped early at {len(jobs)}; the board reported 50"
+    assert calls == [0, 20, 40]
+
+
+def test_workday_skips_malformed_postings_instead_of_losing_the_board():
+    """One posting missing title or externalPath used to raise KeyError and
+    abort the whole fetch, so a 2,000-job board ingested nothing."""
+    from ferminator.adapters.workday import WorkdayAdapter
+    from ferminator.domain import ATSProvider, BoardRef
+
+    page = {
+        "total": 3,
+        "jobPostings": [
+            {"externalPath": "/good", "title": "Real Job"},
+            {"title": "No path"},
+            {"externalPath": "/no-title"},
+        ],
+    }
+
+    class Adapter(WorkdayAdapter):
+        def post_json(self, url, payload):
+            return page
+
+    board = BoardRef(
+        provider=ATSProvider.WORKDAY,
+        board_key="tenant/site",
+        company_slug="acme",
+        company_name="Acme",
+        source_url="https://tenant.wd1.myworkdayjobs.com/site",
+    )
+    jobs = Adapter().fetch_jobs(board)
+
+    assert len(jobs) == 1
+    assert jobs[0].title == "Real Job"
