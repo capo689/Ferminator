@@ -19,9 +19,18 @@
   </div>
 </header>
 <div class="fit-actions">
-  <form method="post" action="/opportunities/{{ job.id }}/stage/preparing"><button class="button button-primary" type="submit">Prepare application →</button></form>
-  <form method="post" action="/opportunities/{{ job.id }}/stage/considering"><button class="button button-secondary" type="submit">Save</button></form>
-  <form method="post" action="/opportunities/{{ job.id }}/stage/dismissed"><button class="button button-secondary" type="submit">Dismiss</button></form>
+  {% for state, label, class_name in [
+    ("preparing", "Prepare application →", "button button-primary"),
+    ("considering", "Save", "button button-secondary"),
+    ("dismissed", "Dismiss", "button button-secondary")
+  ] %}
+  <form method="post" action="/pipeline">
+    <input type="hidden" name="operation" value="stage">
+    <input type="hidden" name="job_id" value="{{ job.id }}">
+    <input type="hidden" name="state" value="{{ state }}">
+    <button class="{{ class_name }}" type="submit">{{ label }}</button>
+  </form>
+  {% endfor %}
   <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
 </div>
 <section class="fit-layout">

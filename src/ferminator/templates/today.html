@@ -51,9 +51,14 @@
     {% endif %}
     <div class="actions">
       <a class="button button-primary" href="/fit/{{ lead.id }}">Explore fit</a>
-      <form method="post" action="/opportunities/{{ lead.id }}/stage/considering"><button class="button button-quiet" type="submit">Save</button></form>
-      <form method="post" action="/opportunities/{{ lead.id }}/stage/preparing"><button class="button button-quiet" type="submit">Prepare application</button></form>
-      <form method="post" action="/opportunities/{{ lead.id }}/stage/dismissed"><button class="button button-quiet" type="submit">Dismiss</button></form>
+      {% for state, label in [("considering", "Save"), ("preparing", "Prepare application"), ("dismissed", "Dismiss")] %}
+      <form method="post" action="/pipeline">
+        <input type="hidden" name="operation" value="stage">
+        <input type="hidden" name="job_id" value="{{ lead.id }}">
+        <input type="hidden" name="state" value="{{ state }}">
+        <button class="button button-quiet" type="submit">{{ label }}</button>
+      </form>
+      {% endfor %}
       <a class="text-action" href="{{ lead.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
     </div>
   </div>

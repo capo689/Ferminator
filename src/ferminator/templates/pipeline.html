@@ -14,7 +14,9 @@
 <aside class="pipeline-toast" role="status">
   <span>{{ message }}</span>
   {% if changed_job %}
-  <form method="post" action="/pipeline-actions/{{ changed_job }}/undo">
+  <form method="post" action="/pipeline">
+    <input type="hidden" name="operation" value="undo">
+    <input type="hidden" name="job_id" value="{{ changed_job }}">
     <button class="text-action" type="submit">Undo</button>
   </form>
   {% endif %}
@@ -135,7 +137,9 @@
               <a href="/fit/{{ job.id }}">Fit &amp; complete JD</a>
               <a href="{{ job.apply_url }}" target="_blank" rel="noopener">Original listing ↗</a>
             </div>
-            <form method="post" action="/pipeline-actions/{{ job.id }}/details" class="pipeline-edit-form">
+            <form method="post" action="/pipeline" class="pipeline-edit-form">
+              <input type="hidden" name="operation" value="details">
+              <input type="hidden" name="job_id" value="{{ job.id }}">
               <label>Notes
                 <textarea name="notes" rows="3" maxlength="4000" placeholder="Next move, contact, positioning…">{{ job.notes }}</textarea>
               </label>
@@ -156,19 +160,28 @@
             </form>
             <div class="pipeline-danger-zone">
               {% if state in ["considering", "preparing"] %}
-              <form method="post" action="/pipeline-actions/{{ job.id }}/unsave">
+              <form method="post" action="/pipeline">
+                <input type="hidden" name="operation" value="unsave">
+                <input type="hidden" name="job_id" value="{{ job.id }}">
                 <button class="text-action" type="submit">Unsave</button>
               </form>
               {% endif %}
-              <form method="post" action="/opportunities/{{ job.id }}/stage/archived">
+              <form method="post" action="/pipeline">
+                <input type="hidden" name="operation" value="stage">
+                <input type="hidden" name="job_id" value="{{ job.id }}">
+                <input type="hidden" name="state" value="archived">
                 <button class="text-action" type="submit">Archive</button>
               </form>
-              <form method="post" action="/pipeline-actions/{{ job.id }}/dismiss">
+              <form method="post" action="/pipeline">
+                <input type="hidden" name="operation" value="dismiss">
+                <input type="hidden" name="job_id" value="{{ job.id }}">
                 <button class="text-action danger" type="submit">Dismiss as poor fit</button>
               </form>
               <details class="close-menu">
                 <summary>Close with outcome</summary>
-                <form method="post" action="/pipeline-actions/{{ job.id }}/details">
+                <form method="post" action="/pipeline">
+                  <input type="hidden" name="operation" value="details">
+                  <input type="hidden" name="job_id" value="{{ job.id }}">
                   <input type="hidden" name="notes" value="{{ job.notes }}">
                   <input type="hidden" name="priority" value="{{ job.priority }}">
                   <label>Outcome
@@ -205,7 +218,10 @@
     <article>
       <div><strong>{{ job.title }}</strong><span>{{ job.company }} · {{ job.state|title }}</span></div>
       <span>{{ job.closed_reason or "No outcome recorded" }}</span>
-      <form method="post" action="/opportunities/{{ job.id }}/stage/considering">
+      <form method="post" action="/pipeline">
+        <input type="hidden" name="operation" value="stage">
+        <input type="hidden" name="job_id" value="{{ job.id }}">
+        <input type="hidden" name="state" value="considering">
         <button class="text-action" type="submit">Reopen</button>
       </form>
     </article>
