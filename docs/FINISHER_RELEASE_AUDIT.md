@@ -1,5 +1,12 @@
 # FINISHER Release Audit
 
+> Historical snapshot: this 2026-07-23 assessment predates the hosted launch,
+> reliability work, funnel calibration, and native Supabase multi-user beta.
+> Current authentication and accepted-beta decisions are recorded in
+> `docs/MULTI_USER_BETA_SECURITY.md`; do not use the shared-password findings
+> below as the current release state. A fresh FINISHER scan remains required
+> after the production cutover and browser verification.
+
 Assessment date: 2026-07-23  
 Release candidate: `codex/dream-product`  
 Risk level: Level 1 private-alpha target

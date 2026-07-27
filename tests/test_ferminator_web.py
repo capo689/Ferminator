@@ -1,6 +1,7 @@
 import time
 from pathlib import Path
 from threading import Event, Thread
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -268,3 +269,48 @@ def test_shared_password_is_rate_limited(monkeypatch):
 
     assert response.status_code == 429
     assert response.headers["retry-after"] == "300"
+
+
+def test_supabase_auth_redirects_anonymous_browser(monkeypatch) -> None:
+    settings = web.get_settings().model_copy(
+        update={
+            "auth_mode": "supabase",
+            "supabase_url": "https://example.supabase.co",
+            "supabase_publishable_key": "sb_publishable_test",
+        }
+    )
+    monkeypatch.setattr(web, "get_settings", lambda: settings)
+
+    async def anonymous(_request, _client):
+        return None
+
+    monkeypatch.setattr(web, "current_user_id", anonymous)
+    response = TestClient(app).get("/discover", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/login?next=")
+
+
+def test_supabase_user_cannot_open_admin_control_plane(monkeypatch) -> None:
+    settings = web.get_settings().model_copy(
+        update={
+            "auth_mode": "supabase",
+            "supabase_url": "https://example.supabase.co",
+            "supabase_publishable_key": "sb_publishable_test",
+        }
+    )
+    monkeypatch.setattr(web, "get_settings", lambda: settings)
+
+    async def signed_in(_request, _client):
+        return "user-id"
+
+    class Repository:
+        def account_for_user(self, _user_id):
+            return SimpleNamespace(id="account-id", role="user", status="active")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(web, "current_user_id", signed_in)
+    monkeypatch.setattr(web, "_repository", Repository)
+    response = TestClient(app).get("/admin")
+    assert response.status_code == 403

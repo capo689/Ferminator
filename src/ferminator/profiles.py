@@ -215,10 +215,9 @@ class CareerProfile(BaseModel):
         raise LookupError(f"Unknown role family: {family_id}")
 
 
-def load_profile(path: str | Path) -> CareerProfile:
-    """Load and validate a named profile from YAML-front-matter Markdown."""
-    source_path = Path(path)
-    raw = source_path.read_text(encoding="utf-8")
+def parse_profile_markdown(raw: str, *, source_path: str | Path) -> CareerProfile:
+    """Validate a complete onboarding Markdown document without writing it to disk."""
+    source_path = Path(source_path)
     if not raw.startswith("---\n"):
         raise ValueError(f"{source_path}: missing YAML front matter")
     try:
@@ -234,5 +233,32 @@ def load_profile(path: str | Path) -> CareerProfile:
             "markdown_body": body.strip(),
             "source_path": source_path,
             "source_hash": hashlib.sha256(raw.encode()).hexdigest(),
+        }
+    )
+
+
+def load_profile(path: str | Path) -> CareerProfile:
+    """Load and validate a named profile from YAML-front-matter Markdown."""
+    source_path = Path(path)
+    return parse_profile_markdown(
+        source_path.read_text(encoding="utf-8"),
+        source_path=source_path,
+    )
+
+
+def load_compiled_profile(
+    compiled: dict,
+    *,
+    markdown_body: str,
+    source_path: str,
+    source_hash: str,
+) -> CareerProfile:
+    """Rehydrate a validated profile stored in Postgres."""
+    return CareerProfile.model_validate(
+        {
+            **compiled,
+            "markdown_body": markdown_body,
+            "source_path": Path(source_path),
+            "source_hash": source_hash,
         }
     )

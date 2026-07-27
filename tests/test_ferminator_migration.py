@@ -90,3 +90,15 @@ def test_wrong_feedback_has_structured_reason_and_audit_evidence() -> None:
     assert "match_feedback_wrong_reason_code_check" in sql
     assert "match_feedback_events_wrong_reason_code_check" in sql
     assert "match_feedback_profile_wrong_reason_idx" in sql
+
+
+def test_multi_user_beta_uses_native_identity_and_private_control_plane() -> None:
+    sql = migration_sql().casefold()
+
+    assert "auth_user_id uuid not null unique references auth.users(id)" in sql
+    assert "accounts_single_sysadmin_idx" in sql
+    assert "accounts_enforce_beta_user_limit" in sql
+    assert "matching_run_queue_one_active_per_account_idx" in sql
+    assert "accounts_deny_direct_client_access" in sql
+    assert "admin_audit_events_deny_direct_client_access" in sql
+    assert "auth0" not in sql

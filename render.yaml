@@ -12,8 +12,20 @@ services:
       - key: FERMINATOR_DEMO_MODE
         value: "false"
       - key: FERMINATOR_AUTH_MODE
-        value: shared_password
+        value: supabase
       - key: FERMINATOR_ALPHA_PASSWORD
         sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      # Beta bootstrap-only recovery location requested by the owner.
+      # Supabase Auth stores the actual credential; the application never reads this.
+      - key: FERMINATOR_SYSAD_PASSWORD
         sync: false

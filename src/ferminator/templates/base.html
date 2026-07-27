@@ -44,6 +44,11 @@
           <small>Career profile</small>
         </span>
       </a>
+      {% if authenticated %}
+      <form method="post" action="/logout" class="sidebar-logout">
+        <button type="submit" class="button-secondary">Sign out</button>
+      </form>
+      {% endif %}
     </aside>
     <div class="mobile-bar">
       <a class="brand" href="/">
