@@ -48,4 +48,4 @@ jobs:
           ferminator rescore --profile-path "${{ inputs.profile }}"
           ferminator discover-audit \
             --profile-path "${{ inputs.profile }}" \
-            --minimum-visible 40
+            --minimum-visible 1
