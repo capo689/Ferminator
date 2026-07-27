@@ -79,6 +79,35 @@ document.querySelectorAll("[data-copy-target]").forEach((button) => {
   });
 });
 
+document
+  .querySelectorAll('form[method="post"][action="/pipeline"], form[method="post"][action="/discover"]')
+  .forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submitter = event.submitter;
+      if (submitter) submitter.disabled = true;
+      try {
+        const fields = new FormData(form);
+        if (submitter?.name) fields.set(submitter.name, submitter.value);
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(fields),
+        });
+        if (!response.ok) throw new Error(`Save failed: ${response.status}`);
+        window.location.assign(response.url);
+      } catch (_error) {
+        if (submitter) submitter.disabled = false;
+        const status = document.createElement("div");
+        status.className = "pipeline-toast error";
+        status.setAttribute("role", "alert");
+        status.textContent = "That change did not save. Please try again.";
+        document.body.appendChild(status);
+        window.setTimeout(() => status.remove(), 4000);
+      }
+    });
+  });
+
 const wrongDialog = document.querySelector("[data-wrong-dialog]");
 if (wrongDialog) {
   const form = wrongDialog.querySelector("[data-wrong-form]");
