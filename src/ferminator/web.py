@@ -27,7 +27,7 @@ from ferminator.auth import (
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
 from ferminator.discover_visibility import apply_role_thresholds, sort_discover_matches
 from ferminator.display_score import match_display
-from ferminator.domain import extract_compensation_from_text
+from ferminator.domain import extract_compensation_from_text, html_to_text
 from ferminator.feedback import WRONG_REASON_LABELS, render_calibration_markdown
 from ferminator.freshness import annotate_freshness, apply_default_freshness_policy
 from ferminator.geography import (
@@ -1048,7 +1048,9 @@ def fit_lens(request: Request, job_id: str):
         raise HTTPException(status_code=404, detail="Opportunity not found")
     job = _apply_visible_compensation(job)
     if not get_settings().demo_mode:
-        job["description_text"] = description_text or job.get("description_text", "")
+        job["description_text"] = html_to_text(
+            description_text or job.get("description_text", "")
+        )
     if not job["evidence"]:
         job["evidence"] = [job["explanation"]]
     component_labels = {
@@ -1099,7 +1101,8 @@ def companies(request: Request):
     return templates.TemplateResponse(request, "companies.html", context=context)
 
 
-@app.post("/actions/{job_id}/{state}")
+@app.post("/actions/{job_id}/{state}", include_in_schema=False)
+@app.post("/opportunities/{job_id}/stage/{state}")
 def update_action(request: Request, job_id: str, state: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)

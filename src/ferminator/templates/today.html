@@ -51,9 +51,9 @@
     {% endif %}
     <div class="actions">
       <a class="button button-primary" href="/fit/{{ lead.id }}">Explore fit</a>
-      <form method="post" action="/actions/{{ lead.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
-      <form method="post" action="/actions/{{ lead.id }}/preparing"><button class="button button-quiet" type="submit">Prepare application</button></form>
-      <form method="post" action="/actions/{{ lead.id }}/dismissed"><button class="button button-quiet" type="submit">Dismiss</button></form>
+      <form method="post" action="/opportunities/{{ lead.id }}/stage/considering"><button class="button button-quiet" type="submit">Save</button></form>
+      <form method="post" action="/opportunities/{{ lead.id }}/stage/preparing"><button class="button button-quiet" type="submit">Prepare application</button></form>
+      <form method="post" action="/opportunities/{{ lead.id }}/stage/dismissed"><button class="button button-quiet" type="submit">Dismiss</button></form>
       <a class="text-action" href="{{ lead.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
     </div>
   </div>

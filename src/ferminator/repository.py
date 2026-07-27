@@ -103,9 +103,10 @@ class PostgresRepository:
                 """
                 select email
                 from public.accounts
-                where lower(username) = lower(%s) and status = 'active'
+                where (lower(username) = lower(%s) or lower(email) = lower(%s))
+                  and status = 'active'
                 """,
-                (username,),
+                (username, username),
             ).fetchone()
         return str(row["email"]) if row else None
 

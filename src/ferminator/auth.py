@@ -85,6 +85,23 @@ class SupabaseAuthClient:
             raise AuthenticationError("Your session expired. Please sign in again.")
         return _tokens(response.json())
 
+    async def authenticated_user_id(self, access_token: str) -> str:
+        """Validate a browser token with Supabase instead of trusting its cookie."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                f"{self.base_url}/auth/v1/user",
+                headers={
+                    "apikey": self.publishable_key,
+                    "Authorization": f"Bearer {access_token}",
+                },
+            )
+        if response.status_code != 200:
+            raise AuthenticationError("Your session expired. Please sign in again.")
+        user_id = response.json().get("id")
+        if not user_id:
+            raise AuthenticationError("Your session expired. Please sign in again.")
+        return str(user_id)
+
     async def sign_out(self, access_token: str) -> None:
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
@@ -150,9 +167,10 @@ def save_session(request: Request, tokens: AuthTokens) -> None:
 
 async def current_user_id(request: Request, client: SupabaseAuthClient) -> str | None:
     user_id = request.session.get("user_id")
+    access_token = request.session.get("access_token")
     refresh_token = request.session.get("refresh_token")
     expires_at = request.session.get("expires_at")
-    if not all((user_id, refresh_token, expires_at)):
+    if not all((user_id, access_token, refresh_token, expires_at)):
         return None
     if int(expires_at) <= int(time()) + 60:
         try:
@@ -160,4 +178,14 @@ async def current_user_id(request: Request, client: SupabaseAuthClient) -> str |
         except AuthenticationError:
             request.session.clear()
             return None
-    return str(request.session["user_id"])
+    try:
+        authenticated_user_id = await client.authenticated_user_id(
+            str(request.session["access_token"])
+        )
+    except AuthenticationError:
+        request.session.clear()
+        return None
+    if authenticated_user_id != str(request.session["user_id"]):
+        request.session.clear()
+        return None
+    return authenticated_user_id
