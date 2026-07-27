@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>System Administration · Ferminator</title>
+    <link rel="stylesheet" href="/static/design-tokens.css">
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div><strong>Ferminator</strong> <span class="muted">System Administration</span></div>
+      <form method="post" action="/logout"><button class="button-secondary">Sign out</button></form>
+    </header>
+    <main class="page-shell">
+      <section class="hero-panel">
+        <p class="eyebrow">Five-user private beta</p>
+        <h1>Account control center</h1>
+        <p>Create a user from their validated onboarding file. Their first matching run is queued automatically.</p>
+      </section>
+      {% if created %}<div class="notice">Account created and its onboarding run is queued.</div>{% endif %}
+      {% if error %}<div class="notice notice--error" role="alert">{{ error }}</div>{% endif %}
+      <section class="panel">
+        <h2>Accounts</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Profile</th><th>Schedule</th><th>Latest run</th></tr></thead>
+            <tbody>
+              {% for account in accounts %}
+              <tr>
+                <td><strong>{{ account.username }}</strong><br><span class="muted">{{ account.email }}</span></td>
+                <td>{{ account.role }}</td>
+                <td>{{ account.status }}</td>
+                <td>{{ account.display_name or "Administration only" }}</td>
+                <td>
+                  {% if account.run_times %}
+                    {{ account.run_times|join(", ") }} · {{ account.timezone }}
+                  {% else %}—{% endif %}
+                </td>
+                <td>{{ account.latest_run_status or "—" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Private company source directory</h2>
+        <p class="muted">Board links are visible only in System Administration.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Company</th><th>ATS</th><th>Health</th><th>Open roles</th><th>Source</th></tr></thead>
+            <tbody>
+              {% for company in directory %}
+              <tr>
+                <td>{{ company.name }}</td>
+                <td>{{ company.provider|title }}</td>
+                <td>{{ company.validation_status|title }}</td>
+                <td>{{ company.active_jobs }}</td>
+                <td><a href="{{ company.source_url }}" target="_blank" rel="noopener">Open board ↗</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Add beta user</h2>
+        <form method="post" action="/admin/accounts" enctype="multipart/form-data" class="form-grid">
+          <label>Username<input name="username" required pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}"></label>
+          <label>Email<input type="email" name="email" required></label>
+          <label>Initial password<input type="password" name="password" required minlength="12" autocomplete="new-password"></label>
+          <label>Onboarding profile (.md)<input type="file" name="profile" accept=".md,text/markdown,text/plain" required></label>
+          <label>Time zone
+            <select name="timezone">
+              <option>America/Los_Angeles</option>
+              <option>America/Denver</option>
+              <option>America/Chicago</option>
+              <option>America/New_York</option>
+            </select>
+          </label>
+          <label>Daily run 1<input type="time" name="run_time_1" value="08:00" required></label>
+          <label>Daily run 2<input type="time" name="run_time_2" value="16:00"></label>
+          <div><button type="submit">Create account and queue first run</button></div>
+        </form>
+      </section>
+      <footer class="muted">Ferminator {{ version }}</footer>
+    </main>
+  </body>
+</html>

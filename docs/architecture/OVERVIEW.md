@@ -160,8 +160,12 @@ monitoring, and required secrets are configured.
 ## Authentication transition
 
 `AUTH_MODE=off` is allowed only for local development with fixture profiles.
-Hosted staging and production use Supabase magic-link authentication. Profile
-records map `auth.users.id` to an allowed profile slug. RLS enforces ownership.
+Hosted staging and production use native Supabase email/password
+authentication. The application exposes usernames, resolves them to private
+account emails server-side, and never treats browser metadata as authorization.
+Profile records map immutable `auth.users.id` values to one allowed profile.
+RLS enforces ownership while administrative tables deny all direct client
+access.
 
 This keeps the first local build frictionless without creating a public,
 unprotected store of résumés, notes, email addresses, and application history.

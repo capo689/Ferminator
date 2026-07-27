@@ -54,7 +54,11 @@
     <div>
       <strong>{{ company.relevant_jobs }}</strong>
       <small>profile-aligned</small>
-      <a class="directory-link" href="{{ company.source_url }}" target="_blank" rel="noopener">Open board ↗</a>
+      {% if company.source_url %}
+        <a class="directory-link" href="{{ company.source_url }}" target="_blank" rel="noopener">Open board ↗</a>
+      {% else %}
+        <span class="directory-link muted">Monitored by Ferminator</span>
+      {% endif %}
     </div>
   </article>
   {% endfor %}

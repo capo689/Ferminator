@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -22,7 +23,7 @@ from ferminator.ledger import (
     normalize_job_part,
 )
 from ferminator.matching import MatchResult
-from ferminator.profiles import CareerProfile
+from ferminator.profiles import CareerProfile, load_compiled_profile, load_profile
 
 if TYPE_CHECKING:
     from ferminator.registry import CompanyRegistry
@@ -34,6 +35,18 @@ class ConcurrentScoringError(RuntimeError):
 
 class ConcurrentScanError(RuntimeError):
     """Raised when another full scan is already active."""
+
+
+@dataclass(frozen=True)
+class AccountContext:
+    id: str
+    auth_user_id: str
+    username: str
+    email: str
+    role: str
+    status: str
+    profile_id: str | None
+    profile_slug: str | None
 
 
 def jobs_requiring_upsert(
@@ -62,6 +75,188 @@ class PostgresRepository:
 
     def close(self) -> None:
         self.pool.close()
+
+    def account_for_user(self, user_id: str) -> AccountContext | None:
+        """Resolve a browser identity to its server-managed account and profile."""
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                select a.id, a.auth_user_id, a.username, a.email, a.role, a.status,
+                       a.profile_id, p.slug as profile_slug
+                from public.accounts a
+                left join public.profiles p on p.id = a.profile_id
+                where a.auth_user_id = %s
+                """,
+                (user_id,),
+            ).fetchone()
+        if not row:
+            return None
+        values = {
+            key: str(value) if key in {"id", "auth_user_id", "profile_id"} and value else value
+            for key, value in row.items()
+        }
+        return AccountContext(**values)
+
+    def login_email_for_username(self, username: str) -> str | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                select email
+                from public.accounts
+                where lower(username) = lower(%s) and status = 'active'
+                """,
+                (username,),
+            ).fetchone()
+        return str(row["email"]) if row else None
+
+    def record_login(self, account_id: str) -> None:
+        with self.connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                update public.accounts
+                set last_login_at = now(), updated_at = now()
+                where id = %s
+                """,
+                (account_id,),
+            )
+
+    def admin_accounts(self) -> list[dict]:
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select a.id, a.username, a.email, a.role, a.status, a.last_login_at,
+                       a.created_at, p.slug as profile_slug, p.display_name,
+                       s.timezone, s.run_times, s.enabled as schedule_enabled,
+                       r.status as latest_run_status, r.requested_at as latest_run_at
+                from public.accounts a
+                left join public.profiles p on p.id = a.profile_id
+                left join public.account_schedules s on s.account_id = a.id
+                left join lateral (
+                  select status, requested_at
+                  from public.matching_run_queue q
+                  where q.account_id = a.id
+                  order by requested_at desc
+                  limit 1
+                ) r on true
+                order by case when a.role = 'sysadmin' then 0 else 1 end,
+                         lower(a.username)
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def provision_user_account(
+        self,
+        *,
+        auth_user_id: str,
+        username: str,
+        email: str,
+        profile: CareerProfile,
+        onboarding_markdown: str,
+        timezone: str,
+        run_times: list[str],
+        actor_account_id: str,
+        request_id: str,
+    ) -> str:
+        compiled = profile.model_dump(
+            mode="json",
+            exclude={"markdown_body", "source_path", "source_hash"},
+        )
+        with self.connection() as conn, conn.transaction():
+            profile_row = conn.execute(
+                """
+                insert into public.profiles (
+                  auth_user_id, slug, display_name, email, source_path, source_hash,
+                  profile_version, scan_interval_hours, scan_enabled, compiled_profile,
+                  onboarding_markdown, onboarding_schema_version
+                )
+                values (%s, %s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s)
+                returning id
+                """,
+                (
+                    auth_user_id,
+                    profile.profile.slug,
+                    profile.profile.display_name,
+                    email,
+                    f"db://profiles/{profile.profile.slug}/v1.md",
+                    profile.source_hash,
+                    profile.search.scan_interval_hours,
+                    profile.search.enabled,
+                    json.dumps(compiled),
+                    onboarding_markdown,
+                    profile.schema_version,
+                ),
+            ).fetchone()
+            account = conn.execute(
+                """
+                insert into public.accounts (
+                  auth_user_id, profile_id, username, email, role, status
+                )
+                values (%s, %s, %s, %s, 'user', 'active')
+                returning id
+                """,
+                (auth_user_id, profile_row["id"], username, email),
+            ).fetchone()
+            conn.execute(
+                """
+                insert into public.account_schedules (account_id, timezone, run_times)
+                values (%s, %s, %s::time[])
+                """,
+                (account["id"], timezone, run_times),
+            )
+            conn.execute(
+                """
+                insert into public.matching_run_queue (
+                  account_id, requested_by, reason, status
+                )
+                values (%s, %s, 'onboarding', 'queued')
+                """,
+                (account["id"], actor_account_id),
+            )
+            conn.execute(
+                """
+                insert into public.admin_audit_events (
+                  actor_account_id, target_account_id, action, request_id, after_state
+                )
+                values (%s, %s, 'account.provisioned', %s, %s)
+                """,
+                (
+                    actor_account_id,
+                    account["id"],
+                    request_id,
+                    json.dumps(
+                        {
+                            "username": username,
+                            "email": email,
+                            "profile_slug": profile.profile.slug,
+                            "timezone": timezone,
+                            "run_times": run_times,
+                        }
+                    ),
+                ),
+            )
+        return str(account["id"])
+
+    def profile_for_account(self, account_id: str) -> CareerProfile:
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                select p.compiled_profile, p.onboarding_markdown, p.source_path, p.source_hash
+                from public.accounts a
+                join public.profiles p on p.id = a.profile_id
+                where a.id = %s and a.role = 'user' and a.status = 'active'
+                """,
+                (account_id,),
+            ).fetchone()
+        if not row:
+            raise LookupError("No active profile is assigned to this account")
+        if not row["onboarding_markdown"] and not str(row["source_path"]).startswith("db://"):
+            return load_profile(row["source_path"])
+        return load_compiled_profile(
+            dict(row["compiled_profile"]),
+            markdown_body=row["onboarding_markdown"] or "",
+            source_path=row["source_path"],
+            source_hash=row["source_hash"],
+        )
 
     @contextmanager
     def connection(self) -> Iterator[Connection]:

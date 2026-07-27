@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Sign in · Ferminator</title>
+    <link rel="stylesheet" href="/static/design-tokens.css">
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card">
+        <p class="eyebrow">Private beta</p>
+        <h1>Welcome to Ferminator</h1>
+        <p>Your job market, taught to recognize you.</p>
+        {% if error %}<div class="notice notice--error" role="alert">{{ error }}</div>{% endif %}
+        <form method="post" action="/login" class="stack">
+          <input type="hidden" name="next" value="{{ next }}">
+          <label>Username
+            <input name="username" autocomplete="username" required autofocus>
+          </label>
+          <label>Password
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit">Sign in</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

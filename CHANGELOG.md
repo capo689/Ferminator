@@ -7,6 +7,17 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Added
 
+- Native Supabase email/password authentication for a five-user private beta,
+  with separate Adam and SysAd identities, rotating HttpOnly sessions, generic
+  login errors, and bounded login throttling.
+- A server-managed administrative control plane for validated Markdown
+  onboarding, per-user schedules, first-run queueing, feature flags, account
+  status, and append-only administrative audit events.
+- Database-enforced five-user and single-SysAd limits, immutable
+  `auth.users.id` ownership, and explicit no-client-access policies for all
+  administrative tables.
+- A dedicated server-only Supabase secret key stored in Render rather than the
+  repository, plus a separately generated session-signing secret.
 - Source-aware effective freshness with explicit confidence and provenance:
   publication, employer update, first seen, and last checked remain distinct.
 - A 60-day normal window, 61–90-day Older tier, revalidation requirement for
@@ -46,6 +57,11 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Changed
 
+- Company board URLs are masked in user accounts and remain available in the
+  SysAd-only company source directory.
+- Shared ATS ingestion remains global while profiles, matches, feedback,
+  duplicates, actions, pipeline state, schedules, and run requests are
+  isolated per account.
 - Discover now preserves reviewed Great and Maybe opportunities regardless of
   age while archiving stale unreviewed intake; within each human-verdict tier,
   actionable fresh listings rank before stale reviewed leads.
@@ -124,8 +140,9 @@ This is a living release gate. Items stay here until completed and verified:
   relying only on GitHub workflow email.
 - [ ] Complete and record the hosted backup/restore and deployment rollback
   drills.
-- [ ] Replace shared alpha access with production-grade per-user
-  authentication and verify profile/data isolation before multi-user beta.
+- [x] Replace shared alpha access with native Supabase per-user authentication,
+  server-managed roles, and profile ownership. Repeat isolation verification
+  as part of every multi-user release.
 - [ ] Publish the required Terms of Use and Privacy Policy before accepting
   public users or collecting their career data.
 

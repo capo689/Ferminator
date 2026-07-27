@@ -17,6 +17,10 @@ class Settings(BaseModel):
     database_url: str | None = None
     auth_mode: str = "off"
     alpha_password: str | None = None
+    supabase_url: str | None = None
+    supabase_publishable_key: str | None = None
+    supabase_secret_key: str | None = None
+    session_secret: str | None = None
     log_level: str = "INFO"
     public_base_url: str = "http://127.0.0.1:8000"
     smtp_host: str | None = None
@@ -43,6 +47,22 @@ class Settings(BaseModel):
             and not self.alpha_password
         ):
             raise RuntimeError("FERMINATOR_ALPHA_PASSWORD is required for shared_password")
+        if self.auth_mode == "supabase":
+            missing = [
+                name
+                for name, value in {
+                    "SUPABASE_URL": self.supabase_url,
+                    "SUPABASE_PUBLISHABLE_KEY": self.supabase_publishable_key,
+                    "SESSION_SECRET": self.session_secret,
+                }.items()
+                if not value
+            ]
+            if missing:
+                raise RuntimeError(
+                    "Supabase auth mode requires: " + ", ".join(missing)
+                )
+            if self.is_production and len(self.session_secret or "") < 32:
+                raise RuntimeError("SESSION_SECRET must contain at least 32 characters")
 
     def valid_alpha_password(self, candidate: str) -> bool:
         return bool(self.alpha_password) and secrets.compare_digest(
@@ -67,6 +87,10 @@ def get_settings() -> Settings:
         database_url=os.environ.get("DATABASE_URL"),
         auth_mode=os.environ.get("FERMINATOR_AUTH_MODE", "off"),
         alpha_password=os.environ.get("FERMINATOR_ALPHA_PASSWORD"),
+        supabase_url=os.environ.get("SUPABASE_URL"),
+        supabase_publishable_key=os.environ.get("SUPABASE_PUBLISHABLE_KEY"),
+        supabase_secret_key=os.environ.get("SUPABASE_SECRET_KEY"),
+        session_secret=os.environ.get("SESSION_SECRET"),
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
         public_base_url=os.environ.get("PUBLIC_BASE_URL", "http://127.0.0.1:8000"),
         smtp_host=os.environ.get("SMTP_HOST"),

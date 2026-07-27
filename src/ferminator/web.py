@@ -15,8 +15,15 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from ferminator import __version__
+from ferminator.auth import (
+    AuthenticationError,
+    SupabaseAuthClient,
+    current_user_id,
+    save_session,
+)
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
 from ferminator.discover_visibility import apply_role_thresholds, sort_discover_matches
 from ferminator.display_score import match_display
@@ -31,7 +38,7 @@ from ferminator.geography import (
 )
 from ferminator.matching import matched_role_family
 from ferminator.observability import configure_logging, safe_request_id
-from ferminator.profiles import CareerProfile, load_profile
+from ferminator.profiles import CareerProfile, load_profile, parse_profile_markdown
 from ferminator.repository import PostgresRepository
 from ferminator.settings import get_settings
 
@@ -150,6 +157,37 @@ async def request_observability(request: Request, call_next):
             )
             return _security_headers(response, request_id)
         attempts.clear()
+    if settings.auth_mode == "supabase" and not public_path:
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and settings.is_production:
+            expected_origin = settings.public_base_url.rstrip("/")
+            if request.headers.get("origin", "").rstrip("/") != expected_origin:
+                response = Response(status_code=403)
+                return _security_headers(response, request_id)
+        if request.url.path not in {"/login"}:
+            auth_client = SupabaseAuthClient(settings)
+            user_id = await current_user_id(request, auth_client)
+            if not user_id:
+                target = quote(str(request.url.path))
+                response = RedirectResponse(f"/login?next={target}", status_code=303)
+                return _security_headers(response, request_id)
+            repository = _repository()
+            try:
+                account = repository.account_for_user(user_id)
+            finally:
+                repository.close()
+            if not account or account.status != "active":
+                request.session.clear()
+                response = HTMLResponse("Account unavailable.", status_code=403)
+                return _security_headers(response, request_id)
+            request.state.account = account
+            if request.url.path.startswith("/admin") and account.role != "sysadmin":
+                response = HTMLResponse("Administrator access required.", status_code=403)
+                return _security_headers(response, request_id)
+            if account.role == "sysadmin" and not request.url.path.startswith(
+                ("/admin", "/logout")
+            ):
+                response = RedirectResponse("/admin", status_code=303)
+                return _security_headers(response, request_id)
     try:
         response = await call_next(request)
     except Exception:
@@ -179,6 +217,16 @@ async def request_observability(request: Request, call_next):
     return response
 
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=get_settings().session_secret or "ferminator-development-session-secret",
+    session_cookie="ferminator_session",
+    max_age=60 * 60 * 24 * 7,
+    same_site="lax",
+    https_only=get_settings().is_production,
+)
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception(request: Request, exc: Exception):
     request_id = getattr(request.state, "request_id", safe_request_id(None))
@@ -205,12 +253,21 @@ async def unhandled_exception(request: Request, exc: Exception):
     )
 
 
-def _profile() -> CareerProfile:
+def _profile(request: Request | None = None) -> CareerProfile:
+    if request is not None and get_settings().auth_mode == "supabase":
+        account = getattr(request.state, "account", None)
+        if account is None or account.role != "user":
+            raise HTTPException(status_code=403, detail="A user profile is required")
+        repository = _repository()
+        try:
+            return repository.profile_for_account(account.id)
+        finally:
+            repository.close()
     return load_profile(get_settings().profile_path)
 
 
 def _context(request: Request, active: str) -> dict:
-    profile = _profile()
+    profile = _profile(request)
     return {
         "request": request,
         "active": active,
@@ -218,6 +275,7 @@ def _context(request: Request, active: str) -> dict:
         "display_name": profile.profile.display_name,
         "demo_mode": get_settings().demo_mode,
         "version": __version__,
+        "authenticated": get_settings().auth_mode == "supabase",
     }
 
 
@@ -543,6 +601,199 @@ def _compile_intelligence(
     }
 
 
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request, next: str = Query(default="/")):
+    if get_settings().auth_mode != "supabase":
+        return RedirectResponse("/", status_code=303)
+    safe_next = next if next.startswith("/") and not next.startswith("//") else "/"
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        context={"request": request, "next": safe_next, "error": None},
+    )
+
+
+@app.post("/login", response_class=HTMLResponse)
+async def login(request: Request):
+    raw = (await request.body()).decode("utf-8", errors="replace")
+    fields = {key: values[-1] for key, values in parse_qs(raw).items()}
+    username = fields.get("username", "").strip()
+    password = fields.get("password", "")
+    safe_next = fields.get("next", "/")
+    if not safe_next.startswith("/") or safe_next.startswith("//"):
+        safe_next = "/"
+    key = _auth_key(request)
+    attempts = _failed_auth[key]
+    cutoff = time.monotonic() - _AUTH_WINDOW_SECONDS
+    while attempts and attempts[0] < cutoff:
+        attempts.popleft()
+    if len(attempts) >= _AUTH_MAX_FAILURES:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            context={
+                "request": request,
+                "next": safe_next,
+                "error": "Too many attempts. Try again in five minutes.",
+            },
+            status_code=429,
+            headers={"Retry-After": "300"},
+        )
+    repository = _repository()
+    try:
+        email = repository.login_email_for_username(username)
+    finally:
+        repository.close()
+    try:
+        if not email:
+            raise AuthenticationError("The username or password was not recognized.")
+        tokens = await SupabaseAuthClient(get_settings()).sign_in(email, password)
+        repository = _repository()
+        try:
+            account = repository.account_for_user(tokens.user_id)
+            if not account or account.status != "active":
+                raise AuthenticationError("The username or password was not recognized.")
+            repository.record_login(account.id)
+        finally:
+            repository.close()
+    except AuthenticationError as exc:
+        attempts.append(time.monotonic())
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            context={"request": request, "next": safe_next, "error": str(exc)},
+            status_code=401,
+        )
+    attempts.clear()
+    save_session(request, tokens)
+    destination = "/admin" if account.role == "sysadmin" else safe_next
+    return RedirectResponse(destination, status_code=303)
+
+
+@app.post("/logout")
+async def logout(request: Request):
+    access_token = request.session.get("access_token")
+    if access_token:
+        await SupabaseAuthClient(get_settings()).sign_out(str(access_token))
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(request: Request, created: bool = Query(default=False)):
+    repository = _repository()
+    try:
+        accounts = repository.admin_accounts()
+        directory = repository.company_directory("adam-cagle")
+    finally:
+        repository.close()
+    return templates.TemplateResponse(
+        request,
+        "admin.html",
+        context={
+            "request": request,
+            "accounts": accounts,
+            "directory": directory,
+            "created": created,
+            "error": None,
+            "version": __version__,
+        },
+    )
+
+
+@app.post("/admin/accounts", response_class=HTMLResponse)
+async def admin_create_account(request: Request):
+    form = await request.form()
+    username = str(form.get("username", "")).strip()
+    email = str(form.get("email", "")).strip().casefold()
+    password = str(form.get("password", ""))
+    timezone = str(form.get("timezone", "America/Los_Angeles"))
+    run_times = [
+        value
+        for value in (
+            str(form.get("run_time_1", "")).strip(),
+            str(form.get("run_time_2", "")).strip(),
+        )
+        if value
+    ]
+    profile_file = form.get("profile")
+    error = None
+    raw_profile = ""
+    if not username or not email or len(password) < 12 or not run_times:
+        error = "Username, email, a 12+ character password, and a run time are required."
+    elif not hasattr(profile_file, "read"):
+        error = "Attach the completed Ferminator onboarding Markdown file."
+    else:
+        content = await profile_file.read()
+        if len(content) > 2_000_000:
+            error = "The profile file is larger than 2 MB."
+        else:
+            try:
+                raw_profile = content.decode("utf-8")
+                profile = parse_profile_markdown(
+                    raw_profile,
+                    source_path=f"upload://{getattr(profile_file, 'filename', 'profile.md')}",
+                )
+            except (UnicodeDecodeError, ValueError) as exc:
+                error = f"The profile could not be validated: {exc}"
+    auth_user_id = None
+    if error is None:
+        auth_client = SupabaseAuthClient(get_settings())
+        try:
+            auth_user_id = await auth_client.create_user(
+                email=email,
+                password=password,
+                username=username,
+            )
+            repository = _repository()
+            try:
+                repository.provision_user_account(
+                    auth_user_id=auth_user_id,
+                    username=username,
+                    email=email,
+                    profile=profile,
+                    onboarding_markdown=raw_profile,
+                    timezone=timezone,
+                    run_times=run_times,
+                    actor_account_id=request.state.account.id,
+                    request_id=request.state.request_id,
+                )
+            finally:
+                repository.close()
+        except Exception:
+            logger.exception(
+                "account_provisioning_failed",
+                extra={
+                    "event": "account_provisioning_failed",
+                    "request_id": request.state.request_id,
+                },
+            )
+            if auth_user_id:
+                await auth_client.delete_user(auth_user_id)
+            error = "Account setup failed safely; no partial Ferminator account was kept."
+    if error is None:
+        return RedirectResponse("/admin?created=true", status_code=303)
+    repository = _repository()
+    try:
+        accounts = repository.admin_accounts()
+        directory = repository.company_directory("adam-cagle")
+    finally:
+        repository.close()
+    return templates.TemplateResponse(
+        request,
+        "admin.html",
+        context={
+            "request": request,
+            "accounts": accounts,
+            "directory": directory,
+            "created": False,
+            "error": error,
+            "version": __version__,
+        },
+        status_code=400,
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 def today(request: Request):
     context = _context(request, "today")
@@ -842,6 +1093,9 @@ def companies(request: Request):
             context["companies"] = repository.company_directory(context["profile"].profile.slug)
         finally:
             repository.close()
+        if get_settings().auth_mode == "supabase":
+            for company in context["companies"]:
+                company["source_url"] = None
     return templates.TemplateResponse(request, "companies.html", context=context)
 
 
@@ -854,7 +1108,7 @@ def update_action(request: Request, job_id: str, state: str):
         raise HTTPException(status_code=403, detail="Cross-origin action rejected")
     repository = _repository()
     try:
-        change = repository.set_action(_profile().profile.slug, job_id, state)
+        change = repository.set_action(_profile(request).profile.slug, job_id, state)
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
@@ -898,7 +1152,7 @@ async def update_action_details(request: Request, job_id: str):
     repository = _repository()
     try:
         repository.update_action_details(
-            _profile().profile.slug,
+            _profile(request).profile.slug,
             job_id,
             notes=fields.get("notes", ""),
             priority=priority,
@@ -906,7 +1160,7 @@ async def update_action_details(request: Request, job_id: str):
             closed_reason=fields.get("closed_reason"),
         )
         if close_after_save:
-            repository.set_action(_profile().profile.slug, job_id, "closed")
+            repository.set_action(_profile(request).profile.slug, job_id, "closed")
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
@@ -921,7 +1175,7 @@ def unsave_action(request: Request, job_id: str):
     _same_origin(request)
     repository = _repository()
     try:
-        previous = repository.unsave_action(_profile().profile.slug, job_id)
+        previous = repository.unsave_action(_profile(request).profile.slug, job_id)
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
@@ -941,7 +1195,7 @@ def undo_action(request: Request, job_id: str):
     _same_origin(request)
     repository = _repository()
     try:
-        restored = repository.undo_action(_profile().profile.slug, job_id)
+        restored = repository.undo_action(_profile(request).profile.slug, job_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
@@ -960,7 +1214,7 @@ def clear_feedback(request: Request, job_id: str):
     _same_origin(request)
     repository = _repository()
     try:
-        repository.clear_match_feedback(_profile().profile.slug, job_id)
+        repository.clear_match_feedback(_profile(request).profile.slug, job_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     finally:
@@ -983,7 +1237,7 @@ async def update_feedback(
     repository = _repository()
     try:
         repository.set_match_feedback(
-            _profile().profile.slug,
+            _profile(request).profile.slug,
             job_id,
             verdict,
             wrong_reason_code=wrong_reason_code,
@@ -1008,7 +1262,7 @@ def dismiss_pipeline_action(request: Request, job_id: str):
     try:
         try:
             repository.set_match_feedback(
-                _profile().profile.slug,
+                _profile(request).profile.slug,
                 job_id,
                 "wrong",
                 wrong_reason_code="not_interested",
@@ -1018,7 +1272,7 @@ def dismiss_pipeline_action(request: Request, job_id: str):
             # A closed listing can remain in the durable pipeline after its
             # current match is no longer feedback-eligible.
             pass
-        repository.set_action(_profile().profile.slug, job_id, "dismissed")
+        repository.set_action(_profile(request).profile.slug, job_id, "dismissed")
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
@@ -1030,9 +1284,9 @@ def dismiss_pipeline_action(request: Request, job_id: str):
 
 
 @app.get("/feedback/export.md")
-def export_wrong_feedback():
+def export_wrong_feedback(request: Request):
     """Download active Wrong verdicts as profile-calibration evidence."""
-    profile = _profile()
+    profile = _profile(request)
     if get_settings().demo_mode:
         records: list[dict] = []
     else:
@@ -1183,7 +1437,7 @@ def update_role_threshold(
     family_id: str,
     threshold: int,
 ):
-    profile = _profile()
+    profile = _profile(request)
     try:
         profile.role_family(family_id)
     except LookupError as exc:
@@ -1204,7 +1458,7 @@ def update_role_threshold(
 
 @app.post("/profile/role-threshold-reset/{family_id}")
 def reset_role_threshold(request: Request, family_id: str):
-    profile = _profile()
+    profile = _profile(request)
     try:
         profile.role_family(family_id)
     except LookupError as exc:
