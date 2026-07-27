@@ -13,9 +13,11 @@ on:
           - "1"
           - "2"
   schedule:
-    - cron: "5 8,16 * * *"
+    # Two runs a day, 8:00 and 8:35 Pacific. America/Los_Angeles tracks the
+    # PST/PDT transition, so these stay at 8am local year round.
+    - cron: "0 8 * * *"
       timezone: America/Los_Angeles
-    - cron: "35 8,16 * * *"
+    - cron: "35 8 * * *"
       timezone: America/Los_Angeles
 
 concurrency:
