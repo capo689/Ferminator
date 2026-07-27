@@ -37,4 +37,8 @@ EXPOSE 10000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:10000/healthz', timeout=3)"
 
-CMD ["uvicorn", "ferminator.web:app", "--host", "0.0.0.0", "--port", "10000"]
+# --proxy-headers + --forwarded-allow-ips lets uvicorn honor Render's
+# X-Forwarded-Proto. Without it request.base_url reports http:// behind
+# the TLS-terminating proxy, which breaks scheme-sensitive checks.
+CMD ["uvicorn", "ferminator.web:app", "--host", "0.0.0.0", "--port", "10000", \
+     "--proxy-headers", "--forwarded-allow-ips=*"]
