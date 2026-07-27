@@ -172,7 +172,7 @@ if (pipelineBoard) {
     }
     card.classList.add("is-moving");
     try {
-      const response = await fetch(`/actions/${card.dataset.jobId}/${state}`, {
+      const response = await fetch(`/opportunities/${card.dataset.jobId}/stage/${state}`, {
         method: "POST",
         headers: { "X-Pipeline-Request": "true" },
       });

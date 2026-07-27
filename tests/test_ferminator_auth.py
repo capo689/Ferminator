@@ -4,7 +4,11 @@ import pytest
 import respx
 from httpx import Response
 
-from ferminator.auth import AuthenticationError, SupabaseAuthClient
+from ferminator.auth import (
+    AuthenticationError,
+    SupabaseAuthClient,
+    current_user_id,
+)
 from ferminator.settings import Settings
 
 
@@ -61,3 +65,64 @@ async def test_admin_user_creation_keeps_privileged_key_server_side() -> None:
     )
     assert user_id == "new-user-id"
     assert route.calls[0].request.headers["authorization"] == "Bearer sb_secret_test"
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_authenticated_user_id_validates_access_token_with_supabase() -> None:
+    route = respx.get("https://example.supabase.co/auth/v1/user").mock(
+        return_value=Response(200, json={"id": "user-id"})
+    )
+    user_id = await SupabaseAuthClient(auth_settings()).authenticated_user_id("access")
+    assert user_id == "user-id"
+    assert route.calls[0].request.headers["authorization"] == "Bearer access"
+
+
+@pytest.mark.anyio
+@respx.mock
+async def test_authenticated_user_id_rejects_revoked_token() -> None:
+    respx.get("https://example.supabase.co/auth/v1/user").mock(
+        return_value=Response(401, json={"message": "session revoked"})
+    )
+    with pytest.raises(AuthenticationError, match="session expired"):
+        await SupabaseAuthClient(auth_settings()).authenticated_user_id("revoked")
+
+
+@pytest.mark.anyio
+async def test_current_user_rejects_cookie_when_provider_session_is_invalid() -> None:
+    class SessionRequest:
+        session = {
+            "access_token": "revoked",
+            "refresh_token": "refresh",
+            "expires_at": int(time()) + 3600,
+            "user_id": "user-id",
+            "email": "person@example.com",
+        }
+
+    class RevokedClient:
+        async def authenticated_user_id(self, _access_token):
+            raise AuthenticationError("Your session expired. Please sign in again.")
+
+    request = SessionRequest()
+    assert await current_user_id(request, RevokedClient()) is None
+    assert request.session == {}
+
+
+@pytest.mark.anyio
+async def test_current_user_rejects_identity_mismatch() -> None:
+    class SessionRequest:
+        session = {
+            "access_token": "valid",
+            "refresh_token": "refresh",
+            "expires_at": int(time()) + 3600,
+            "user_id": "cookie-user",
+            "email": "person@example.com",
+        }
+
+    class OtherUserClient:
+        async def authenticated_user_id(self, _access_token):
+            return "provider-user"
+
+    request = SessionRequest()
+    assert await current_user_id(request, OtherUserClient()) is None
+    assert request.session == {}

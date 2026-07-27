@@ -19,9 +19,9 @@
   </div>
 </header>
 <div class="fit-actions">
-  <form method="post" action="/actions/{{ job.id }}/preparing"><button class="button button-primary" type="submit">Prepare application →</button></form>
-  <form method="post" action="/actions/{{ job.id }}/considering"><button class="button button-secondary" type="submit">Save</button></form>
-  <form method="post" action="/actions/{{ job.id }}/dismissed"><button class="button button-secondary" type="submit">Dismiss</button></form>
+  <form method="post" action="/opportunities/{{ job.id }}/stage/preparing"><button class="button button-primary" type="submit">Prepare application →</button></form>
+  <form method="post" action="/opportunities/{{ job.id }}/stage/considering"><button class="button button-secondary" type="submit">Save</button></form>
+  <form method="post" action="/opportunities/{{ job.id }}/stage/dismissed"><button class="button button-secondary" type="submit">Dismiss</button></form>
   <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View original ↗</a>
 </div>
 <section class="fit-layout">

@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 import ferminator.web as web
 from ferminator import __version__
+from ferminator.demo import scored_jobs
+from ferminator.profiles import load_profile
 from ferminator.settings import get_settings
 from ferminator.web import _apply_visible_compensation, _failed_auth, app
 
@@ -225,6 +227,33 @@ def test_fit_lens_renders_explainable_components():
     assert "Evidence match" in response.text
     assert "Listing facts" in response.text
     assert "Complete job description" in response.text
+
+
+def test_fit_lens_converts_legacy_html_description_to_copyable_text(monkeypatch):
+    settings = web.get_settings().model_copy(update={"demo_mode": False})
+    monkeypatch.setattr(web, "get_settings", lambda: settings)
+    matches = scored_jobs(load_profile(settings.profile_path))
+    job_id = matches[0]["id"]
+
+    class Repository:
+        def web_matches(self, *_args, **_kwargs):
+            return matches
+
+        def job_description(self, *_args):
+            return "<p>Lead <strong>AI adoption</strong>.</p><ul><li>Build tools</li></ul>"
+
+        def pipeline(self, *_args):
+            return {"stages": {}, "terminal": []}
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(web, "_repository", Repository)
+    response = TestClient(app).get(f"/fit/{job_id}")
+    assert response.status_code == 200
+    assert "Lead AI adoption" in response.text
+    assert "Build tools" in response.text
+    assert "&lt;p&gt;" not in response.text
     assert "Copy complete JD" in response.text
 
 

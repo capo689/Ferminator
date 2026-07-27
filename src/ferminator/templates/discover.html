@@ -126,7 +126,7 @@
       </div>
       {% if job.concerns %}<p class="concern">{{ job.concerns[0] }}</p>{% endif %}
       <div class="actions">
-        <form method="post" action="/actions/{{ job.id }}/considering"><button class="button button-quiet" type="submit">Save</button></form>
+        <form method="post" action="/opportunities/{{ job.id }}/stage/considering"><button class="button button-quiet" type="submit">Save</button></form>
         <a class="text-action" href="/fit/{{ job.id }}#full-job-description">Full JD + copy</a>
         <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
       </div>
