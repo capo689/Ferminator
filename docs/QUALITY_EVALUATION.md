@@ -60,3 +60,18 @@ The live profile can be rescored without fetching every ATS board:
 ```bash
 ferminator rescore --profile-path profiles/adam-cagle.md
 ```
+
+## Calibration V3
+
+`calibration/v3/corpus.jsonl` combines both complete July 26 review batches:
+
+- 13 Great
+- 13 Maybe
+- 57 Wrong
+- 2 Duplicate
+
+The V3 gate requires all 26 reviewed Great/Maybe jobs to remain visible and all
+57 reviewed Wrong jobs to remain below the visibility boundary. It protects
+the newly confirmed editorial and technical-content Greats, the five
+AI-deployment Maybes, explicit timezone and travel limits, provider-specific
+hourly compensation, and specialist-function rejection.

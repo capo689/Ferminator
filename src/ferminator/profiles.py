@@ -10,6 +10,8 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+HomeTimezone = Literal["pacific", "mountain", "central", "eastern", "alaska", "hawaii"]
+
 
 class CompensationRule(BaseModel):
     currency: str = "USD"
@@ -53,11 +55,13 @@ class SearchRules(BaseModel):
     scan_interval_hours: int = Field(default=12, ge=1, le=168)
     default_geography: list[str] = Field(default_factory=lambda: ["Remote — United States"])
     default_zip: str = "97702"
+    home_timezone: HomeTimezone | None = None
     default_radius_miles: Literal[10, 25, 50, 100] = 50
     default_location_mode: Literal["remote", "near", "remote_or_near", "anywhere"] = (
         "remote_or_near"
     )
     allow_jobs_without_compensation: bool = True
+    maximum_travel_percent: int | None = Field(default=None, ge=0, le=100)
     compensation: CompensationRule = Field(default_factory=CompensationRule)
     employment_types: list[str] = Field(default_factory=lambda: ["full-time"])
     target_seniority: list[str] = Field(default_factory=list)

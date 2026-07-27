@@ -440,6 +440,56 @@ def _calibration_adjustment(
             and _phrase_count(body, ("retention", "expansion", "renewal", "customer success")) >= 3
         ):
             subtract(24, "Enterprise Customer Success ownership")
+        people_domain_hits = _phrase_count(
+            body,
+            (
+                "recruiting",
+                "talent",
+                "people operations",
+                "people team",
+                "human resources",
+                "applicant tracking",
+                "candidate communication",
+                "offer-to-hire",
+            ),
+        )
+        if people_domain_hits >= 4:
+            subtract(40, "Recruiting, People, or HR operating experience required")
+        enterprise_outcomes_hits = _phrase_count(
+            body,
+            (
+                "fortune 500",
+                "multi-quarter",
+                "organizational change",
+                "executive sponsor",
+                "operating model",
+                "transformation roadmap",
+                "strategic account",
+                "portfolio of customers",
+            ),
+        )
+        if (
+            "strategic ai outcomes manager" in title_text
+            and enterprise_outcomes_hits >= 3
+        ):
+            subtract(34, "Formal enterprise transformation and account ownership")
+        if (
+            "ai engagement manager" in title_text
+            and _phrase_count(
+                body,
+                (
+                    "technical program management",
+                    "software development lifecycle",
+                    "sdlc",
+                    "resource utilization",
+                    "engagement cost",
+                    "50% travel",
+                    "50 percent travel",
+                ),
+            )
+            >= 3
+        ):
+            subtract(28, "Enterprise technical-program and engagement ownership")
 
     technical_title_hits = _phrase_count(
         title_text,
@@ -512,6 +562,35 @@ def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
         job.workplace_type == WorkplaceType.REMOTE
         and (not normalized.strip() or normalized.strip() == "remote")
     )
+
+
+def _required_residency_timezone(text: str) -> str | None:
+    """Return an explicit US residency timezone, ignoring mere overlap requests."""
+    patterns = (
+        r"(?:must|required to)\s+(?:be\s+)?(?:located|reside|live)"
+        r"[^.\n]{0,80}\b(pacific|mountain|central|eastern)\b"
+        r"(?:\s+(?:time\s*)?zone)?",
+        r"(?:located|reside|live)\s+in[^.\n]{0,60}\b"
+        r"(pacific|mountain|central|eastern)\b\s+(?:time\s*)?zone",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if match:
+            return match.group(1).casefold()
+    return None
+
+
+def _maximum_required_travel(text: str) -> int | None:
+    """Find explicit travel percentages without treating benefit copy as travel."""
+    percentages = []
+    patterns = (
+        r"(?:travel|on-site|onsite)[^.\n]{0,55}?(?:~|up to|reach|about)?\s*"
+        r"(\d{1,3})\s*(?:%|percent)",
+        r"(\d{1,3})\s*(?:%|percent)[^.\n]{0,30}(?:travel|on-site|onsite)",
+    )
+    for pattern in patterns:
+        percentages.extend(int(value) for value in re.findall(pattern, text, re.I))
+    return max(percentages) if percentages else None
 
 
 @dataclass(frozen=True)
@@ -597,10 +676,19 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             explanation="Gateway 3 — the title is outside the supported career function.",
         )
 
+    if re.fullmatch(r"(?:senior\s+)?creative director", title.strip(), re.I):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=["Generic visual Creative Director role lacks a copy-led title."],
+            explanation="Gateway 3 — generic visual creative direction is outside the profile.",
+        )
+
     incompatible_title_function = re.search(
         r"\b(?:strategic finance|finance manager|counsel|attorney|"
         r"data architect|solutions architect|applied researcher|research scientist|"
-        r"asic|post-silicon|field cto|data governance)\b",
+        r"asic|post-silicon|field cto|data governance|"
+        r"event manager|assessment content|marketing operations)\b",
         title,
         re.I,
     )
@@ -612,6 +700,38 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
                 f"Functionally excluded title: {incompatible_title_function.group(0)}"
             ],
             explanation="Gateway 3 — the title is outside the supported career function.",
+        )
+
+    required_timezone = _required_residency_timezone(job.description_text)
+    if (
+        required_timezone
+        and profile.search.home_timezone
+        and required_timezone != profile.search.home_timezone
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[
+                f"Role requires {required_timezone.title()} time-zone residency; "
+                f"profile is {profile.search.home_timezone.title()}."
+            ],
+            explanation="Gateway 3 — a mandatory residency timezone rejected this job.",
+        )
+
+    required_travel = _maximum_required_travel(job.description_text)
+    if (
+        required_travel is not None
+        and profile.search.maximum_travel_percent is not None
+        and required_travel > profile.search.maximum_travel_percent
+    ):
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[
+                f"Role requires up to {required_travel}% travel; profile maximum is "
+                f"{profile.search.maximum_travel_percent}%."
+            ],
+            explanation="Gateway 3 — explicit travel exceeds the configured maximum.",
         )
 
     if title_role_family is None:

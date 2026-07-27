@@ -79,6 +79,34 @@ class Compensation(BaseModel):
     def normalize_currency(cls, value: str | None) -> str | None:
         return value.upper()[:3] if value else None
 
+    @field_validator("interval")
+    @classmethod
+    def normalize_interval(cls, value: str | None) -> str | None:
+        """Collapse provider-specific pay periods before applying hard floors."""
+        if not value:
+            return None
+        compact = re.sub(r"[^a-z]", "", value.casefold())
+        if compact in {
+            "hour",
+            "hourly",
+            "hr",
+            "perhour",
+            "perhourwage",
+            "hourlywage",
+        }:
+            return "hour"
+        if compact in {
+            "year",
+            "yearly",
+            "annual",
+            "annually",
+            "peryear",
+            "peryearsalary",
+            "annualsalary",
+        }:
+            return "year"
+        return value.casefold()
+
 
 _MONEY_VALUE = r"(?:\d{1,3}(?:,\d{3})+|\d{2,3}(?:\.\d+)?)\s*[kK]?"
 _RANGE_PATTERN = re.compile(
@@ -101,6 +129,9 @@ _PAY_CONTEXT = (
     "annual base",
     "base pay",
     "pay range",
+    "pay rate",
+    "hourly rate",
+    "hourly pay rate",
     "compensation range",
     "base compensation",
     "starting salary",
@@ -142,7 +173,15 @@ def extract_compensation_from_text(value: str | None) -> Compensation | None:
             continue
         minimum = _money_number(match.group("minimum"))
         maximum = _money_number(match.group("maximum"))
-        interval = "hour" if re.search(r"(?:per|/)\s*(?:hour|hr)\b|hourly", after) else "year"
+        interval_context = f"{before[-60:]} {after}"
+        interval = (
+            "hour"
+            if re.search(
+                r"(?:per|/)\s*(?:hour|hr)\b|hourly(?:\s+pay|\s+wage|\s+rate)?",
+                interval_context,
+            )
+            else "year"
+        )
         if interval == "year" and (minimum < 10_000 or maximum > 2_000_000):
             continue
         if interval == "hour" and (minimum > 1000 or maximum > 1000):
@@ -180,7 +219,15 @@ def extract_compensation_from_text(value: str | None) -> Compensation | None:
         if not any(term in f"{before} {after}" for term in _PAY_CONTEXT):
             continue
         amount = _money_number(match.group("value"))
-        interval = "hour" if re.search(r"(?:per|/)\s*(?:hour|hr)\b|hourly", after) else "year"
+        interval_context = f"{before[-60:]} {after}"
+        interval = (
+            "hour"
+            if re.search(
+                r"(?:per|/)\s*(?:hour|hr)\b|hourly(?:\s+pay|\s+wage|\s+rate)?",
+                interval_context,
+            )
+            else "year"
+        )
         if interval == "year" and not 10_000 <= amount <= 2_000_000:
             continue
         return Compensation(
