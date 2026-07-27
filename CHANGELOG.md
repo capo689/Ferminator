@@ -41,8 +41,10 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
   specialist roles.
 - Exact identity deduplication remains cheap and early; fuzzy
   application-history review is deferred until after refined matching.
-- Adam's production acceptance floor now requires at least 40 genuinely visible
-  jobs after role thresholds, feedback, ledger suppression, and geography.
+- The production Discover audit now guards against an empty result rather than
+  requiring an arbitrary 40 visible jobs. Calibration recall protects known
+  good matches without pressuring the matcher to pad Discover with reviewed
+  Wrong roles.
 - Adam's visibility floors now represent a controlled-review floor rather than
   requiring every candidate to clear an already-calibrated display score.
 - Contract compensation now enforces a $60/hour floor independently of the

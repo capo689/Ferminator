@@ -28,8 +28,10 @@ reject.
 Every rescore prints the number of jobs rejected or accepted at each gateway.
 The production workflow then runs `discover-audit`, which reproduces role
 thresholds, feedback suppression, application-ledger suppression, and default
-geography. Adam's release gate requires at least 40 opportunities in the actual
-default Discover result.
+geography. The production audit requires a non-empty Discover result. Match
+quality and abundance are measured separately: the calibration gate protects
+every reviewed positive, while market counts are reported without forcing the
+matcher to pad the page to an arbitrary quota.
 
 The 85-job Calibration V3 corpus is the current quality invariant:
 
