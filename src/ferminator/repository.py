@@ -25,6 +25,12 @@ from ferminator.ledger import (
 from ferminator.matching import MatchResult
 from ferminator.profiles import CareerProfile, load_compiled_profile, load_profile
 
+# Discover keeps a job visible until it is dealt with, but carrying every job
+# that was ever eligible pulled ~2,300 rows through the per-row lateral joins
+# and made the page take over a minute. Anything under this floor was never
+# going to clear the role thresholds downstream anyway.
+STICKY_SCORE_FLOOR = 40
+
 if TYPE_CHECKING:
     from ferminator.registry import CompanyRegistry
 
@@ -634,6 +640,7 @@ class PostgresRepository:
                   from latest_match l
                   join job_level jl on jl.job_id = l.job_id
                   where jl.ever_eligible
+                    and jl.best_score >= %s
                 ),
                 deduplicated_matches as (
                   select m.*, row_number() over (
@@ -745,7 +752,7 @@ class PostgresRepository:
                 order by m.best_score desc, j.first_seen_at desc
                 limit %s
                 """,
-                (profile_slug, minimum_score, include_suppressed, limit),
+                (profile_slug, STICKY_SCORE_FLOOR, minimum_score, include_suppressed, limit),
             ).fetchall()
         now = datetime.now(UTC)
         result = []
