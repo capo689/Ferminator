@@ -63,6 +63,10 @@ class Settings(BaseModel):
                 )
             if self.is_production and len(self.session_secret or "") < 32:
                 raise RuntimeError("SESSION_SECRET must contain at least 32 characters")
+            if self.is_production and not self.public_base_url.startswith("https://"):
+                raise RuntimeError(
+                    "PUBLIC_BASE_URL must be the production HTTPS origin"
+                )
 
     def valid_alpha_password(self, candidate: str) -> bool:
         return bool(self.alpha_password) and secrets.compare_digest(

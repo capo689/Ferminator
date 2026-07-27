@@ -53,3 +53,17 @@ def test_production_supabase_auth_requires_strong_session_secret() -> None:
             supabase_publishable_key="sb_publishable_test",
             session_secret="short",
         ).validate_runtime()
+
+
+def test_production_supabase_auth_requires_https_public_origin() -> None:
+    with pytest.raises(RuntimeError, match="production HTTPS origin"):
+        Settings(
+            environment="production",
+            demo_mode=False,
+            database_url="postgresql://example",
+            auth_mode="supabase",
+            supabase_url="https://example.supabase.co",
+            supabase_publishable_key="sb_publishable_test",
+            session_secret="s" * 32,
+            public_base_url="http://127.0.0.1:8000",
+        ).validate_runtime()
