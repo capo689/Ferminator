@@ -237,6 +237,29 @@ class PostgresRepository:
             )
         return str(account["id"])
 
+    def claim_password_reset_token(self, token_hash: str) -> dict | None:
+        """Atomically consume a single-use password-reset token.
+
+        Returns the target account's ids, or None when the token is unknown,
+        already used, or expired. The update and the read happen in one
+        statement so a token cannot be redeemed twice concurrently.
+        """
+        with self.connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                update public.password_reset_tokens t
+                set used_at = now()
+                from public.accounts a
+                where t.account_id = a.id
+                  and t.token_hash = %s
+                  and t.used_at is null
+                  and t.expires_at > now()
+                returning a.id as account_id, a.auth_user_id, a.username
+                """,
+                (token_hash,),
+            ).fetchone()
+        return dict(row) if row else None
+
     def profile_for_account(self, account_id: str) -> CareerProfile:
         with self.connection() as conn:
             row = conn.execute(

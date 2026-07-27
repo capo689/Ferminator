@@ -163,7 +163,7 @@ async def request_observability(request: Request, call_next):
             if request.headers.get("origin", "").rstrip("/") != expected_origin:
                 response = Response(status_code=403)
                 return _security_headers(response, request_id)
-        if request.url.path not in {"/login"}:
+        if request.url.path not in {"/login", "/set-password"}:
             auth_client = SupabaseAuthClient(settings)
             user_id = await current_user_id(request, auth_client)
             if not user_id:
@@ -599,6 +599,82 @@ def _compile_intelligence(
         "exclusions": market_data["exclusions"],
         "insights": insights,
     }
+
+
+def _reset_token_hash(token: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@app.get("/set-password", response_class=HTMLResponse)
+def set_password_page(request: Request, token: str = Query(default="")):
+    """Single-use page for setting a new password.
+
+    Exists because there was no recovery path at all: a user who lost their
+    password had to be reset by hand in the database.
+    """
+    if get_settings().auth_mode != "supabase":
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(
+        request,
+        "set_password.html",
+        context={"request": request, "token": token, "error": None, "done": False},
+    )
+
+
+@app.post("/set-password", response_class=HTMLResponse)
+async def set_password(request: Request):
+    if get_settings().auth_mode != "supabase":
+        return RedirectResponse("/", status_code=303)
+    fields = await _form_fields(request)
+    token = fields.get("token", "")
+    password = fields.get("password", "")
+    confirm = fields.get("confirm", "")
+
+    def fail(message: str, status: int = 400):
+        return templates.TemplateResponse(
+            request,
+            "set_password.html",
+            context={"request": request, "token": token, "error": message, "done": False},
+            status_code=status,
+        )
+
+    if len(password) < 12:
+        return fail("Use at least 12 characters.")
+    if password != confirm:
+        return fail("The two passwords do not match.")
+
+    repository = _repository()
+    try:
+        claim = repository.claim_password_reset_token(_reset_token_hash(token))
+    finally:
+        repository.close()
+    if not claim:
+        return fail("That link is invalid, already used, or expired.", status=403)
+
+    auth_client = SupabaseAuthClient(get_settings())
+    try:
+        await auth_client.set_user_password(str(claim["auth_user_id"]), password)
+    except RuntimeError:
+        logger.exception("password_set_failed", extra={"event": "password_set_failed"})
+        return fail("Could not update the password. Try the link again.", status=500)
+
+    logger.info(
+        "password_set",
+        extra={"event": "password_set", "username": claim["username"]},
+    )
+    return templates.TemplateResponse(
+        request,
+        "set_password.html",
+        context={
+            "request": request,
+            "token": "",
+            "error": None,
+            "done": True,
+            "username": claim["username"],
+        },
+    )
 
 
 @app.get("/login", response_class=HTMLResponse)

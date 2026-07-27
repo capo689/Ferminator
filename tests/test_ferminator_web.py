@@ -422,3 +422,63 @@ def test_scoped_forwarded_trust_resolves_the_real_client():
 
     blanket = _TrustedHosts("*")
     assert blanket.get_trusted_client_address(spoofed_then_real)[0] == "203.0.113.99"
+
+
+def test_set_password_rejects_unknown_token(monkeypatch):
+    """An invalid, used, or expired token must never set a password."""
+    monkeypatch.setenv("FERMINATOR_AUTH_MODE", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "pk")
+    monkeypatch.setenv("SUPABASE_SECRET_KEY", "sk")
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    get_settings.cache_clear()
+
+    class Repository:
+        def claim_password_reset_token(self, token_hash):
+            return None
+
+        def close(self):
+            pass
+
+    called = {"set": False}
+
+    class Client:
+        def __init__(self, *_a, **_k):
+            pass
+
+        async def set_user_password(self, *_a, **_k):
+            called["set"] = True
+
+    monkeypatch.setattr(web, "_repository", Repository)
+    monkeypatch.setattr(web, "SupabaseAuthClient", Client)
+    try:
+        response = TestClient(app).post(
+            "/set-password",
+            data={"token": "bogus", "password": "a" * 14, "confirm": "a" * 14},
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert response.status_code == 403
+    assert called["set"] is False, "must not touch Supabase for an invalid token"
+
+
+def test_set_password_requires_matching_twelve_char_password(monkeypatch):
+    monkeypatch.setenv("FERMINATOR_AUTH_MODE", "supabase")
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "pk")
+    monkeypatch.setenv("SESSION_SECRET", "x" * 32)
+    get_settings.cache_clear()
+    try:
+        client = TestClient(app)
+        short = client.post(
+            "/set-password", data={"token": "t", "password": "short", "confirm": "short"}
+        )
+        mismatch = client.post(
+            "/set-password", data={"token": "t", "password": "a" * 14, "confirm": "b" * 14}
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert short.status_code == 400
+    assert mismatch.status_code == 400

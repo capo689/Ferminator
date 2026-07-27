@@ -139,6 +139,26 @@ class SupabaseAuthClient:
             raise RuntimeError(f"Supabase account creation failed ({response.status_code})")
         return str(response.json()["id"])
 
+    async def set_user_password(self, user_id: str, password: str) -> None:
+        """Set a user's password through the admin API.
+
+        The plaintext travels from the user's browser straight to Supabase and
+        is never stored or logged here.
+        """
+        if not self.secret_key:
+            raise RuntimeError("SUPABASE_SECRET_KEY is required to set a password")
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.put(
+                f"{self.base_url}/auth/v1/admin/users/{user_id}",
+                headers={
+                    "apikey": self.secret_key,
+                    "Authorization": f"Bearer {self.secret_key}",
+                },
+                json={"password": password},
+            )
+        if response.status_code not in {200, 201}:
+            raise RuntimeError(f"Supabase password update failed ({response.status_code})")
+
     async def delete_user(self, user_id: str) -> None:
         if not self.secret_key:
             return
