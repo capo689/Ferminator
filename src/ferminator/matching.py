@@ -597,6 +597,23 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             explanation="Gateway 3 — the title is outside the supported career function.",
         )
 
+    incompatible_title_function = re.search(
+        r"\b(?:strategic finance|finance manager|counsel|attorney|"
+        r"data architect|solutions architect|applied researcher|research scientist|"
+        r"asic|post-silicon|field cto|data governance)\b",
+        title,
+        re.I,
+    )
+    if incompatible_title_function:
+        return MatchResult(
+            eligible=False,
+            score=0,
+            concerns=[
+                f"Functionally excluded title: {incompatible_title_function.group(0)}"
+            ],
+            explanation="Gateway 3 — the title is outside the supported career function.",
+        )
+
     if title_role_family is None:
         body_only_technical = re.search(
             r"\b(?:engineer|architect|developer|scientist|analytics?|"

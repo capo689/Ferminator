@@ -20,8 +20,9 @@ reject.
 6. **Application and duplicate review** — exact ATS/URL identity is handled
    cheaply during ingestion. After refined matching, identical normalized
    company/title listings from overlapping boards collapse to the richest
-   representative. Application-history and fuzzy title comparison then run
-   only for surviving jobs.
+   representative and share profile feedback, so Wrong or Duplicate cannot
+   reappear through a sibling board record. Application-history and fuzzy title
+   comparison then run only for surviving jobs.
 
 Every rescore prints the number of jobs rejected or accepted at each gateway.
 The production workflow then runs `discover-audit`, which reproduces role

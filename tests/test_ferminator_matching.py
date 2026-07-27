@@ -165,7 +165,7 @@ def test_jd_ai_vocabulary_does_not_rescue_unrelated_legal_title():
 
     assert not result.eligible
     assert result.explanation.startswith("Gateway 3")
-    assert "did not agree" in result.concerns[0]
+    assert "Counsel" in result.concerns[0]
 
 
 def test_jd_content_vocabulary_does_not_rescue_unrelated_engineering_program_title():
@@ -183,6 +183,19 @@ def test_jd_content_vocabulary_does_not_rescue_unrelated_engineering_program_tit
 
     assert not result.eligible
     assert result.explanation.startswith("Gateway 3")
+
+
+def test_direct_ai_phrase_does_not_rescue_incompatible_title_function():
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+
+    for title in (
+        "Strategic Finance, AI Innovation",
+        "Enterprise Data Architect & AI Solutions Leader",
+        "Senior Applied Researcher AI/ML",
+    ):
+        result = score_job(profile, make_job(title=title))
+        assert not result.eligible, title
+        assert result.explanation.startswith("Gateway 3")
 
 
 def test_jd_keywords_do_not_rescue_body_only_engineering_title():
