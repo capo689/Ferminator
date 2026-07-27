@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -287,6 +287,23 @@ class PostgresRepository:
                 (token_hash,),
             )
 
+    @staticmethod
+    def _hydrate_profile(row: Mapping[str, Any]) -> CareerProfile:
+        """Rebuild a CareerProfile from a profiles row.
+
+        Legacy rows predate database-hosted onboarding Markdown and still point
+        at a file on disk. Anything provisioned through /admin stores its
+        Markdown in the row itself, under a db:// source path.
+        """
+        if not row["onboarding_markdown"] and not str(row["source_path"]).startswith("db://"):
+            return load_profile(row["source_path"])
+        return load_compiled_profile(
+            dict(row["compiled_profile"]),
+            markdown_body=row["onboarding_markdown"] or "",
+            source_path=row["source_path"],
+            source_hash=row["source_hash"],
+        )
+
     def profile_for_account(self, account_id: str) -> CareerProfile:
         with self.connection() as conn:
             row = conn.execute(
@@ -300,14 +317,28 @@ class PostgresRepository:
             ).fetchone()
         if not row:
             raise LookupError("No active profile is assigned to this account")
-        if not row["onboarding_markdown"] and not str(row["source_path"]).startswith("db://"):
-            return load_profile(row["source_path"])
-        return load_compiled_profile(
-            dict(row["compiled_profile"]),
-            markdown_body=row["onboarding_markdown"] or "",
-            source_path=row["source_path"],
-            source_hash=row["source_hash"],
-        )
+        return self._hydrate_profile(row)
+
+    def scannable_profiles(self) -> list[tuple[str, CareerProfile]]:
+        """Every profile the scanner should score, sourced from the database.
+
+        The scanner used to enumerate profiles by globbing profiles/*.md, so an
+        account provisioned through /admin -- whose Markdown lives in its row
+        rather than on disk -- was never scored. Those users could sign in and
+        would see an empty dashboard indefinitely, with no error raised.
+        """
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select p.id, p.slug, p.compiled_profile, p.onboarding_markdown,
+                       p.source_path, p.source_hash
+                from public.profiles p
+                join public.accounts a on a.profile_id = p.id
+                where a.role = 'user' and a.status = 'active' and p.scan_enabled
+                order by p.slug
+                """
+            ).fetchall()
+        return [(str(row["id"]), self._hydrate_profile(row)) for row in rows]
 
     @contextmanager
     def connection(self) -> Iterator[Connection]:
