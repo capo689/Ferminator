@@ -195,8 +195,14 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
     sql = connection.execute.call_args.args[0]
     assert "history_candidates" in sql
     assert "(h.permanent or h.suppress_until > now())" in sql
-    assert "max(pm.profile_version)" in sql
-    assert "p.match_version = m.profile_version" in sql
+    # Discover is sticky: a job that already qualified must stay visible until
+    # the user deals with it, so the query must NOT scope to the newest
+    # profile_version -- doing that rebuilt the list on every rescore and made
+    # untouched jobs silently disappear.
+    assert "p.match_version = m.profile_version" not in sql
+    assert "bool_or(m.eligible) as ever_eligible" in sql
+    assert "max(m.score) as best_score" in sql
+    assert "where m.ever_eligible and m.best_score >= %s" in sql
     assert "deduplicated_matches" in sql
     assert "public.normalize_job_part(j.company_name)" in sql
     assert "m.duplicate_rank = 1" in sql
