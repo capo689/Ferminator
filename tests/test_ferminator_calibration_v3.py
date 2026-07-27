@@ -26,3 +26,10 @@ def test_calibration_v3_filters_every_reviewed_wrong() -> None:
 
     assert report.wrong_filtered == 57
     assert report.wrong_rejection_rate == 100
+
+
+def test_calibration_v3_measures_great_versus_maybe_ranking() -> None:
+    report = evaluate_calibration_v3(load_profile("profiles/adam-cagle.md"), CORPUS)
+
+    assert report.great_average_score > report.maybe_average_score
+    assert report.great_maybe_pairwise_accuracy >= 70

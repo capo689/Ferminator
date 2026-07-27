@@ -7,6 +7,17 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Added
 
+- Source-aware effective freshness with explicit confidence and provenance:
+  publication, employer update, first seen, and last checked remain distinct.
+- A 60-day normal window, 61–90-day Older tier, revalidation requirement for
+  older unreviewed listings, and derived 180/365-day archival policy that does
+  not delete source records.
+- Calibration V3 Great-versus-Maybe pairwise evaluation and a desirability
+  ranking prior kept separate from eligibility and Wrong-job rejection.
+- Ferminator Profile Builder schema v2: qualitative role intent, family-level
+  evidence and false-positive rules, structured eligibility/desirability,
+  source-aware freshness, application-history policy, expanded geography and
+  economics, and canonical feedback reasons.
 - Calibration V3, an 85-job frozen corpus combining both complete human-review
   batches with 13 Great, 13 Maybe, 57 Wrong, and 2 Duplicate verdicts.
 - Profile-controlled home timezone and maximum travel percentage gates.
@@ -35,6 +46,15 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 
 ### Changed
 
+- Discover now preserves reviewed Great and Maybe opportunities regardless of
+  age while archiving stale unreviewed intake; within each human-verdict tier,
+  actionable fresh listings rank before stale reviewed leads.
+- Discover date filters and Newest sorting use the explainable effective
+  freshness date instead of blindly preferring the original publication date.
+- The onboarding skill now asks users for core/adjacent/edge/exploratory intent
+  and translates it into internal controlled-review thresholds. Email is
+  opt-in, scan timing is an admin-assigned beta preference, and digest limits
+  cannot cap Discover.
 - Adam's title vocabulary now distinguishes editorial and technical-content
   work from PR, internal/corporate communications, generic growth marketing,
   event content, assessment content, MarTech operations, and crypto-domain

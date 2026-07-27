@@ -16,7 +16,10 @@ HomeTimezone = Literal["pacific", "mountain", "central", "eastern", "alaska", "h
 class CompensationRule(BaseModel):
     currency: str = "USD"
     minimum_base_annual: float | None = Field(default=None, ge=0)
+    target_base_annual: float | None = Field(default=None, ge=0)
+    exceptional_opportunity_floor: float | None = Field(default=None, ge=0)
     minimum_contract_hourly: float | None = Field(default=60, ge=0)
+    bonus_equity_can_offset_base: bool = False
 
 
 class TargetTitles(BaseModel):
@@ -31,6 +34,15 @@ class RoleFamily(BaseModel):
     threshold: int = Field(default=80, ge=0, le=100)
     aliases: list[str] = Field(min_length=1)
     description: str = ""
+    intent: Literal["core", "adjacent", "edge", "exploratory"] | None = None
+    must_involve: list[str] = Field(default_factory=list)
+    supporting_evidence: list[str] = Field(default_factory=list)
+    required_signals: list[str] = Field(default_factory=list)
+    false_positive_patterns: list[str] = Field(default_factory=list)
+    disqualifying_responsibilities: list[str] = Field(default_factory=list)
+    acceptable_seniority: list[str] = Field(default_factory=list)
+    tolerated_gaps: list[str] = Field(default_factory=list)
+    non_claims: list[str] = Field(default_factory=list)
 
     @field_validator("id")
     @classmethod
@@ -73,6 +85,17 @@ class SearchRules(BaseModel):
     required_any: list[str] = Field(default_factory=list)
     preferred: list[str] = Field(default_factory=list)
     exclude: dict[str, list[str]] = Field(default_factory=dict)
+    schedule_preference: str | None = None
+    freshness: dict[str, object] = Field(default_factory=dict)
+    duplicate_policy: dict[str, object] = Field(default_factory=dict)
+    geography_exceptions: list[str] = Field(default_factory=list)
+    compensation_exceptions: list[str] = Field(default_factory=list)
+    remote_regions: list[str] = Field(default_factory=list)
+    hybrid_max_days_per_week: int | None = Field(default=None, ge=0, le=7)
+    relocation_willing: bool | None = None
+    named_local_markets: list[str] = Field(default_factory=list)
+    company_preferences: dict[str, list[str]] = Field(default_factory=dict)
+    work_patterns: dict[str, list[str]] = Field(default_factory=dict)
 
     @field_validator("default_zip")
     @classmethod
@@ -91,7 +114,7 @@ class SearchRules(BaseModel):
 
 class NotificationRules(BaseModel):
     dashboard: bool = True
-    email: bool = True
+    email: bool = False
     review_minimum_score: float = Field(default=58, ge=0, le=100)
     minimum_score: float = Field(default=70, ge=0, le=100)
     exceptional_score: float = Field(default=88, ge=0, le=100)
@@ -127,6 +150,7 @@ class CareerProfile(BaseModel):
     search: SearchRules
     notifications: NotificationRules = Field(default_factory=NotificationRules)
     scoring: dict[str, float]
+    decision_model: dict[str, object] = Field(default_factory=dict)
     markdown_body: str
     source_path: Path
     source_hash: str
@@ -146,6 +170,23 @@ class CareerProfile(BaseModel):
     @property
     def evidence_text(self) -> str:
         return re.sub(r"\s+", " ", self.markdown_body).strip()
+
+    @property
+    def runtime_scoring(self) -> dict[str, float]:
+        """Translate schema-v2 decision weights into the current matcher components."""
+        if self.schema_version < 2:
+            return self.scoring
+        return {
+            "role_alignment": self.scoring.get("functional_fit", 0),
+            "career_evidence": self.scoring.get("career_evidence", 0)
+            + self.scoring.get("ats_credibility", 0),
+            "skills": self.scoring.get("skills", 0),
+            "seniority": self.scoring.get("seniority", 0),
+            "geography": 0,
+            "compensation": self.scoring.get("opportunity_economics", 0),
+            "company_preference": self.scoring.get("company_preference", 0),
+            "freshness": 0,
+        }
 
     @property
     def high_titles(self) -> list[str]:

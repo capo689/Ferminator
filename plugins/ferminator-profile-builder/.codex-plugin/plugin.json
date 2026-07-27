@@ -1,18 +1,18 @@
 {
   "name": "ferminator-profile-builder",
-  "version": "0.1.0",
-  "description": "Turn career materials and a guided interview into a validated Ferminator search profile.",
+  "version": "0.2.0",
+  "description": "Turn career evidence and a guided interview into a validated Ferminator decision profile.",
   "author": {
     "name": "Adam Cagle"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Ferminator Profile Builder",
-    "shortDescription": "Create validated Ferminator career profiles.",
-    "longDescription": "Guides a user through resume intake, confirmed public-source research, evidence review, search-preference calibration, and deterministic Ferminator profile validation.",
+    "shortDescription": "Create calibrated Ferminator decision profiles.",
+    "longDescription": "Guides a user through evidence intake, role-family decisions, eligibility constraints, Great/Maybe/Wrong calibration, application history, and schema-v2 Ferminator profile validation.",
     "developerName": "Ferminator",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Turn my resume and confirmed career sources into a validated Ferminator profile."
+    "defaultPrompt": "Turn my career evidence and preferences into a validated Ferminator schema-v2 decision profile."
   }
 }

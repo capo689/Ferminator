@@ -32,7 +32,10 @@ def sort_discover_matches(matches: list[dict], sort: str) -> list[dict]:
     if sort == "newest":
         return sorted(
             matches,
-            key=lambda item: (date_value(item), item["score"]),
+            key=lambda item: (
+                item.get("freshness_effective_at") or date_value(item),
+                item["score"],
+            ),
             reverse=True,
         )
 
@@ -40,9 +43,11 @@ def sort_discover_matches(matches: list[dict], sort: str) -> list[dict]:
         matches,
         key=lambda item: (
             _RELEVANCE_VERDICT_PRIORITY.get(item.get("feedback_verdict"), 2),
+            item.get("freshness_actionability_rank", 4),
+            item.get("desirability_score", item.get("display_score", item["score"])),
             item.get("display_score", item["score"]),
             item["score"],
-            date_value(item),
+            item.get("freshness_effective_at") or date_value(item),
         ),
         reverse=True,
     )

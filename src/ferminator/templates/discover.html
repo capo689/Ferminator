@@ -89,8 +89,9 @@
     <div class="result-body">
       <div class="result-topline">
         <span>{{ job.company }} · {{ job.provider|title }}</span>
-        <span class="new-pill">
-          {{ job.role_family }} · {{ job.freshness }}
+        <span class="freshness-pill freshness-{{ job.freshness_tier }}"
+              title="{{ job.freshness_reason }} Confidence: {{ job.freshness_confidence }}.">
+          {{ job.role_family }} · {{ job.freshness_label }} · {{ job.freshness }}
         </span>
       </div>
       <h2>{{ job.title }}</h2>
@@ -101,6 +102,12 @@
         {% if job.compensation_source == "description" %}
         <span class="source-note">· extracted from full JD</span>
         {% endif %}
+      </p>
+      <p class="date-provenance">
+        {% if job.published_at %}Published {{ job.published_at.strftime("%b %d, %Y") }}{% else %}Published unknown{% endif %}
+        · {% if job.source_updated_at %}Updated {{ job.source_updated_at.strftime("%b %d, %Y") }}{% else %}No source update reported{% endif %}
+        · First seen {{ job.first_seen_at.strftime("%b %d, %Y") if job.first_seen_at else "unknown" }}
+        · Last checked {{ job.last_seen_at.strftime("%b %d, %Y") if job.last_seen_at else "this session" }}
       </p>
       {% if job.prior_application %}
       <aside class="prior-application" aria-label="Possible prior application">

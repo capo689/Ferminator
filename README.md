@@ -99,8 +99,10 @@ that gate must be explicitly resolved or accepted before public launch.
 
 The installable onboarding workflow lives in
 `plugins/ferminator-profile-builder`. It turns a résumé, confirmed professional
-sources, and a guided user interview into a Markdown profile, then validates
-the result against Ferminator's intake contract.
+sources, application history, and a guided interview into a schema-v2 career
+decision profile. The skill separates retrieval, eligibility, predicted
+desirability, and human feedback, then validates the result against
+Ferminator's intake contract.
 
 ## Acknowledgments
 

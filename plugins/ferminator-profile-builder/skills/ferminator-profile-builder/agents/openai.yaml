@@ -1,4 +1,4 @@
 interface:
   display_name: "Ferminator Profile Builder"
-  short_description: "Build a validated Ferminator career profile"
-  default_prompt: "Use $ferminator-profile-builder to turn my resume and confirmed public career sources into a validated Ferminator profile."
+  short_description: "Build a calibrated career decision profile"
+  default_prompt: "Use $ferminator-profile-builder to turn my career evidence and preferences into a validated Ferminator schema-v2 decision profile."
