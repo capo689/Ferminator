@@ -3,6 +3,7 @@ from pathlib import Path
 from threading import Event, Thread
 from types import SimpleNamespace
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import ferminator.web as web
@@ -343,3 +344,50 @@ def test_supabase_user_cannot_open_admin_control_plane(monkeypatch) -> None:
     monkeypatch.setattr(web, "_repository", Repository)
     response = TestClient(app).get("/admin")
     assert response.status_code == 403
+
+
+def _origin_request(origin: str | None, base_url: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        headers={"origin": origin} if origin else {},
+        base_url=base_url,
+    )
+
+
+def test_same_origin_accepts_https_origin_behind_tls_proxy(monkeypatch):
+    """Regression: behind Render's TLS-terminating proxy request.base_url is
+    http:// while browsers send an https:// Origin. Comparing against
+    base_url 403'd every mutation, which is what broke save-to-pipeline."""
+    monkeypatch.setenv("FERMINATOR_ENV", "production")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://ferminator-web.onrender.com")
+    get_settings.cache_clear()
+    try:
+        # The real browser case: proxy reports http, browser sends https.
+        web._same_origin(
+            _origin_request(
+                "https://ferminator-web.onrender.com",
+                "http://ferminator-web.onrender.com/",
+            )
+        )
+        # No Origin header (same-origin form navigation) stays allowed.
+        web._same_origin(_origin_request(None, "http://ferminator-web.onrender.com/"))
+    finally:
+        get_settings.cache_clear()
+
+
+def test_same_origin_rejects_foreign_and_downgraded_origins(monkeypatch):
+    monkeypatch.setenv("FERMINATOR_ENV", "production")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://ferminator-web.onrender.com")
+    get_settings.cache_clear()
+    try:
+        for origin in (
+            "https://evil.example",
+            "http://ferminator-web.onrender.com",  # scheme downgrade
+        ):
+            try:
+                web._same_origin(_origin_request(origin, "http://ferminator-web.onrender.com/"))
+            except HTTPException as exc:
+                assert exc.status_code == 403
+            else:
+                raise AssertionError(f"expected 403 for origin {origin}")
+    finally:
+        get_settings.cache_clear()

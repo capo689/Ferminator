@@ -1105,9 +1105,7 @@ def companies(request: Request):
 def update_action(request: Request, job_id: str, state: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
-    origin = request.headers.get("origin")
-    if origin and origin != str(request.base_url).rstrip("/"):
-        raise HTTPException(status_code=403, detail="Cross-origin action rejected")
+    _same_origin(request)
     repository = _repository()
     try:
         change = repository.set_action(_profile(request).profile.slug, job_id, state)
@@ -1124,8 +1122,21 @@ def update_action(request: Request, job_id: str, state: str):
 
 
 def _same_origin(request: Request) -> None:
+    """Reject cross-origin mutations.
+
+    Compares against the configured public origin, not request.base_url.
+    Behind a TLS-terminating proxy base_url reports http:// while browsers
+    always send an https:// Origin, so every mutation would 403. This
+    mirrors the production origin gate in the middleware.
+    """
     origin = request.headers.get("origin")
-    if origin and origin != str(request.base_url).rstrip("/"):
+    if not origin:
+        return
+    settings = get_settings()
+    allowed = {settings.public_base_url.rstrip("/")}
+    if not settings.is_production:
+        allowed.add(str(request.base_url).rstrip("/"))
+    if origin.rstrip("/") not in allowed:
         raise HTTPException(status_code=403, detail="Cross-origin action rejected")
 
 
@@ -1503,9 +1514,7 @@ def update_role_threshold(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     if not 0 <= threshold <= 100:
         raise HTTPException(status_code=400, detail="Threshold must be between 0 and 100")
-    origin = request.headers.get("origin")
-    if origin and origin != str(request.base_url).rstrip("/"):
-        raise HTTPException(status_code=403, detail="Cross-origin action rejected")
+    _same_origin(request)
     if not get_settings().demo_mode:
         repository = _repository()
         try:
@@ -1522,9 +1531,7 @@ def reset_role_threshold(request: Request, family_id: str):
         profile.role_family(family_id)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    origin = request.headers.get("origin")
-    if origin and origin != str(request.base_url).rstrip("/"):
-        raise HTTPException(status_code=403, detail="Cross-origin action rejected")
+    _same_origin(request)
     if not get_settings().demo_mode:
         repository = _repository()
         try:
