@@ -41,6 +41,10 @@ Keep a Changelog structure and uses semantic versions for deployed releases.
 - Contract compensation now enforces a $60/hour floor independently of the
   annual full-time salary floor.
 - Discover hides jobs explicitly rated Wrong or Duplicate by default.
+- Discover relevance ranking now treats human review as authoritative: rated
+  Great jobs lead, unrated jobs follow by calibrated score, and rated Maybe
+  jobs follow the unrated review queue. Wrong and Duplicate remain hidden by
+  default.
 - Production monitoring now treats Render free-tier cold starts as a bounded
   wake-up phase: up to three 20-second connection attempts with 10 seconds
   between failures (an 80-second maximum). Persistent failures still fail the

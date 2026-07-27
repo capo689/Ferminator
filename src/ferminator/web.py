@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 
 from ferminator import __version__
 from ferminator.demo import demo_companies, demo_pipeline, scored_jobs
-from ferminator.discover_visibility import apply_role_thresholds
+from ferminator.discover_visibility import apply_role_thresholds, sort_discover_matches
 from ferminator.display_score import match_display
 from ferminator.domain import extract_compensation_from_text
 from ferminator.feedback import WRONG_REASON_LABELS, render_calibration_markdown
@@ -653,13 +653,7 @@ def discover(
             )
         ]
 
-    def date_value(item: dict) -> datetime:
-        return item.get("published_at") or item.get("first_seen_at")
-
-    if sort == "newest":
-        matches.sort(key=lambda item: (date_value(item), item["score"]), reverse=True)
-    else:
-        matches.sort(key=lambda item: (item["score"], date_value(item)), reverse=True)
+    matches = sort_discover_matches(matches, sort)
 
     params = {
         "q": q,
