@@ -118,6 +118,62 @@ def _matched_title_exclusions(title: str, phrases: list[str]) -> list[str]:
     return matches
 
 
+def _body_inference_matches_title(role_family: RoleFamily, title: str) -> bool:
+    """Require a plausible title function before JD evidence assigns a family.
+
+    Descriptions routinely mention AI, content, enablement, and operations in
+    roles whose actual function is finance, law, engineering, events, or data.
+    The body may clarify an unconventional title, but it may not replace the
+    title's career function entirely.
+    """
+    anchors = {
+        "ai-enablement": (
+            r"\b(?:enablement|adoption|education|learning|training|evangelist|"
+            r"community|change|programs?|outcomes?|success)\b"
+        ),
+        "ai-transformation-operations": (
+            r"\b(?:ai|automation|transformation|innovation|workflow|"
+            r"implementation|deployment|context operations|marketing ai)\b"
+        ),
+        "ai-content-systems": (
+            r"\b(?:content|editorial|knowledge|brand voice|conversation)\b"
+        ),
+        "creative-ai-technology": (
+            r"\b(?:creative|ai|agentic|automation|technolog(?:y|ist)|"
+            r"marketing engineer)\b"
+        ),
+        "copywriting": r"\b(?:copy|copywriter|copywriting)\b",
+        "creative-direction-copy": r"\b(?:copy|creative)\b",
+        "content-strategy-brand": (
+            r"\b(?:content|brand|editorial|communications?|copy|messaging|"
+            r"narrative|storytelling|creative)\b"
+        ),
+        "technical-content-education": (
+            r"\b(?:technical (?:content|writ)|developer (?:relations|advocacy|"
+            r"education)|documentation|docs|education|learning|training|"
+            r"evangelist|content)\b"
+        ),
+        "ai-search": r"\b(?:ai search|aeo|geo|seo|search|discoverability)\b",
+        "conversation-prompt-design": r"\b(?:conversation|conversational|prompt)\b",
+        "content-creative-operations": (
+            r"\b(?:content|creative|editorial|knowledge|campaign|"
+            r"marketing operations)\b"
+        ),
+        "consulting-transformation": (
+            r"\b(?:consultant|consulting|transformation|implementation|solutions)\b"
+        ),
+        "product-marketing-narrative": (
+            r"\b(?:product marketing|growth marketing|integrated marketing|"
+            r"positioning|narrative)\b"
+        ),
+        "agency-creative-leadership": (
+            r"\b(?:creative|copy|campaign|brand)\b"
+        ),
+    }
+    pattern = anchors.get(role_family.id)
+    return bool(pattern and re.search(pattern, title, re.I))
+
+
 def _phrase_count(text: str, phrases: tuple[str, ...]) -> int:
     """Count distinct explainable signals without rewarding keyword stuffing."""
     normalized = text.casefold()
@@ -560,19 +616,17 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
                 ],
                 explanation="Gateway 3 — body-only evidence conflicted with the title function.",
             )
-        business_title_anchor = re.search(
-            r"\b(?:lead|manager|director|strategist|partner|program|operations|"
-            r"communications?|content|marketing|copy|creative|editorial|"
-            r"enablement|adoption|transformation|automation|experience)\b",
-            title,
-            re.I,
-        )
-        if not business_title_anchor:
+        if role_family is None or not _body_inference_matches_title(role_family, title):
             return MatchResult(
                 eligible=False,
                 score=0,
-                concerns=["The JD signal lacked a plausible business-function title anchor."],
-                explanation="Gateway 3 — body-only evidence lacked title support.",
+                concerns=[
+                    "The JD signal did not agree with the career function named in the title."
+                ],
+                explanation=(
+                    "Gateway 3 — body-only evidence lacked functionally coherent "
+                    "title support."
+                ),
             )
 
     required = profile.search.required_any

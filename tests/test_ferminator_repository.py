@@ -197,6 +197,9 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
     assert "(h.permanent or h.suppress_until > now())" in sql
     assert "max(pm.profile_version)" in sql
     assert "p.match_version = m.profile_version" in sql
+    assert "deduplicated_matches" in sql
+    assert "public.normalize_job_part(j.company_name)" in sql
+    assert "m.duplicate_rank = 1" in sql
     assert "m.job_revision_id = j.current_revision_id" not in sql
 
 
