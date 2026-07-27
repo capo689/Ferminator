@@ -91,7 +91,8 @@ if (wrongDialog) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      form.action = `/feedback/${button.dataset.jobId}/wrong`;
+      form.action = "/discover";
+      form.elements.job_id.value = button.dataset.jobId;
       jobLabel.textContent = button.dataset.jobLabel;
       reasonCode.value = button.dataset.reasonCode || "";
       reasonNote.value = button.dataset.reasonNote || "";
@@ -172,9 +173,17 @@ if (pipelineBoard) {
     }
     card.classList.add("is-moving");
     try {
-      const response = await fetch(`/opportunities/${card.dataset.jobId}/stage/${state}`, {
+      const response = await fetch("/pipeline", {
         method: "POST",
-        headers: { "X-Pipeline-Request": "true" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Pipeline-Request": "true",
+        },
+        body: new URLSearchParams({
+          operation: "stage",
+          job_id: card.dataset.jobId,
+          state,
+        }),
       });
       if (!response.ok) throw new Error(`Move failed: ${response.status}`);
       window.location.assign(response.url);

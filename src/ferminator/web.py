@@ -1102,7 +1102,6 @@ def companies(request: Request):
 
 
 @app.post("/actions/{job_id}/{state}", include_in_schema=False)
-@app.post("/opportunities/{job_id}/stage/{state}")
 def update_action(request: Request, job_id: str, state: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
@@ -1135,12 +1134,44 @@ async def _form_fields(request: Request) -> dict[str, str]:
     return {key: values[-1] for key, values in parse_qs(body).items()}
 
 
+@app.post("/pipeline")
+async def update_pipeline(request: Request):
+    """Handle all pipeline mutations on the browser-safe canonical page URL."""
+    if get_settings().demo_mode:
+        return RedirectResponse("/pipeline", status_code=303)
+    _same_origin(request)
+    fields = await _form_fields(request)
+    job_id = fields.get("job_id", "")
+    operation = fields.get("operation", "")
+    if not job_id:
+        raise HTTPException(status_code=400, detail="Job is required")
+    if operation == "stage":
+        return update_action(request, job_id, fields.get("state", ""))
+    if operation == "details":
+        return _update_action_details(request, job_id, fields)
+    if operation == "unsave":
+        return unsave_action(request, job_id)
+    if operation == "undo":
+        return undo_action(request, job_id)
+    if operation == "dismiss":
+        return dismiss_pipeline_action(request, job_id)
+    raise HTTPException(status_code=400, detail="Unknown pipeline operation")
+
+
 @app.post("/pipeline-actions/{job_id}/details")
 async def update_action_details(request: Request, job_id: str):
     if get_settings().demo_mode:
         return RedirectResponse("/pipeline", status_code=303)
     _same_origin(request)
     fields = await _form_fields(request)
+    return _update_action_details(request, job_id, fields)
+
+
+def _update_action_details(
+    request: Request,
+    job_id: str,
+    fields: dict[str, str],
+):
     follow_up_at = None
     if fields.get("follow_up_at"):
         try:
@@ -1225,6 +1256,22 @@ def clear_feedback(request: Request, job_id: str):
     return RedirectResponse("/discover", status_code=303)
 
 
+@app.post("/discover")
+async def update_discover_feedback(request: Request):
+    """Handle feedback on the browser-safe canonical Discover page URL."""
+    if get_settings().demo_mode:
+        return RedirectResponse("/discover", status_code=303)
+    _same_origin(request)
+    fields = await _form_fields(request)
+    job_id = fields.get("job_id", "")
+    verdict = fields.get("verdict", "")
+    if not job_id:
+        raise HTTPException(status_code=400, detail="Job is required")
+    if verdict == "clear":
+        return clear_feedback(request, job_id)
+    return _update_feedback(request, job_id, verdict, fields)
+
+
 @app.post("/feedback/{job_id}/{verdict}")
 async def update_feedback(
     request: Request,
@@ -1235,6 +1282,15 @@ async def update_feedback(
         return RedirectResponse("/discover", status_code=303)
     _same_origin(request)
     fields = await _form_fields(request)
+    return _update_feedback(request, job_id, verdict, fields)
+
+
+def _update_feedback(
+    request: Request,
+    job_id: str,
+    verdict: str,
+    fields: dict[str, str],
+):
     reason = fields.get("reason", "")[:500] or None
     wrong_reason_code = fields.get("wrong_reason_code") or None
     repository = _repository()

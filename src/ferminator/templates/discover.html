@@ -126,7 +126,12 @@
       </div>
       {% if job.concerns %}<p class="concern">{{ job.concerns[0] }}</p>{% endif %}
       <div class="actions">
-        <form method="post" action="/opportunities/{{ job.id }}/stage/considering"><button class="button button-quiet" type="submit">Save</button></form>
+        <form method="post" action="/pipeline">
+          <input type="hidden" name="operation" value="stage">
+          <input type="hidden" name="job_id" value="{{ job.id }}">
+          <input type="hidden" name="state" value="considering">
+          <button class="button button-quiet" type="submit">Save</button>
+        </form>
         <a class="text-action" href="/fit/{{ job.id }}#full-job-description">Full JD + copy</a>
         <a class="text-action" href="{{ job.apply_url }}" target="_blank" rel="noopener">View role ↗</a>
       </div>
@@ -137,7 +142,9 @@
           {% else %}Teach the matcher:{% endif %}
         </span>
         {% for verdict in ["great", "maybe"] %}
-        <form method="post" action="/feedback/{{ job.id }}/{{ verdict }}">
+        <form method="post" action="/discover">
+          <input type="hidden" name="job_id" value="{{ job.id }}">
+          <input type="hidden" name="verdict" value="{{ verdict }}">
           <button
             class="text-action{% if job.feedback_verdict == verdict %} feedback-selected{% endif %}"
             type="submit"
@@ -155,7 +162,9 @@
           data-reason-note="{{ job.feedback_reason or '' }}"
           {% if job.feedback_verdict == "wrong" %}aria-pressed="true"{% endif %}
         >Wrong</button>
-        <form method="post" action="/feedback/{{ job.id }}/duplicate">
+        <form method="post" action="/discover">
+          <input type="hidden" name="job_id" value="{{ job.id }}">
+          <input type="hidden" name="verdict" value="duplicate">
           <button
             class="text-action{% if job.feedback_verdict == 'duplicate' %} feedback-selected{% endif %}"
             type="submit"
@@ -163,7 +172,9 @@
           >Duplicate</button>
         </form>
         {% if job.feedback_verdict %}
-        <form method="post" action="/feedback/{{ job.id }}/clear">
+        <form method="post" action="/discover">
+          <input type="hidden" name="job_id" value="{{ job.id }}">
+          <input type="hidden" name="verdict" value="clear">
           <button class="text-action feedback-undo" type="submit">Undo rating</button>
         </form>
         {% endif %}
@@ -185,7 +196,9 @@
 </div>
 
 <dialog class="feedback-dialog" data-wrong-dialog>
-  <form method="post" data-wrong-form>
+  <form method="post" action="/discover" data-wrong-form>
+    <input type="hidden" name="job_id">
+    <input type="hidden" name="verdict" value="wrong">
     <div class="feedback-dialog-heading">
       <div>
         <p class="eyebrow">TEACH FERMINATOR</p>
