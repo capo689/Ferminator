@@ -401,3 +401,158 @@ def test_product_marketing_is_kept_in_the_controlled_review_tier():
     assert family.id == "product-marketing-narrative"
     assert family.tier == "edge"
     assert family.threshold == 60
+
+
+def _adam():
+    return load_profile(Path("profiles/adam-cagle.md"))
+
+
+def test_remote_usa_label_is_not_treated_as_foreign():
+    """Regression, from the live corpus: Zillow "Senior AI Program Manager, Talent".
+
+    workplace_type was already `remote` and the label read "Remote-USA", yet the
+    geography gate rejected it with score 0. The old fallback demanded the label
+    be exactly "remote", so every provider that decorated the word at all was
+    read as foreign.
+    """
+    job = make_job(
+        title="Senior AI Program Manager",
+        workplace_type=WorkplaceType.REMOTE,
+        locations=[JobLocation(label="Remote-USA", is_primary=True, is_remote=True)],
+    )
+
+    result = score_job(_adam(), job)
+
+    assert result.eligible, result.concerns
+
+
+def test_city_state_labels_resolve_as_united_states():
+    """country_code is null on every board for the five largest providers, so a
+    "Boston, MA" style label was the only evidence available and was read as
+    foreign. Postal geography knows better than a marker list."""
+    for label in ("Boston, MA", "Boise, ID - Main Site", "New York, New York", "Austin, TX"):
+        job = make_job(
+            workplace_type=WorkplaceType.ON_SITE,
+            locations=[JobLocation(label=label, is_primary=True)],
+        )
+        result = score_job(_adam(), job)
+        assert "outside the configured US search" not in " ".join(result.concerns), label
+
+
+def test_us_and_foreign_city_together_keeps_the_us_option():
+    job = make_job(
+        workplace_type=WorkplaceType.ON_SITE,
+        locations=[JobLocation(label="San Francisco, CA | London", is_primary=True)],
+    )
+
+    result = score_job(_adam(), job)
+
+    assert "outside the configured US search" not in " ".join(result.concerns)
+
+
+def test_same_city_name_abroad_is_still_rejected():
+    """Vancouver WA is in the US; Vancouver BC is not. A marker list cannot tell
+    them apart, which is why the postal dataset does the work."""
+    near = score_job(
+        _adam(),
+        make_job(
+            workplace_type=WorkplaceType.ON_SITE,
+            locations=[JobLocation(label="Vancouver, WA", is_primary=True)],
+        ),
+    )
+    abroad = score_job(
+        _adam(),
+        make_job(
+            workplace_type=WorkplaceType.ON_SITE,
+            locations=[JobLocation(label="Vancouver, British Columbia, Canada", is_primary=True)],
+        ),
+    )
+
+    assert "outside the configured US search" not in " ".join(near.concerns)
+    assert not abroad.eligible
+    assert "outside the configured US search" in " ".join(abroad.concerns)
+
+
+def test_foreign_remote_role_is_still_rejected():
+    """The recall work must not open the gate to remote-in-another-country."""
+    for label in ("Remote - Canada", "Portugal Remote", "EMEA", "Remote - South East Asia"):
+        job = make_job(
+            workplace_type=WorkplaceType.REMOTE,
+            locations=[JobLocation(label=label, is_primary=True, is_remote=True)],
+        )
+        result = score_job(_adam(), job)
+        assert not result.eligible, f"{label} should not be eligible"
+
+
+def test_unparseable_placeholder_defers_to_the_posting():
+    """Workday collapses locations to "3 Locations" and stores nothing else, so
+    the label carries no signal. Unparseable is not evidence of foreign, but it
+    is not evidence of US either: the posting has to say so."""
+    silent = make_job(
+        workplace_type=WorkplaceType.ON_SITE,
+        locations=[JobLocation(label="3 Locations", is_primary=True)],
+        description_text="Lead enterprise AI adoption and enablement programs.",
+    )
+    speaks_up = make_job(
+        workplace_type=WorkplaceType.ON_SITE,
+        locations=[JobLocation(label="3 Locations", is_primary=True)],
+        description_text=(
+            "Lead enterprise AI adoption and enablement programs. "
+            "This role is remote within the United States."
+        ),
+    )
+
+    assert not score_job(_adam(), silent).eligible
+    assert "outside the configured US search" not in " ".join(
+        score_job(_adam(), speaks_up).concerns
+    )
+
+
+def test_recurring_onsite_requirement_is_rejected():
+    """Regression: these reached the feed on the strength of a "…, United
+    States" label and had to be rejected by hand. Adam cannot make a weekly
+    commute to New York."""
+    cases = (
+        "This is a hybrid role that has in-office requirements of two (2) days per week.",
+        "ID.me is a full-time, in-office culture.",
+        "We ask that you work from the office at least three days a week.",
+    )
+    for sentence in cases:
+        job = make_job(
+            workplace_type=WorkplaceType.ON_SITE,
+            locations=[JobLocation(label="New York, New York, United States", is_primary=True)],
+            description_text="Own AI enablement programs. " + sentence,
+        )
+        result = score_job(_adam(), job)
+        assert not result.eligible, sentence
+        assert "on-site presence" in " ".join(result.concerns)
+
+
+def test_onsite_language_does_not_reject_a_remote_job():
+    """Plenty of remote postings mention offices in passing."""
+    job = make_job(
+        workplace_type=WorkplaceType.REMOTE,
+        locations=[JobLocation(label="Remote — United States", is_primary=True, is_remote=True)],
+        description_text=(
+            "Own AI enablement programs. Teams gather in the office two days per week "
+            "when they choose to, but this role is fully remote."
+        ),
+    )
+
+    assert score_job(_adam(), job).eligible
+
+
+def test_onsite_requirement_within_commute_is_kept():
+    """An on-site role Adam can actually drive to stays eligible."""
+    job = make_job(
+        workplace_type=WorkplaceType.ON_SITE,
+        locations=[JobLocation(label="Bend, OR", is_primary=True)],
+        description_text=(
+            "Own AI enablement programs. This is a hybrid role with in-office "
+            "requirements of two (2) days per week."
+        ),
+    )
+
+    result = score_job(_adam(), job)
+
+    assert "on-site presence" not in " ".join(result.concerns)

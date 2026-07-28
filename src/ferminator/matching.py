@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from ferminator.domain import NormalizedJob, WorkplaceType, extract_compensation_from_text
+from ferminator.geography import coordinates_for_label, distance_miles, lookup_zip
 from ferminator.profiles import CareerProfile, RoleFamily
 
 _US_LOCATION_MARKERS = (
@@ -561,8 +562,58 @@ def desirability_prior(role_family: RoleFamily | None) -> float:
     }.get(role_family.id, 0)
 
 
+_PLACEHOLDER_LOCATION = re.compile(
+    r"^\s*(?:\d+\s+locations?|all locations?|multiple locations?|various|unspecified)\s*\.?\s*$",
+    re.I,
+)
+_EXPLICIT_US = re.compile(r"\b(?:usa|u\.s\.a\.?|united states|nationwide)\b|^\s*u\.?s\.?\s*$", re.I)
+_US_STATE_NAMES = re.compile(
+    r"\b(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida"
+    r"|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland"
+    r"|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada"
+    r"|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma"
+    r"|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah"
+    r"|vermont|virginia|washington|west virginia|wisconsin|wyoming"
+    r"|district of columbia|puerto rico)\b",
+    re.I,
+)
+# Words that describe how you work rather than where. What remains after these
+# are stripped is the label's actual claim about place.
+_REMOTE_WORDS = re.compile(
+    r"\b(?:remote|remotely|hybrid|anywhere|flexible|work from home|wfh|distributed|virtual)\b"
+    r"|[^\w\s]", re.I,
+)
+_REMOTE_IN_US = re.compile(
+    r"remote[^.\n]{0,40}\b(?:usa|u\.s\.|united states)\b"
+    r"|\b(?:usa|u\.s\.|united states)\b[^.\n]{0,40}remote",
+    re.I,
+)
+
+
+def _names_a_us_place(location_text: str) -> bool:
+    """True when any piece of the label resolves against the US postal dataset.
+
+    The dataset is the authority on what is a US place, which beats a marker
+    list: it knows Vancouver WA is in the US and Vancouver BC is not, and it
+    covers every "Boise, ID" style label no hand-written list would.
+    """
+    for piece in re.split(r"[;|]|\s{2,}", location_text):
+        piece = piece.strip()
+        if piece and coordinates_for_label(piece) is not None:
+            return True
+    return False
+
+
 def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
-    """Accept explicit US roles and reject clearly foreign-only remote listings."""
+    """Accept explicit US roles and reject clearly foreign-only remote listings.
+
+    Providers almost never populate country_code (it is null for every board on
+    Workday, Greenhouse, Ashby, SmartRecruiters and Lever), so this falls
+    through to the label on essentially every job. A short marker list was the
+    only thing left holding the gate, which meant "Remote-USA" and "Boston, MA"
+    were both read as foreign while "New York, NY, United States" sailed
+    through. Resolve the label against real postal geography instead.
+    """
     country_codes = {
         (location.country_code or "").strip().upper()
         for location in job.locations
@@ -571,15 +622,69 @@ def _is_us_compatible_location(job: NormalizedJob, location_text: str) -> bool:
     if "US" in country_codes:
         return True
     normalized = location_text.casefold()
-    if any(marker.casefold() in normalized for marker in _US_LOCATION_MARKERS):
+
+    # A US signal wins over a foreign one. "San Francisco, CA | London" offers a
+    # US option, so the job is reachable even though a foreign city is listed.
+    if (
+        any(marker.casefold() in normalized for marker in _US_LOCATION_MARKERS)
+        or _EXPLICIT_US.search(location_text)
+        or _US_STATE_NAMES.search(location_text)
+        or _names_a_us_place(location_text)
+    ):
         return True
     if any(marker.casefold() in normalized for marker in _FOREIGN_LOCATION_MARKERS):
         return False
-    # A provider that says only "Remote" has not contradicted the US default.
-    return bool(
-        job.workplace_type == WorkplaceType.REMOTE
-        and (not normalized.strip() or normalized.strip() == "remote")
-    )
+
+    # Nothing identifiable in the label. Being unparseable is not evidence of
+    # being foreign, but it is not evidence of the US either.
+    if _PLACEHOLDER_LOCATION.match(location_text.strip()) or not normalized.strip():
+        # The provider gave us nothing, so workplace_type is unreliable too.
+        # Only the posting's own words can settle it.
+        return bool(_REMOTE_IN_US.search(job.search_document))
+    # A label naming somewhere unrecognised is naming somewhere. "Portugal
+    # Remote" is remote, but not remote here, and the foreign marker list is
+    # far too short to be trusted as the only guard. Accept a remote job only
+    # when the label claims no place at all.
+    if job.workplace_type == WorkplaceType.REMOTE:
+        return not _REMOTE_WORDS.sub(" ", location_text).strip()
+    return False
+
+
+_ONSITE_CADENCE = (
+    # "in-office requirements of two (2) days per week"
+    r"in[- ]?office requirements?[^.\n]{0,40}days?",
+    # "three days per week in the office", "2 days/week onsite"
+    r"\b(?:one|two|three|four|five|[1-5])\s*(?:\(\d\)\s*)?days?\s*(?:per|a|each|/)\s*week"
+    r"[^.\n]{0,50}(?:(?:in|at|from)[- ]?(?:the\s+)?office|on[-\s]?site|in[- ]?person|hub|hq)",
+    # "work from the office at least three days a week"
+    r"(?:(?:in|at|from)[- ]?(?:the\s+)?office|on[-\s]?site|in[- ]?person)[^.\n]{0,50}"
+    r"\b(?:one|two|three|four|five|[1-5])\s*(?:\(\d\)\s*)?days?\s*(?:per|a|each|/)\s*week",
+    # "full-time, in-office culture", "100% onsite"
+    r"full[- ]?time,?\s+in[- ]?office",
+    r"\b100\s*%\s*(?:in[- ]?office|on[-\s]?site)",
+    r"\bthis (?:is|role is) a hybrid (?:role|position)\b",
+)
+
+
+def _requires_onsite_presence(text: str) -> str | None:
+    """Return the phrase showing the job demands recurring physical presence."""
+    for pattern in _ONSITE_CADENCE:
+        match = re.search(pattern, text, re.I)
+        if match:
+            return " ".join(match.group(0).split())[:120]
+    return None
+
+
+def _is_within_commute(profile: CareerProfile, job: NormalizedJob) -> bool:
+    """True when any of the job's locations sits inside the profile's radius."""
+    origin = lookup_zip(profile.search.default_zip)
+    if origin is None:
+        return False
+    for location in job.locations:
+        place = coordinates_for_label(location.label)
+        if place and distance_miles(origin, place) <= profile.search.default_radius_miles:
+            return True
+    return False
 
 
 def _required_residency_timezone(text: str) -> str | None:
@@ -642,6 +747,25 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
             ],
             explanation="Gateway 1 — geography rejected this job.",
         )
+
+    # Gateway 1b: recurring physical presence. Being in the US is not enough
+    # when the posting demands two days a week in a building the candidate
+    # cannot reach. These used to pass on the strength of a "…, United States"
+    # label and then had to be rejected by hand, one at a time.
+    if profile.search.default_location_mode in {"remote", "remote_or_near"}:
+        onsite = _requires_onsite_presence(text)
+        if (
+            onsite
+            and job.workplace_type != WorkplaceType.REMOTE
+            and not _contains(location_text, "remote")
+            and not _is_within_commute(profile, job)
+        ):
+            return MatchResult(
+                eligible=False,
+                score=0,
+                concerns=[f"Requires recurring on-site presence away from home: {onsite}."],
+                explanation="Gateway 1 — on-site requirement rejected this job.",
+            )
 
     # Gateway 2: broad functional recall. A title signal is strongest; an
     # unconventional title may advance when its JD contains both a configured
