@@ -7,10 +7,10 @@ name: Analyze match funnel
 on:
   workflow_dispatch:
     inputs:
-      profile:
-        description: Profile Markdown to analyze, relative to the repo root
+      slug:
+        description: Profile slug to analyze (works for database-backed accounts too)
         required: true
-        default: profiles/adam-cagle.md
+        default: adam-cagle
         type: string
 
 concurrency:
@@ -42,10 +42,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
           # Through env, never into the shell: a dispatch input is untrusted.
-          PROFILE: ${{ inputs.profile }}
+          SLUG: ${{ inputs.slug }}
         run: |
           set -euo pipefail
-          python scripts/analyze_match_funnel.py --profile "$PROFILE" --samples 40 \
+          python scripts/analyze_match_funnel.py --slug "$SLUG" --samples 40 \
             | tee funnel.txt
 
       - name: Publish the funnel

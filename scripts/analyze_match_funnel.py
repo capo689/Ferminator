@@ -38,14 +38,30 @@ def _gateway(result) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--profile", type=Path, required=True)
+    # Accounts provisioned through /admin exist only as a database row, so a
+    # file path cannot reach them. Taking a slug keeps this usable for every
+    # account rather than only the one profile that still lives on disk.
+    parser.add_argument("--profile", type=Path)
+    parser.add_argument("--slug")
     parser.add_argument("--samples", type=int, default=25)
     args = parser.parse_args()
+    if not args.profile and not args.slug:
+        parser.error("pass --profile or --slug")
 
     database_url = os.environ["DATABASE_URL"]
-    profile = load_profile(args.profile)
     repository = PostgresRepository(database_url, min_size=1, max_size=2)
     try:
+        if args.profile:
+            profile = load_profile(args.profile)
+        else:
+            matches = [
+                candidate
+                for _id, candidate in repository.scannable_profiles()
+                if candidate.profile.slug == args.slug
+            ]
+            if not matches:
+                raise SystemExit(f"no scannable profile with slug {args.slug!r}")
+            profile = matches[0]
         jobs = repository.active_jobs()
     finally:
         repository.close()
