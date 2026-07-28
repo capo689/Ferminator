@@ -40,15 +40,26 @@ jobs:
       fail-fast: false
       matrix:
         shard:
-          # Balanced by fetch cost, not board count. Workday paginates 20 jobs
-          # per request, so a single 2,000-job board is ~100 round trips; the
-          # other providers return a whole board in one call.
-          - name: greenhouse
-            providers: greenhouse
-          - name: workday-smartrecruiters
-            providers: workday,smartrecruiters
-          - name: ashby-lever-small
-            providers: ashby,lever,rippling,breezy,workable,bamboohr
+          # Balanced by measured wall clock, not board count. Workday paginates
+          # 20 jobs per request, so one 2,000-job board is ~100 sequential round
+          # trips. Its 77 boards took over 53 minutes and hit the timeout, while
+          # Greenhouse fetched 262 boards in 32 seconds.
+          #
+          # So Workday gets two shards to itself, split by board identity, and
+          # every other provider fits comfortably in the third. Measured at
+          # roughly 27 minutes each against 640 boards.
+          - name: workday-a
+            providers: workday
+            index: 1
+            count: 2
+          - name: workday-b
+            providers: workday
+            index: 2
+            count: 2
+          - name: everything-else
+            providers: greenhouse,ashby,lever,smartrecruiters,rippling,breezy,workable,bamboohr
+            index: 1
+            count: 1
     steps:
       - uses: actions/checkout@v4
 
@@ -74,6 +85,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
           SHARD_PROVIDERS: ${{ matrix.shard.providers }}
+          SHARD_INDEX: ${{ matrix.shard.index }}
+          SHARD_COUNT: ${{ matrix.shard.count }}
+          # Interpolated through env, never into the shell, because
+          # inputs.providers is attacker-controlled on workflow_dispatch.
           REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.providers || 'all' }}
         run: |
           set -euo pipefail
@@ -84,9 +99,12 @@ jobs:
               continue
             fi
             echo "::group::$provider"
-            # Each provider takes its own advisory lock, so shards do not block
-            # one another. A provider with no enabled boards is not an error.
-            ferminator scan --workers 16 --ingest-only --provider "$provider" || failed=1
+            # Each provider and sub-shard takes its own advisory lock, so these
+            # do not block one another. Board identities are split
+            # deterministically, so the two Workday shards never overlap.
+            # A provider with no enabled boards is not an error.
+            ferminator scan --workers 16 --ingest-only --provider "$provider" \
+              --shard-index "$SHARD_INDEX" --shard-count "$SHARD_COUNT" || failed=1
             echo "::endgroup::"
           done
           exit "$failed"

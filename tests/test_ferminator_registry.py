@@ -78,28 +78,53 @@ def test_digest_env_is_declared_at_job_level() -> None:
     assert "env:" not in send, "re-declaring env on the send step reintroduces the skip bug"
 
 
-def test_every_ats_provider_is_pulled_by_exactly_one_shard() -> None:
+def test_every_ats_provider_is_covered_by_the_scan_matrix() -> None:
     """A provider missing from the matrix is never pulled, silently.
 
     Adding a provider to ATSProvider without assigning it to a shard would drop
     every board on it out of the schedule with no error anywhere.
+
+    A provider may appear in more than one entry only when those entries
+    sub-shard it, as Workday does. In that case the declared indices have to
+    cover 1..count exactly, or some of its boards are never fetched.
     """
     workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
 
-    assigned: list[str] = []
+    entries: list[dict[str, str]] = []
     for line in workflow.splitlines():
         stripped = line.strip()
-        if stripped.startswith("providers:") and "," in stripped or stripped.startswith("providers:"):
-            value = stripped.split("providers:", 1)[1].strip()
-            if value and not value.startswith("$") and "Providers to pull" not in value:
-                assigned.extend(part.strip() for part in value.split(",") if part.strip())
+        for field in ("name", "providers", "index", "count"):
+            prefix = f"- {field}:" if field == "name" else f"{field}:"
+            if stripped.startswith(prefix):
+                value = stripped.split(":", 1)[1].strip()
+                if field == "name":
+                    entries.append({})
+                if entries and value and "Providers to pull" not in value:
+                    entries[-1][field] = value
+
+    shards = [e for e in entries if "providers" in e]
+    assert shards, "no matrix entries parsed out of the workflow"
+
+    covered: dict[str, list[tuple[int, int]]] = {}
+    for entry in shards:
+        for provider in (p.strip() for p in entry["providers"].split(",")):
+            if provider:
+                covered.setdefault(provider, []).append(
+                    (int(entry["index"]), int(entry["count"]))
+                )
 
     supported = {provider.value for provider in ATSProvider}
-    missing = supported - set(assigned)
-    duplicated = [p for p in assigned if assigned.count(p) > 1]
-
+    missing = supported - covered.keys()
     assert not missing, f"providers never pulled by any shard: {sorted(missing)}"
-    assert not duplicated, f"providers pulled by more than one shard: {sorted(set(duplicated))}"
+
+    for provider, slots in covered.items():
+        counts = {count for _, count in slots}
+        assert len(counts) == 1, f"{provider} declares conflicting shard counts: {counts}"
+        count = counts.pop()
+        assert sorted(index for index, _ in slots) == list(range(1, count + 1)), (
+            f"{provider} is split into {count} shards but its declared indices "
+            f"are {sorted(index for index, _ in slots)}; some boards would never be fetched"
+        )
 
 
 def test_registry_shards_are_stable_complete_and_non_overlapping() -> None:
