@@ -456,15 +456,28 @@ def scan(
                     f"[yellow]Reconciled {interrupted} interrupted scan record(s)[/yellow]"
                 )
             scan_id = repository.start_scan(scan_key, len(boards))
-            profiles = [load_profile(path) for path in sorted(Path("profiles").glob("*.md"))]
+            # Push any file-backed profiles into the database first so editing
+            # profiles/*.md keeps working, then take the authoritative list from
+            # the database. Accounts provisioned through /admin exist only as
+            # rows, so globbing the filesystem silently skipped them and they
+            # were never scored.
+            for profile_path in sorted(Path("profiles").glob("*.md")):
+                disk_profile = load_profile(profile_path)
+                if disk_profile.search.enabled:
+                    repository.sync_profile(
+                        disk_profile,
+                        os.environ.get(disk_profile.profile.email_env),
+                    )
+            scannable = [
+                (profile_id, career_profile)
+                for profile_id, career_profile in repository.scannable_profiles()
+                if career_profile.search.enabled
+            ]
+            profiles = [career_profile for _, career_profile in scannable]
             profile_ids = {
-                profile.profile.slug: repository.sync_profile(
-                    profile,
-                    os.environ.get(profile.profile.email_env),
-                )
-                for profile in profiles
-                if profile.search.enabled
+                career_profile.profile.slug: profile_id for profile_id, career_profile in scannable
             }
+            console.print(f"[cyan]Scoring {len(profiles)} profile(s) from the database[/cyan]")
 
             def report(
                 board: BoardRef,
