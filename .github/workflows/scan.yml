@@ -45,17 +45,23 @@ jobs:
           # trips. Its 77 boards took over 53 minutes and hit the timeout, while
           # Greenhouse fetched 262 boards in 32 seconds.
           #
-          # So Workday gets two shards to itself, split by board identity, and
-          # every other provider fits comfortably in the third. Measured at
-          # roughly 27 minutes each against 640 boards.
+          # So Workday gets shards to itself and every other provider fits in
+          # one. Two Workday shards did pass, at 32m36s and 45m26s, but boards
+          # are split by identity rather than by job volume, so the halves come
+          # out uneven and the slow one sat too close to the timeout to absorb
+          # any growth. Three brings the worst case back near 30 minutes.
           - name: workday-a
             providers: workday
             index: 1
-            count: 2
+            count: 3
           - name: workday-b
             providers: workday
             index: 2
-            count: 2
+            count: 3
+          - name: workday-c
+            providers: workday
+            index: 3
+            count: 3
           - name: everything-else
             providers: greenhouse,ashby,lever,smartrecruiters,rippling,breezy,workable,bamboohr
             index: 1
