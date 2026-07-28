@@ -343,6 +343,12 @@ search:
       - Software Engineer
       - Forward Deployed Engineer
       - Applied AI Engineer
+      # Pharma agency copy roles state the requirement in the title and are a
+      # background Adam does not have. "DTC" is deliberately absent: it also
+      # means direct-to-consumer, and excluding it would drop consumer brand
+      # roles he wants.
+      - pharma
+      - HCP
       - AI Enablement Engineer
       - AI Deployment Engineer
       - Agentic AI Engineer
