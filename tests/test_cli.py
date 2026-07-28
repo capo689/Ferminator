@@ -418,13 +418,33 @@ def test_a_provider_that_is_actually_down_still_fails_the_run(monkeypatch):
     result = _run_scan(monkeypatch, board_count=262, failures=200)
 
     assert result.exit_code == 1
-    assert "exceeds the 5% tolerance" in result.output
+    assert "beyond the tolerated" in result.output
+
+
+def test_a_small_provider_is_not_failed_by_its_first_flaky_board(monkeypatch):
+    """Regression: providers are scanned one at a time, and some are tiny.
+
+    Workable holds ten boards, so a bare 5% rate would fail the shard on a
+    single flaky board there while tolerating thirteen on Greenhouse. The
+    absolute floor is what makes the tolerance mean the same thing to a small
+    provider as to a large one.
+    """
+    result = _run_scan(monkeypatch, board_count=10, failures=1)
+
+    assert result.exit_code == 0, result.output
+    assert "1 of 10 boards failed" in result.output
+
+
+def test_a_small_provider_still_fails_when_most_of_it_is_down(monkeypatch):
+    result = _run_scan(monkeypatch, board_count=10, failures=6)
+
+    assert result.exit_code == 1
 
 
 def test_failure_tolerance_is_configurable(monkeypatch):
-    """--max-failure-rate 0 restores the old fail-on-any-board behaviour."""
+    """--max-failure-rate only raises the allowance; the floor is the minimum."""
     result = _run_scan(
-        monkeypatch, board_count=262, failures=1, extra_args=("--max-failure-rate", "0")
+        monkeypatch, board_count=262, failures=13, extra_args=("--max-failure-rate", "0")
     )
 
     assert result.exit_code == 1

@@ -32,6 +32,10 @@ from ferminator.repository import PostgresRepository
 
 console = Console()
 
+# Providers are scanned one at a time, and some hold only a handful of boards,
+# so a percentage on its own would fail them on their first flaky board.
+MIN_TOLERATED_BOARD_FAILURES = 2
+
 
 @click.group()
 def cli() -> None:
@@ -492,6 +496,7 @@ def scan(
         raise click.ClickException("No enabled boards match the filters")
     failed = False
     failure_rate = 0.0
+    allowed = MIN_TOLERATED_BOARD_FAILURES
     succeeded = 0
     errors: list[str] = []
     scored_jobs = 0
@@ -568,14 +573,21 @@ def scan(
             # board, a provider blips, or the mass-removal guard refuses a
             # shrunken response and protects the jobs. Failing the run on any
             # single one leaves every scheduled pull permanently red, which is
-            # how a real outage gets ignored. Fail on the rate instead, so a
+            # how a real outage gets ignored. Fail on the volume instead, so a
             # provider that is genuinely down still stops the run.
+            #
+            # The absolute floor matters because each provider is scanned
+            # separately: a rate alone would fail Workable, which has ten
+            # boards, on its first flaky one. The floor is why a provider with
+            # only a board or two cannot be distinguished from a flake here.
+            # Failed boards are always named above regardless.
+            allowed = max(MIN_TOLERATED_BOARD_FAILURES, int(len(boards) * max_failure_rate))
             failure_rate = len(bulk.failed) / len(boards) if boards else 0.0
-            failed = failure_rate > max_failure_rate
+            failed = len(bulk.failed) > allowed
             if bulk.failed:
                 console.print(
                     f"[yellow]{len(bulk.failed)} of {len(boards)} boards failed "
-                    f"({failure_rate:.1%}, tolerance {max_failure_rate:.0%})[/yellow]"
+                    f"({failure_rate:.1%}); tolerating up to {allowed}[/yellow]"
                 )
             console.print(
                 f"[cyan]Parallel fetch phase: {bulk.fetch_duration_ms / 1000:.1f}s "
@@ -625,8 +637,8 @@ def scan(
         repository.close()
     if failed:
         raise click.ClickException(
-            f"Board failure rate {failure_rate:.1%} exceeds the "
-            f"{max_failure_rate:.0%} tolerance"
+            f"{len(errors)} of {len(boards)} boards failed "
+            f"({failure_rate:.1%}), beyond the tolerated {allowed}"
         )
 
 
