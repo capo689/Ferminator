@@ -25,7 +25,7 @@ from ferminator.domain import ATSProvider, BoardRef
 from ferminator.ingestion import IngestionResult, run_bulk_ingestion
 from ferminator.ledger import parse_master_ledger
 from ferminator.matching import score_job
-from ferminator.profiles import load_profile
+from ferminator.profiles import CareerProfile, load_profile
 from ferminator.quality import evaluate_quality
 from ferminator.registry import load_registry
 from ferminator.repository import PostgresRepository
@@ -552,49 +552,47 @@ def scan(
         raise click.ClickException("One or more boards failed")
 
 
-@cli.command("digest")
-@click.option(
-    "--profile-path",
-    type=click.Path(exists=True, path_type=Path),
-    default=Path("profiles/adam-cagle.md"),
-)
-@click.option("--send", "send_message", is_flag=True, help="Send through configured SMTP.")
-def digest(profile_path: Path, send_message: bool) -> None:
-    """Preview or send a profile's ranked email digest."""
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise click.ClickException("DATABASE_URL is required")
-    career_profile = load_profile(profile_path)
-    repository = PostgresRepository(database_url)
-    try:
-        profile_id = repository.sync_profile(
-            career_profile,
-            os.environ.get(career_profile.profile.email_env),
-        )
-        message = compose_digest(
-            career_profile.profile.display_name,
-            repository.top_matches(
-                profile_id,
-                minimum_score=career_profile.notifications.minimum_score,
-                limit=career_profile.notifications.max_daily_matches,
-            ),
-        )
-    finally:
-        repository.close()
+def _emit_digest(
+    repository: PostgresRepository,
+    career_profile: CareerProfile,
+    profile_id: str,
+    *,
+    send_message: bool,
+) -> bool:
+    """Compose, and optionally send, one profile's digest. True if it was sent."""
+    message = compose_digest(
+        career_profile.profile.display_name,
+        repository.top_matches(
+            profile_id,
+            minimum_score=career_profile.notifications.minimum_score,
+            limit=career_profile.notifications.max_daily_matches,
+        ),
+    )
     if not send_message:
         console.print(message.text)
         console.print(f"\nIdempotency: {message.idempotency_key}")
-        return
-    recipient = os.environ.get(career_profile.profile.email_env)
-    required = {
-        "recipient": recipient,
-        "SMTP_FROM": os.environ.get("SMTP_FROM"),
-        "SMTP_HOST": os.environ.get("SMTP_HOST"),
-    }
-    missing = [name for name, value in required.items() if not value]
+        return False
+
+    env_name = career_profile.profile.email_env
+    recipient = os.environ.get(env_name) if env_name else None
+    if not recipient:
+        # One unconfigured profile must not stop the others from being sent.
+        console.print(
+            f"[yellow]{career_profile.profile.display_name}: no address in "
+            f"{env_name or '(no email_env set)'}; skipping[/yellow]"
+        )
+        return False
+    missing = [
+        name
+        for name, value in (
+            ("SMTP_FROM", os.environ.get("SMTP_FROM")),
+            ("SMTP_HOST", os.environ.get("SMTP_HOST")),
+        )
+        if not value
+    ]
     if missing:
         raise click.ClickException(f"Missing email settings: {', '.join(missing)}")
-    repository = PostgresRepository(database_url)
+
     notification_id = repository.claim_notification(
         profile_id=profile_id,
         idempotency_key=message.idempotency_key,
@@ -602,27 +600,72 @@ def digest(profile_path: Path, send_message: bool) -> None:
         payload={"recipient": recipient, "match_count": message.text.count("% match")},
     )
     if notification_id is None:
-        repository.close()
-        console.print("[yellow]Digest already created for this profile and day[/yellow]")
-        return
+        console.print(
+            f"[yellow]{career_profile.profile.display_name}: digest already created today[/yellow]"
+        )
+        return False
     try:
         send_smtp(
             message,
-            recipient=recipient or "",
-            sender=required["SMTP_FROM"] or "",
-            host=required["SMTP_HOST"] or "",
+            recipient=recipient,
+            sender=os.environ.get("SMTP_FROM", ""),
+            host=os.environ.get("SMTP_HOST", ""),
             port=int(os.environ.get("SMTP_PORT", "587")),
             username=os.environ.get("SMTP_USERNAME"),
             password=os.environ.get("SMTP_PASSWORD"),
         )
         repository.finish_notification(notification_id, sent=True)
     except Exception as exc:
-        repository.finish_notification(
-            notification_id,
-            sent=False,
-            error_code=type(exc).__name__,
+        repository.finish_notification(notification_id, sent=False, error_code=type(exc).__name__)
+        raise click.ClickException(
+            f"Digest delivery failed for {career_profile.profile.display_name}"
+        ) from exc
+    console.print(f"[green]Digest sent to {recipient}[/green]")
+    return True
+
+
+@cli.command("digest")
+@click.option(
+    "--profile-path",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Send for one on-disk profile. Omit to cover every active account.",
+)
+@click.option("--send", "send_message", is_flag=True, help="Send through configured SMTP.")
+def digest(profile_path: Path | None, send_message: bool) -> None:
+    """Preview or send ranked email digests.
+
+    With no --profile-path this covers every active account, sourced from the
+    database. It previously defaulted to a single on-disk profile, so accounts
+    provisioned through /admin never received a digest at all.
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    repository = PostgresRepository(database_url)
+    try:
+        if profile_path is not None:
+            career_profile = load_profile(profile_path)
+            targets = [
+                (
+                    repository.sync_profile(
+                        career_profile,
+                        os.environ.get(career_profile.profile.email_env),
+                    ),
+                    career_profile,
+                )
+            ]
+        else:
+            targets = repository.scannable_profiles()
+        if not targets:
+            console.print("[yellow]No active profiles to send digests for[/yellow]")
+            return
+        console.print(f"[cyan]Preparing digests for {len(targets)} profile(s)[/cyan]")
+        sent = sum(
+            _emit_digest(repository, career, pid, send_message=send_message)
+            for pid, career in targets
         )
-        raise click.ClickException("Digest delivery failed") from exc
     finally:
         repository.close()
-    console.print(f"[green]Digest sent to {recipient}[/green]")
+    if send_message:
+        console.print(f"[green]{sent} of {len(targets)} digest(s) sent[/green]")
