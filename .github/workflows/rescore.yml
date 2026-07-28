@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.13"
           cache: pip
@@ -42,11 +42,17 @@ jobs:
       - name: Refresh matches from shared corpus
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
+          # Through env, never interpolated into the shell. A dispatch input is
+          # attacker-controlled text, and ${{ }} pastes it into the script
+          # before bash ever sees it, so a slug containing shell syntax would
+          # run as part of the command rather than be passed as an argument.
+          SLUG: ${{ inputs.slug }}
         run: |
+          set -euo pipefail
           # The corpus is fetched once and every selected profile is scored
           # against it. No ATS boards are contacted.
-          if [ "${{ inputs.slug }}" = "all" ]; then
+          if [ "$SLUG" = "all" ]; then
             ferminator rescore
           else
-            ferminator rescore --slug "${{ inputs.slug }}"
+            ferminator rescore --slug "$SLUG"
           fi
