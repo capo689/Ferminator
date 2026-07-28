@@ -556,3 +556,41 @@ def test_onsite_requirement_within_commute_is_kept():
     result = score_job(_adam(), job)
 
     assert "on-site presence" not in " ".join(result.concerns)
+
+
+def test_pharma_agency_copy_titles_are_excluded():
+    """These state the requirement in the title and reached review four times.
+
+    Adam has no pharmaceutical agency background, so the title alone is enough
+    to disqualify them before a reviewer spends anything on the job description.
+    """
+    for title in (
+        "Creative Director, Copy (pharma agency exp required)",
+        "Associate Creative Director, Copy (must have DTC/pharma agency exp)",
+        "Copy Supervisor (Pharma Experience Required)",
+        "Group Copy Supervisor (HCP & DTC Writing Experience Required)",
+        "Senior Copywriter - HCP",
+    ):
+        result = score_job(_adam(), make_job(title=title))
+        assert not result.eligible, f"{title} should be excluded"
+
+
+def test_direct_to_consumer_titles_survive_the_pharma_exclusion():
+    """DTC means direct-to-consumer far more often than it means pharma.
+
+    Excluding the abbreviation outright would drop the consumer brand work Adam
+    wants, so the exclusion names pharma and HCP only. This is the guard that
+    keeps someone from "tidying up" by adding DTC to the list.
+    """
+    from ferminator.matching import _matched_title_exclusions
+
+    profile = _adam()
+    for title in (
+        "Senior Brand Manager - DTC",
+        "DTC Merch Lead, EAP",
+        "Senior Data Analyst, DTC (Consumer & Ecommerce Analytics)",
+    ):
+        excluded = profile.search.exclude.get("title_phrases", [])
+        assert not _matched_title_exclusions(title, excluded), (
+            f"{title} must not be caught by the pharma exclusion"
+        )
