@@ -185,3 +185,68 @@ class TestCompanySlugValidation:
         result = runner.invoke(cli, ["--db", db_path, "fetch"])
         assert result.exit_code == 1
         assert "Traceback" not in result.output
+
+
+def test_digest_covers_every_active_profile_not_just_one_on_disk(monkeypatch):
+    """Regression: `ferminator digest` defaulted to profiles/adam-cagle.md and
+    loaded it from disk, so an account provisioned through /admin -- which
+    exists only as a database row -- never received a digest at all."""
+    from click.testing import CliRunner
+
+    from ferminator import cli as cli_module
+    from ferminator.profiles import load_profile
+
+    profile = load_profile("profiles/adam-cagle.md")
+    seen = []
+
+    class Repository:
+        def scannable_profiles(self):
+            return [("id-a", profile), ("id-b", profile)]
+
+        def top_matches(self, profile_id, **_kwargs):
+            seen.append(profile_id)
+            return []
+
+        def close(self):
+            pass
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
+    monkeypatch.setattr(cli_module, "PostgresRepository", lambda *_a, **_k: Repository())
+
+    result = CliRunner().invoke(cli_module.cli, ["digest"])
+
+    assert result.exit_code == 0, result.output
+    assert seen == ["id-a", "id-b"], f"expected every profile, got {seen}"
+    assert "2 profile(s)" in result.output
+
+
+def test_digest_skips_a_profile_with_no_recipient_instead_of_failing(monkeypatch):
+    """One unconfigured email_env must not stop other users' digests."""
+    from click.testing import CliRunner
+
+    from ferminator import cli as cli_module
+    from ferminator.profiles import load_profile
+
+    profile = load_profile("profiles/adam-cagle.md")
+
+    class Repository:
+        def scannable_profiles(self):
+            return [("id-a", profile)]
+
+        def top_matches(self, *_a, **_k):
+            return []
+
+        def close(self):
+            pass
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
+    monkeypatch.setenv("SMTP_FROM", "from@example.com")
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
+    monkeypatch.delenv(profile.profile.email_env, raising=False)
+    monkeypatch.setattr(cli_module, "PostgresRepository", lambda *_a, **_k: Repository())
+
+    result = CliRunner().invoke(cli_module.cli, ["digest", "--send"])
+
+    assert result.exit_code == 0, result.output
+    assert "skipping" in result.output
+    assert "0 of 1 digest(s) sent" in result.output

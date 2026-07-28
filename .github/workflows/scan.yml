@@ -78,6 +78,9 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
           FERMINATOR_ADAM_EMAIL: ${{ secrets.FERMINATOR_ADAM_EMAIL }}
+          # Each profile names its own recipient variable via email_env.
+          # Add one line per beta user; an unset one is skipped with a warning.
+          FERMINATOR_NATASHA_EMAIL: ${{ secrets.FERMINATOR_NATASHA_EMAIL }}
           SMTP_HOST: ${{ secrets.FERMINATOR_SMTP_HOST }}
           SMTP_PORT: ${{ secrets.FERMINATOR_SMTP_PORT }}
           SMTP_USERNAME: ${{ secrets.FERMINATOR_SMTP_USERNAME }}
