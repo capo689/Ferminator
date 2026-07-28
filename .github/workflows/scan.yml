@@ -1,23 +1,27 @@
 name: Scheduled ATS scan
 
+# Two pulls a day. Each pull fans out into three parallel provider shards that
+# only ingest, then a single scoring pass runs once every shard has finished.
+#
+# Scoring is deliberately separated from ingestion. `ferminator scan` used to
+# score every profile inside every run, so sharding would have re-scored the
+# whole corpus once per shard, each time against a half-updated set of jobs.
+# Pull first, score once.
+
 on:
   workflow_dispatch:
     inputs:
-      shard:
-        description: Registry shard to scan
+      providers:
+        description: Providers to pull, comma separated, or "all"
         required: true
         default: all
-        type: choice
-        options:
-          - all
-          - "1"
-          - "2"
+        type: string
   schedule:
-    # Two runs a day, 8:00 and 8:35 Pacific. America/Los_Angeles tracks the
-    # PST/PDT transition, so these stay at 8am local year round.
-    - cron: "0 8 * * *"
+    # 06:00 and 15:00 Pacific. America/Los_Angeles tracks the PST/PDT
+    # transition, so these hold their local time year round.
+    - cron: "0 6 * * *"
       timezone: America/Los_Angeles
-    - cron: "35 8 * * *"
+    - cron: "0 15 * * *"
       timezone: America/Los_Angeles
 
 concurrency:
@@ -28,9 +32,40 @@ permissions:
   contents: read
 
 jobs:
-  scan:
+  pull:
+    name: Pull ${{ matrix.shard.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          # Balanced by measured wall clock, not board count. Workday paginates
+          # 20 jobs per request, so one 2,000-job board is ~100 sequential round
+          # trips. Its 77 boards took over 53 minutes and hit the timeout, while
+          # Greenhouse fetched 262 boards in 32 seconds.
+          #
+          # So Workday gets shards to itself and every other provider fits in
+          # one. Two Workday shards did pass, at 32m36s and 45m26s, but boards
+          # are split by identity rather than by job volume, so the halves come
+          # out uneven and the slow one sat too close to the timeout to absorb
+          # any growth. Three brings the worst case back near 30 minutes.
+          - name: workday-a
+            providers: workday
+            index: 1
+            count: 3
+          - name: workday-b
+            providers: workday
+            index: 2
+            count: 3
+          - name: workday-c
+            providers: workday
+            index: 3
+            count: 3
+          - name: everything-else
+            providers: greenhouse,ashby,lever,smartrecruiters,rippling,breezy,workable,bamboohr
+            index: 1
+            count: 1
     steps:
       - uses: actions/checkout@v4
 
@@ -52,38 +87,92 @@ jobs:
           ferminator profile validate
           ferminator registry-validate
 
-      - name: Ingest enabled boards
+      - name: Ingest boards for this shard
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
-          # Must match the cron strings above exactly. The 8:35 run takes
-          # shard 2, the 8:00 run takes shard 1; if this string ever drifts
-          # from the schedule, every run silently scans shard 1 and half the
-          # registry stops updating.
-          REQUESTED_SHARD: ${{ github.event_name == 'workflow_dispatch' && inputs.shard || (github.event.schedule == '35 8 * * *' && '2' || '1') }}
+          SHARD_PROVIDERS: ${{ matrix.shard.providers }}
+          SHARD_INDEX: ${{ matrix.shard.index }}
+          SHARD_COUNT: ${{ matrix.shard.count }}
+          # Interpolated through env, never into the shell, because
+          # inputs.providers is attacker-controlled on workflow_dispatch.
+          REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.providers || 'all' }}
         run: |
-          if [ "$REQUESTED_SHARD" = "all" ]; then
-            ferminator scan --workers 16
-          else
-            ferminator scan --workers 16 --shard-index "$REQUESTED_SHARD" --shard-count 2
-          fi
+          set -euo pipefail
+          failed=0
+          for provider in $(echo "$SHARD_PROVIDERS" | tr ',' ' '); do
+            if [ "$REQUESTED" != "all" ] && ! echo "$REQUESTED" | tr ',' '\n' | grep -qx "$provider"; then
+              echo "skipping $provider (not requested)"
+              continue
+            fi
+            echo "::group::$provider"
+            # Each provider and sub-shard takes its own advisory lock, so these
+            # do not block one another. Board identities are split
+            # deterministically, so the two Workday shards never overlap.
+            # A provider with no enabled boards is not an error.
+            ferminator scan --workers 16 --ingest-only --provider "$provider" \
+              --shard-index "$SHARD_INDEX" --shard-count "$SHARD_COUNT" || failed=1
+            echo "::endgroup::"
+          done
+          exit "$failed"
 
-      - name: Publish scan summary
+      - name: Publish shard summary
         if: always()
         run: |
-          echo "## Ferminator scheduled scan" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Pull: ${{ matrix.shard.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Providers: ${{ matrix.shard.providers }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+
+  score:
+    name: Score all profiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Runs even when a shard failed: a partial pull still leaves a corpus worth
+    # scoring, and one bad provider must not cost everyone their matches.
+    needs: pull
+    if: always()
+    # Declared at job level, not step level. A step's own `env:` block is not
+    # visible to that step's `if:`, so the digest's `env.SMTP_HOST != ''` guard
+    # always saw an empty string and the send step was skipped on every run.
+    env:
+      DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
+      # Each profile names its own recipient variable via email_env.
+      # Add one line per beta user; an unset one is skipped with a warning.
+      FERMINATOR_ADAM_EMAIL: ${{ secrets.FERMINATOR_ADAM_EMAIL }}
+      FERMINATOR_NATASHA_EMAIL: ${{ secrets.FERMINATOR_NATASHA_EMAIL }}
+      SMTP_HOST: ${{ secrets.FERMINATOR_SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.FERMINATOR_SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.FERMINATOR_SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.FERMINATOR_SMTP_PASSWORD }}
+      SMTP_FROM: ${{ secrets.FERMINATOR_SMTP_FROM }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install locked runtime
+        run: |
+          pip install --require-hashes -r requirements.lock
+          pip install --no-deps .
+
+      - name: Score every active profile against the pulled corpus
+        run: ferminator rescore
 
       - name: Send ranked digests
         if: ${{ env.SMTP_HOST != '' }}
-        env:
-          DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
-          FERMINATOR_ADAM_EMAIL: ${{ secrets.FERMINATOR_ADAM_EMAIL }}
-          # Each profile names its own recipient variable via email_env.
-          # Add one line per beta user; an unset one is skipped with a warning.
-          FERMINATOR_NATASHA_EMAIL: ${{ secrets.FERMINATOR_NATASHA_EMAIL }}
-          SMTP_HOST: ${{ secrets.FERMINATOR_SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.FERMINATOR_SMTP_PORT }}
-          SMTP_USERNAME: ${{ secrets.FERMINATOR_SMTP_USERNAME }}
-          SMTP_PASSWORD: ${{ secrets.FERMINATOR_SMTP_PASSWORD }}
-          SMTP_FROM: ${{ secrets.FERMINATOR_SMTP_FROM }}
         run: ferminator digest --send
+
+      - name: Warn when digests are not configured
+        if: ${{ env.SMTP_HOST == '' }}
+        run: |
+          echo "::warning::SMTP_HOST is unset, so no digests were sent." \
+            "Scoring still ran and matches are visible on the site."
+
+      - name: Publish scoring summary
+        if: always()
+        run: |
+          echo "## Scoring" >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"

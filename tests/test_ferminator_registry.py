@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -49,39 +48,83 @@ def test_registry_rejects_duplicate_board_identity() -> None:
         CompanyRegistry.model_validate(payload)
 
 
-def test_scheduled_scan_capacity_matches_expanded_registry() -> None:
+def test_scheduled_scan_pulls_twice_daily_and_scores_once() -> None:
     workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
 
-    assert "timeout-minutes: 45" in workflow
+    assert "timeout-minutes: 60" in workflow
     assert "timezone: America/Los_Angeles" in workflow
-    assert 'cron: "0 8 * * *"' in workflow
-    assert 'cron: "35 8 * * *"' in workflow
-    assert '--shard-index "$REQUESTED_SHARD" --shard-count 2' in workflow
+    assert 'cron: "0 6 * * *"' in workflow
+    assert 'cron: "0 15 * * *"' in workflow
+    # Shards must not score. Scoring inside every shard would re-score the whole
+    # corpus once per shard, each against a half-updated set of jobs.
+    assert "--ingest-only" in workflow
+    assert "ferminator rescore" in workflow
+    assert "needs: pull" in workflow
 
 
-def test_shard_selector_matches_a_declared_cron() -> None:
-    """The shard is chosen by comparing github.event.schedule to a literal.
+def test_digest_env_is_declared_at_job_level() -> None:
+    """A step's own `env:` block is not visible to that step's `if:`.
 
-    If that literal ever drifts from the declared schedule the comparison
-    silently fails, every scheduled run takes shard 1, and half the registry
-    stops being scanned with no error anywhere.
+    The digest step guards on `env.SMTP_HOST != ''` while declaring SMTP_HOST in
+    its own env block, so the guard always saw an empty string and the send was
+    skipped on every single run. The env has to live on the job.
+    """
+    workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+    score = workflow.split("  score:", 1)[1]
+    job_env, steps = score.split("    steps:", 1)
+
+    assert "SMTP_HOST:" in job_env, "SMTP_HOST must be job-level for the if: guard to see it"
+    send = steps.split("- name: Send ranked digests", 1)[1].split("- name:", 1)[0]
+    assert "env:" not in send, "re-declaring env on the send step reintroduces the skip bug"
+
+
+def test_every_ats_provider_is_covered_by_the_scan_matrix() -> None:
+    """A provider missing from the matrix is never pulled, silently.
+
+    Adding a provider to ATSProvider without assigning it to a shard would drop
+    every board on it out of the schedule with no error anywhere.
+
+    A provider may appear in more than one entry only when those entries
+    sub-shard it, as Workday does. In that case the declared indices have to
+    cover 1..count exactly, or some of its boards are never fetched.
     """
     workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
 
-    declared = set(re.findall(r'cron:\s*"([^"]+)"', workflow))
-    assert declared, "no cron schedules declared"
+    entries: list[dict[str, str]] = []
+    for line in workflow.splitlines():
+        stripped = line.strip()
+        for field in ("name", "providers", "index", "count"):
+            prefix = f"- {field}:" if field == "name" else f"{field}:"
+            if stripped.startswith(prefix):
+                value = stripped.split(":", 1)[1].strip()
+                if field == "name":
+                    entries.append({})
+                if entries and value and "Providers to pull" not in value:
+                    entries[-1][field] = value
 
-    selectors = set(re.findall(r"github\.event\.schedule\s*==\s*'([^']+)'", workflow))
-    assert selectors, "no shard selector found"
+    shards = [e for e in entries if "providers" in e]
+    assert shards, "no matrix entries parsed out of the workflow"
 
-    unmatched = selectors - declared
-    assert not unmatched, (
-        f"shard selector(s) {sorted(unmatched)} match no declared cron "
-        f"{sorted(declared)}; every run would fall through to shard 1"
-    )
+    covered: dict[str, list[tuple[int, int]]] = {}
+    for entry in shards:
+        for provider in (p.strip() for p in entry["providers"].split(",")):
+            if provider:
+                covered.setdefault(provider, []).append(
+                    (int(entry["index"]), int(entry["count"]))
+                )
 
-    # Both shards must be reachable: one cron selects shard 2, the rest shard 1.
-    assert len(declared) >= 2, "need at least two scheduled runs to cover both shards"
+    supported = {provider.value for provider in ATSProvider}
+    missing = supported - covered.keys()
+    assert not missing, f"providers never pulled by any shard: {sorted(missing)}"
+
+    for provider, slots in covered.items():
+        counts = {count for _, count in slots}
+        assert len(counts) == 1, f"{provider} declares conflicting shard counts: {counts}"
+        count = counts.pop()
+        assert sorted(index for index, _ in slots) == list(range(1, count + 1)), (
+            f"{provider} is split into {count} shards but its declared indices "
+            f"are {sorted(index for index, _ in slots)}; some boards would never be fetched"
+        )
 
 
 def test_registry_shards_are_stable_complete_and_non_overlapping() -> None:

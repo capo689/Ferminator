@@ -346,21 +346,28 @@ class PostgresRepository:
             yield connection
 
     @contextmanager
-    def scan_lock(self) -> Iterator[None]:
-        """Hold a session advisory lock for the complete ingest-and-score pass."""
+    def scan_lock(self, key: str = "full-scan") -> Iterator[None]:
+        """Hold a session advisory lock for one ingest pass.
+
+        The key is scoped so provider shards can run in parallel: a Greenhouse
+        pull and a Workday pull touch different boards and must not block each
+        other. A single global key meant the second shard raised
+        ConcurrentScanError immediately.
+        """
+        lock_name = f"ferminator:{key}"
         with self.connection() as conn:
             row = conn.execute(
                 "select pg_try_advisory_lock(hashtextextended(%s, 0)) as acquired",
-                ("ferminator:full-scan",),
+                (lock_name,),
             ).fetchone()
             if not row["acquired"]:
-                raise ConcurrentScanError("Another Ferminator scan is already running")
+                raise ConcurrentScanError(f"Another Ferminator scan is already running ({key})")
             try:
                 yield
             finally:
                 conn.execute(
                     "select pg_advisory_unlock(hashtextextended(%s, 0))",
-                    ("ferminator:full-scan",),
+                    (lock_name,),
                 )
 
     def sync_profile(self, profile: CareerProfile, email: str | None = None) -> str:
@@ -1790,12 +1797,17 @@ class PostgresRepository:
             ).fetchone()
         return str(row["id"])
 
-    def fail_interrupted_scans(self) -> int:
+    def fail_interrupted_scans(self, stale_after_hours: int = 3) -> int:
         """Close scan records orphaned by a killed worker.
 
-        Call only while holding ``scan_lock``. Acquiring that session lock proves
-        no other scan process is still active, so every remaining ``running``
-        record is stale.
+        Staleness is decided by age, not by the scan lock. Provider shards run
+        concurrently under separate locks, so holding one no longer proves that
+        no other scan is active, and failing every ``running`` row would mark
+        the other shards' live runs as failed the moment they started.
+
+        The scheduled job times out at 60 minutes, so a run still ``running``
+        well past that was abandoned by a killed worker and nothing will ever
+        close it.
         """
         with self.connection() as conn, conn.transaction():
             result = conn.execute(
@@ -1811,7 +1823,9 @@ class PostgresRepository:
                       ) as errors(value)
                     )
                 where status = 'running'
-                """
+                  and started_at < now() - make_interval(hours => %s)
+                """,
+                (stale_after_hours,),
             )
         return result.rowcount
 

@@ -32,6 +32,10 @@ from ferminator.repository import PostgresRepository
 
 console = Console()
 
+# Providers are scanned one at a time, and some hold only a handful of boards,
+# so a percentage on its own would fail them on their first flaky board.
+MIN_TOLERATED_BOARD_FAILURES = 2
+
 
 @click.group()
 def cli() -> None:
@@ -454,12 +458,26 @@ def discover_audit(profile_path: Path, minimum_visible: int) -> None:
 @click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
 @click.option("--shard-index", default=1, type=click.IntRange(1, 64), show_default=True)
 @click.option("--shard-count", default=1, type=click.IntRange(1, 64), show_default=True)
+@click.option(
+    "--ingest-only",
+    is_flag=True,
+    help="Pull boards without scoring. Run `ferminator rescore` once afterwards.",
+)
+@click.option(
+    "--max-failure-rate",
+    default=0.05,
+    type=click.FloatRange(0.0, 1.0),
+    show_default=True,
+    help="Fail the run only when this share of boards fails. 0 fails on any one.",
+)
 def scan(
     provider: str | None,
     company: str | None,
     workers: int,
     shard_index: int,
     shard_count: int,
+    ingest_only: bool,
+    max_failure_rate: float,
 ) -> None:
     """Ingest enabled public boards into Postgres."""
     database_url = os.environ.get("DATABASE_URL")
@@ -477,6 +495,8 @@ def scan(
     if not boards:
         raise click.ClickException("No enabled boards match the filters")
     failed = False
+    failure_rate = 0.0
+    allowed = MIN_TOLERATED_BOARD_FAILURES
     succeeded = 0
     errors: list[str] = []
     scored_jobs = 0
@@ -487,7 +507,8 @@ def scan(
     scan_key = hashlib.sha256(scan_identity.encode()).hexdigest()
     scan_id: str | None = None
     try:
-        with repository.scan_lock():
+        lock_key = f"scan:{provider or 'all'}:{shard_index}of{shard_count}"
+        with repository.scan_lock(lock_key):
             interrupted = repository.fail_interrupted_scans()
             if interrupted:
                 console.print(
@@ -506,16 +527,22 @@ def scan(
                         disk_profile,
                         os.environ.get(disk_profile.profile.email_env),
                     )
-            scannable = [
-                (profile_id, career_profile)
-                for profile_id, career_profile in repository.scannable_profiles()
-                if career_profile.search.enabled
-            ]
-            profiles = [career_profile for _, career_profile in scannable]
-            profile_ids = {
-                career_profile.profile.slug: profile_id for profile_id, career_profile in scannable
-            }
-            console.print(f"[cyan]Scoring {len(profiles)} profile(s) from the database[/cyan]")
+            if ingest_only:
+                profiles = []
+                profile_ids = {}
+                console.print("[cyan]Ingest-only: scoring is deferred to rescore[/cyan]")
+            else:
+                scannable = [
+                    (profile_id, career_profile)
+                    for profile_id, career_profile in repository.scannable_profiles()
+                    if career_profile.search.enabled
+                ]
+                profiles = [career_profile for _, career_profile in scannable]
+                profile_ids = {
+                    career_profile.profile.slug: profile_id
+                    for profile_id, career_profile in scannable
+                }
+                console.print(f"[cyan]Scoring {len(profiles)} profile(s) from the database[/cyan]")
 
             def report(
                 board: BoardRef,
@@ -542,12 +569,34 @@ def scan(
             )
             succeeded = len(bulk.succeeded)
             errors.extend(item.error_code for item in bulk.failed)
-            failed = bool(bulk.failed)
+            # A board failing is routine at this scale: a company pauses its
+            # board, a provider blips, or the mass-removal guard refuses a
+            # shrunken response and protects the jobs. Failing the run on any
+            # single one leaves every scheduled pull permanently red, which is
+            # how a real outage gets ignored. Fail on the volume instead, so a
+            # provider that is genuinely down still stops the run.
+            #
+            # The absolute floor matters because each provider is scanned
+            # separately: a rate alone would fail Workable, which has ten
+            # boards, on its first flaky one. The floor is why a provider with
+            # only a board or two cannot be distinguished from a flake here.
+            # Failed boards are always named above regardless.
+            allowed = max(MIN_TOLERATED_BOARD_FAILURES, int(len(boards) * max_failure_rate))
+            failure_rate = len(bulk.failed) / len(boards) if boards else 0.0
+            failed = len(bulk.failed) > allowed
+            if bulk.failed:
+                console.print(
+                    f"[yellow]{len(bulk.failed)} of {len(boards)} boards failed "
+                    f"({failure_rate:.1%}); tolerating up to {allowed}[/yellow]"
+                )
             console.print(
                 f"[cyan]Parallel fetch phase: {bulk.fetch_duration_ms / 1000:.1f}s "
                 f"with {workers} workers[/cyan]"
             )
-            active_jobs = repository.active_jobs()
+            # Sharded pulls run ingest-only: scoring every profile inside each
+            # shard would re-score the whole corpus once per shard, against a
+            # half-updated set of jobs. One rescore after all shards finish.
+            active_jobs = [] if ingest_only else repository.active_jobs()
             scored_jobs = len(active_jobs)
             for career_profile in profiles:
                 if career_profile.profile.slug not in profile_ids:
@@ -587,7 +636,10 @@ def scan(
     finally:
         repository.close()
     if failed:
-        raise click.ClickException("One or more boards failed")
+        raise click.ClickException(
+            f"{len(errors)} of {len(boards)} boards failed "
+            f"({failure_rate:.1%}), beyond the tolerated {allowed}"
+        )
 
 
 def _emit_digest(
