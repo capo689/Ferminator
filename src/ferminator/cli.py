@@ -454,12 +454,18 @@ def discover_audit(profile_path: Path, minimum_visible: int) -> None:
 @click.option("--workers", default=8, type=click.IntRange(1, 16), show_default=True)
 @click.option("--shard-index", default=1, type=click.IntRange(1, 64), show_default=True)
 @click.option("--shard-count", default=1, type=click.IntRange(1, 64), show_default=True)
+@click.option(
+    "--ingest-only",
+    is_flag=True,
+    help="Pull boards without scoring. Run `ferminator rescore` once afterwards.",
+)
 def scan(
     provider: str | None,
     company: str | None,
     workers: int,
     shard_index: int,
     shard_count: int,
+    ingest_only: bool,
 ) -> None:
     """Ingest enabled public boards into Postgres."""
     database_url = os.environ.get("DATABASE_URL")
@@ -487,7 +493,8 @@ def scan(
     scan_key = hashlib.sha256(scan_identity.encode()).hexdigest()
     scan_id: str | None = None
     try:
-        with repository.scan_lock():
+        lock_key = f"scan:{provider or 'all'}:{shard_index}of{shard_count}"
+        with repository.scan_lock(lock_key):
             interrupted = repository.fail_interrupted_scans()
             if interrupted:
                 console.print(
@@ -506,16 +513,22 @@ def scan(
                         disk_profile,
                         os.environ.get(disk_profile.profile.email_env),
                     )
-            scannable = [
-                (profile_id, career_profile)
-                for profile_id, career_profile in repository.scannable_profiles()
-                if career_profile.search.enabled
-            ]
-            profiles = [career_profile for _, career_profile in scannable]
-            profile_ids = {
-                career_profile.profile.slug: profile_id for profile_id, career_profile in scannable
-            }
-            console.print(f"[cyan]Scoring {len(profiles)} profile(s) from the database[/cyan]")
+            if ingest_only:
+                profiles = []
+                profile_ids = {}
+                console.print("[cyan]Ingest-only: scoring is deferred to rescore[/cyan]")
+            else:
+                scannable = [
+                    (profile_id, career_profile)
+                    for profile_id, career_profile in repository.scannable_profiles()
+                    if career_profile.search.enabled
+                ]
+                profiles = [career_profile for _, career_profile in scannable]
+                profile_ids = {
+                    career_profile.profile.slug: profile_id
+                    for profile_id, career_profile in scannable
+                }
+                console.print(f"[cyan]Scoring {len(profiles)} profile(s) from the database[/cyan]")
 
             def report(
                 board: BoardRef,
@@ -547,7 +560,10 @@ def scan(
                 f"[cyan]Parallel fetch phase: {bulk.fetch_duration_ms / 1000:.1f}s "
                 f"with {workers} workers[/cyan]"
             )
-            active_jobs = repository.active_jobs()
+            # Sharded pulls run ingest-only: scoring every profile inside each
+            # shard would re-score the whole corpus once per shard, against a
+            # half-updated set of jobs. One rescore after all shards finish.
+            active_jobs = [] if ingest_only else repository.active_jobs()
             scored_jobs = len(active_jobs)
             for career_profile in profiles:
                 if career_profile.profile.slug not in profile_ids:

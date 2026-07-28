@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -49,39 +48,58 @@ def test_registry_rejects_duplicate_board_identity() -> None:
         CompanyRegistry.model_validate(payload)
 
 
-def test_scheduled_scan_capacity_matches_expanded_registry() -> None:
+def test_scheduled_scan_pulls_twice_daily_and_scores_once() -> None:
     workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
 
-    assert "timeout-minutes: 45" in workflow
+    assert "timeout-minutes: 60" in workflow
     assert "timezone: America/Los_Angeles" in workflow
-    assert 'cron: "0 8 * * *"' in workflow
-    assert 'cron: "35 8 * * *"' in workflow
-    assert '--shard-index "$REQUESTED_SHARD" --shard-count 2' in workflow
+    assert 'cron: "0 6 * * *"' in workflow
+    assert 'cron: "0 15 * * *"' in workflow
+    # Shards must not score. Scoring inside every shard would re-score the whole
+    # corpus once per shard, each against a half-updated set of jobs.
+    assert "--ingest-only" in workflow
+    assert "ferminator rescore" in workflow
+    assert "needs: pull" in workflow
 
 
-def test_shard_selector_matches_a_declared_cron() -> None:
-    """The shard is chosen by comparing github.event.schedule to a literal.
+def test_digest_env_is_declared_at_job_level() -> None:
+    """A step's own `env:` block is not visible to that step's `if:`.
 
-    If that literal ever drifts from the declared schedule the comparison
-    silently fails, every scheduled run takes shard 1, and half the registry
-    stops being scanned with no error anywhere.
+    The digest step guards on `env.SMTP_HOST != ''` while declaring SMTP_HOST in
+    its own env block, so the guard always saw an empty string and the send was
+    skipped on every single run. The env has to live on the job.
+    """
+    workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
+    score = workflow.split("  score:", 1)[1]
+    job_env, steps = score.split("    steps:", 1)
+
+    assert "SMTP_HOST:" in job_env, "SMTP_HOST must be job-level for the if: guard to see it"
+    send = steps.split("- name: Send ranked digests", 1)[1].split("- name:", 1)[0]
+    assert "env:" not in send, "re-declaring env on the send step reintroduces the skip bug"
+
+
+def test_every_ats_provider_is_pulled_by_exactly_one_shard() -> None:
+    """A provider missing from the matrix is never pulled, silently.
+
+    Adding a provider to ATSProvider without assigning it to a shard would drop
+    every board on it out of the schedule with no error anywhere.
     """
     workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
 
-    declared = set(re.findall(r'cron:\s*"([^"]+)"', workflow))
-    assert declared, "no cron schedules declared"
+    assigned: list[str] = []
+    for line in workflow.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("providers:") and "," in stripped or stripped.startswith("providers:"):
+            value = stripped.split("providers:", 1)[1].strip()
+            if value and not value.startswith("$") and "Providers to pull" not in value:
+                assigned.extend(part.strip() for part in value.split(",") if part.strip())
 
-    selectors = set(re.findall(r"github\.event\.schedule\s*==\s*'([^']+)'", workflow))
-    assert selectors, "no shard selector found"
+    supported = {provider.value for provider in ATSProvider}
+    missing = supported - set(assigned)
+    duplicated = [p for p in assigned if assigned.count(p) > 1]
 
-    unmatched = selectors - declared
-    assert not unmatched, (
-        f"shard selector(s) {sorted(unmatched)} match no declared cron "
-        f"{sorted(declared)}; every run would fall through to shard 1"
-    )
-
-    # Both shards must be reachable: one cron selects shard 2, the rest shard 1.
-    assert len(declared) >= 2, "need at least two scheduled runs to cover both shards"
+    assert not missing, f"providers never pulled by any shard: {sorted(missing)}"
+    assert not duplicated, f"providers pulled by more than one shard: {sorted(set(duplicated))}"
 
 
 def test_registry_shards_are_stable_complete_and_non_overlapping() -> None:
