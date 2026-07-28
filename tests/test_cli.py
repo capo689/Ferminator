@@ -333,3 +333,98 @@ def test_rescore_can_target_a_single_slug(monkeypatch):
     miss = CliRunner().invoke(cli_module.cli, ["rescore", "--slug", "nobody-here"])
     assert miss.exit_code != 0
     assert "No active profile matches slug" in miss.output
+
+
+def _scan_repository_stub(board_count: int):
+    """Minimal repository double for `ferminator scan --ingest-only`."""
+    from ferminator.domain import ATSProvider, BoardRef
+
+    boards = [
+        BoardRef(
+            provider=ATSProvider.GREENHOUSE,
+            company_slug=f"c{index}",
+            company_name=f"C{index}",
+            board_key=f"c{index}",
+            source_url=f"https://example.com/{index}",
+        )
+        for index in range(board_count)
+    ]
+
+    class Repository:
+        def enabled_boards(self):
+            return boards
+
+        def scan_lock(self, key="full-scan"):
+            from contextlib import nullcontext
+
+            return nullcontext()
+
+        def fail_interrupted_scans(self, *_a, **_k):
+            return 0
+
+        def start_scan(self, *_a, **_k):
+            return "scan-id"
+
+        def finish_scan(self, *_a, **_k):
+            return None
+
+        def sync_profile(self, *_a, **_k):
+            return "profile-id"
+
+        def close(self):
+            pass
+
+    return Repository(), boards
+
+
+def _run_scan(monkeypatch, *, board_count, failures, extra_args=()):
+    from click.testing import CliRunner
+
+    from ferminator import cli as cli_module
+
+    repository, boards = _scan_repository_stub(board_count)
+
+    class Bulk:
+        succeeded = boards[failures:]
+        failed = [
+            type("Item", (), {"board": board, "error_code": "UnsafeRemovalError"})()
+            for board in boards[:failures]
+        ]
+        fetch_duration_ms = 10.0
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
+    monkeypatch.setattr(cli_module, "PostgresRepository", lambda *_a, **_k: repository)
+    monkeypatch.setattr(cli_module, "run_bulk_ingestion", lambda *_a, **_k: Bulk())
+
+    return CliRunner().invoke(cli_module.cli, ["scan", "--ingest-only", *extra_args])
+
+
+def test_one_flaky_board_does_not_fail_the_whole_shard(monkeypatch):
+    """Regression: any single board failure used to fail the entire run.
+
+    A board pausing, a provider blip, or the mass-removal guard refusing a
+    shrunken response are all routine across 640 boards pulled twice a day.
+    Failing on one leaves every scheduled pull permanently red, which is how a
+    real outage stops being noticed.
+    """
+    result = _run_scan(monkeypatch, board_count=262, failures=1)
+
+    assert result.exit_code == 0, result.output
+    assert "1 of 262 boards failed" in result.output
+
+
+def test_a_provider_that_is_actually_down_still_fails_the_run(monkeypatch):
+    """The tolerance must not swallow a real outage."""
+    result = _run_scan(monkeypatch, board_count=262, failures=200)
+
+    assert result.exit_code == 1
+    assert "exceeds the 5% tolerance" in result.output
+
+
+def test_failure_tolerance_is_configurable(monkeypatch):
+    """--max-failure-rate 0 restores the old fail-on-any-board behaviour."""
+    result = _run_scan(
+        monkeypatch, board_count=262, failures=1, extra_args=("--max-failure-rate", "0")
+    )
+
+    assert result.exit_code == 1

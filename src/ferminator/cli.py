@@ -459,6 +459,13 @@ def discover_audit(profile_path: Path, minimum_visible: int) -> None:
     is_flag=True,
     help="Pull boards without scoring. Run `ferminator rescore` once afterwards.",
 )
+@click.option(
+    "--max-failure-rate",
+    default=0.05,
+    type=click.FloatRange(0.0, 1.0),
+    show_default=True,
+    help="Fail the run only when this share of boards fails. 0 fails on any one.",
+)
 def scan(
     provider: str | None,
     company: str | None,
@@ -466,6 +473,7 @@ def scan(
     shard_index: int,
     shard_count: int,
     ingest_only: bool,
+    max_failure_rate: float,
 ) -> None:
     """Ingest enabled public boards into Postgres."""
     database_url = os.environ.get("DATABASE_URL")
@@ -483,6 +491,7 @@ def scan(
     if not boards:
         raise click.ClickException("No enabled boards match the filters")
     failed = False
+    failure_rate = 0.0
     succeeded = 0
     errors: list[str] = []
     scored_jobs = 0
@@ -555,7 +564,19 @@ def scan(
             )
             succeeded = len(bulk.succeeded)
             errors.extend(item.error_code for item in bulk.failed)
-            failed = bool(bulk.failed)
+            # A board failing is routine at this scale: a company pauses its
+            # board, a provider blips, or the mass-removal guard refuses a
+            # shrunken response and protects the jobs. Failing the run on any
+            # single one leaves every scheduled pull permanently red, which is
+            # how a real outage gets ignored. Fail on the rate instead, so a
+            # provider that is genuinely down still stops the run.
+            failure_rate = len(bulk.failed) / len(boards) if boards else 0.0
+            failed = failure_rate > max_failure_rate
+            if bulk.failed:
+                console.print(
+                    f"[yellow]{len(bulk.failed)} of {len(boards)} boards failed "
+                    f"({failure_rate:.1%}, tolerance {max_failure_rate:.0%})[/yellow]"
+                )
             console.print(
                 f"[cyan]Parallel fetch phase: {bulk.fetch_duration_ms / 1000:.1f}s "
                 f"with {workers} workers[/cyan]"
@@ -603,7 +624,10 @@ def scan(
     finally:
         repository.close()
     if failed:
-        raise click.ClickException("One or more boards failed")
+        raise click.ClickException(
+            f"Board failure rate {failure_rate:.1%} exceeds the "
+            f"{max_failure_rate:.0%} tolerance"
+        )
 
 
 def _emit_digest(
