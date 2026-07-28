@@ -26,3 +26,13 @@ config/companies.*
 *company-directory*.csv
 *company-directory*.json
 *board-validation*.json
+
+# Local working artifacts. These reached a public commit once through a
+# `git add -A`, including audit notes describing unfixed weaknesses in the
+# live service. Ignore them so a wildcard stage cannot pick them up again.
+.DS_Store
+**/.DS_Store
+deliverables/
+finisher/evidence/
+finisher/runs/
+docs/*-rebaseline.md
