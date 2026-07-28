@@ -44,18 +44,30 @@ def _source_description(item: dict) -> str:
     return str(description) if description else ""
 
 
-def _discover_matches(database_url: str, profile_path: Path) -> list[dict]:
+def _discover_matches(
+    database_url: str,
+    profile_path: Path,
+    scope: str = "discover",
+) -> list[dict]:
+    """Collect a profile's unrated matches.
+
+    `discover` mirrors exactly what the page shows: role-family visibility
+    floors and the default freshness policy both applied. `all-eligible` keeps
+    every unrated job that is still sticky-eligible, which is a far larger set,
+    for a full review pass rather than a daily one.
+    """
     profile = load_profile(profile_path)
     repository = PostgresRepository(database_url, min_size=1, max_size=2)
     try:
-        matches = repository.web_matches(profile.profile.slug, minimum_score=0, limit=5000)
+        matches = repository.web_matches(profile.profile.slug, minimum_score=0, limit=10000)
         thresholds = repository.role_thresholds(profile.profile.slug)
     finally:
         repository.close()
     print(f"live_eligible={len(matches)}")
 
-    matches = apply_role_thresholds(profile, matches, thresholds)
-    print(f"after_role_thresholds={len(matches)}")
+    if scope == "discover":
+        matches = apply_role_thresholds(profile, matches, thresholds)
+        print(f"after_role_thresholds={len(matches)}")
     matches = annotate_freshness(matches)
     matches = [
         item
@@ -63,8 +75,9 @@ def _discover_matches(database_url: str, profile_path: Path) -> list[dict]:
         if item.get("feedback_verdict") is None
     ]
     print(f"after_unrated_only={len(matches)}")
-    matches = apply_default_freshness_policy(matches)
-    print(f"after_freshness={len(matches)}")
+    if scope == "discover":
+        matches = apply_default_freshness_policy(matches)
+        print(f"after_freshness={len(matches)}")
 
     return sort_discover_matches(matches, "relevance")
 
@@ -107,9 +120,15 @@ def main() -> None:
     parser.add_argument("--database-url", required=True)
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--scope",
+        choices=("discover", "all-eligible"),
+        default="discover",
+        help="discover mirrors the page; all-eligible keeps every unrated match.",
+    )
     args = parser.parse_args()
 
-    matches = _discover_matches(args.database_url, args.profile)
+    matches = _discover_matches(args.database_url, args.profile, args.scope)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(_render(matches), encoding="utf-8")
     print(f"exported={len(matches)} output={args.output}")
