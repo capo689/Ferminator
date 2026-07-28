@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from psycopg import Connection
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
 from ferminator.domain import ATSProvider, BoardRef, NormalizedJob
@@ -1458,7 +1459,9 @@ class PostgresRepository:
                     clean_code,
                     clean_reason,
                     target["score"],
-                    target["component_scores"],
+                    # dict_row returns jsonb as a plain dict, which psycopg
+                    # cannot adapt back to a jsonb parameter on its own.
+                    Jsonb(target["component_scores"]),
                 ),
             )
             conn.execute(
