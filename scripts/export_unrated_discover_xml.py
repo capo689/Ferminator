@@ -11,7 +11,11 @@ from urllib.request import Request, urlopen
 
 from bs4 import BeautifulSoup
 
-from ferminator.discover_visibility import apply_role_thresholds, sort_discover_matches
+from ferminator.discover_visibility import (
+    apply_default_discover_filters,
+    apply_role_thresholds,
+    sort_discover_matches,
+)
 from ferminator.freshness import annotate_freshness, apply_default_freshness_policy
 from ferminator.profiles import load_profile
 from ferminator.repository import PostgresRepository
@@ -65,6 +69,12 @@ def _discover_matches(
         repository.close()
     print(f"live_eligible={len(matches)}")
 
+    # Location is a hard constraint, not a visibility preference: a
+    # remote_or_near profile cannot take an on-site role outside its radius in
+    # any scope. Omitting this produced an export four times the size of the
+    # real feed, full of jobs the page will never show.
+    matches = apply_default_discover_filters(profile, matches)
+    print(f"after_location_mode={len(matches)}")
     if scope == "discover":
         matches = apply_role_thresholds(profile, matches, thresholds)
         print(f"after_role_thresholds={len(matches)}")
