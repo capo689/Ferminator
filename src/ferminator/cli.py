@@ -319,41 +319,22 @@ def _boards_for_shard(
     return selected
 
 
-@cli.command("rescore")
-@click.option(
-    "--profile-path",
-    type=click.Path(exists=True, path_type=Path),
-    default=Path("profiles/adam-cagle.md"),
-    show_default=True,
-)
-def rescore(profile_path: Path) -> None:
-    """Refresh one profile's matches from the shared job corpus without fetching ATS boards."""
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise click.ClickException("DATABASE_URL is required")
-    career_profile = load_profile(profile_path)
-    repository = PostgresRepository(database_url)
-    try:
-        profile_id = repository.sync_profile(
-            career_profile,
-            os.environ.get(career_profile.profile.email_env),
-        )
-        profile_version = repository.profile_version(profile_id)
-        active_jobs = repository.active_jobs()
-        scored_matches = [
-            (job_id, revision_id, score_job(career_profile, job))
-            for job_id, revision_id, job in active_jobs
-        ]
-        repository.store_matches(
-            profile_id=profile_id,
-            profile_version=profile_version,
-            matches=scored_matches,
-        )
-    finally:
-        repository.close()
+def _rescore_one(repository, career_profile, profile_id: str, active_jobs) -> None:
+    """Score one profile against an already-fetched corpus."""
+    profile_version = repository.profile_version(profile_id)
+    scored_matches = [
+        (job_id, revision_id, score_job(career_profile, job))
+        for job_id, revision_id, job in active_jobs
+    ]
+    repository.store_matches(
+        profile_id=profile_id,
+        profile_version=profile_version,
+        matches=scored_matches,
+    )
+    eligible = sum(1 for _, _, match in scored_matches if match.eligible)
     console.print(
         f"[green]{career_profile.profile.display_name}: rescored "
-        f"{len(active_jobs)} active jobs[/green]"
+        f"{len(active_jobs)} active jobs, {eligible} eligible[/green]"
     )
     gateway_counts = Counter(
         (
@@ -367,6 +348,63 @@ def rescore(profile_path: Path) -> None:
     for gateway, count in sorted(gateway_counts.items()):
         table.add_row(gateway, f"{count:,}")
     console.print(table)
+
+
+@cli.command("rescore")
+@click.option(
+    "--profile-path",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Rescore one on-disk profile. Omit to cover every active account.",
+)
+@click.option("--slug", default=None, help="Rescore only this profile slug.")
+def rescore(profile_path: Path | None, slug: str | None) -> None:
+    """Refresh matches from the shared job corpus without fetching ATS boards.
+
+    The corpus is fetched once and every profile is scored against it, which is
+    the whole point: one pool of jobs, many people drawing from it. Defaults to
+    every active account, sourced from the database, so accounts provisioned
+    through /admin are covered.
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise click.ClickException("DATABASE_URL is required")
+    repository = PostgresRepository(database_url)
+    try:
+        if profile_path is not None:
+            career_profile = load_profile(profile_path)
+            targets = [
+                (
+                    repository.sync_profile(
+                        career_profile,
+                        os.environ.get(career_profile.profile.email_env),
+                    ),
+                    career_profile,
+                )
+            ]
+        else:
+            targets = repository.scannable_profiles()
+            if slug:
+                targets = [
+                    (pid, career)
+                    for pid, career in targets
+                    if career.profile.slug == slug
+                ]
+                if not targets:
+                    raise click.ClickException(f"No active profile matches slug {slug!r}")
+        if not targets:
+            console.print("[yellow]No active profiles to rescore[/yellow]")
+            return
+        # Fetch the shared corpus once, not once per person.
+        active_jobs = repository.active_jobs()
+        console.print(
+            f"[cyan]Scoring {len(targets)} profile(s) against "
+            f"{len(active_jobs):,} active jobs[/cyan]"
+        )
+        for profile_id, career_profile in targets:
+            _rescore_one(repository, career_profile, profile_id, active_jobs)
+    finally:
+        repository.close()
 
 
 @cli.command("discover-audit")

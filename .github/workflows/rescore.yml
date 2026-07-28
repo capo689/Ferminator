@@ -3,16 +3,14 @@ name: Refresh profile matches
 on:
   workflow_dispatch:
     inputs:
-      profile:
-        description: Profile Markdown to rescore
+      slug:
+        description: Profile slug to rescore, or "all" for every active account
         required: true
-        default: profiles/adam-cagle.md
-        type: choice
-        options:
-          - profiles/adam-cagle.md
+        default: all
+        type: string
 
 concurrency:
-  group: ferminator-rescore-${{ inputs.profile }}
+  group: ferminator-rescore-${{ inputs.slug }}
   cancel-in-progress: false
 
 permissions:
@@ -36,16 +34,19 @@ jobs:
           pip install --require-hashes -r requirements.lock
           pip install --no-deps .
 
-      - name: Validate profile and calibration gate
+      - name: Validate on-disk profiles and calibration gate
         run: |
-          ferminator profile validate "${{ inputs.profile }}"
+          ferminator profile validate
           ferminator quality-eval
 
       - name: Refresh matches from shared corpus
         env:
           DATABASE_URL: ${{ secrets.FERMINATOR_DATABASE_URL }}
         run: |
-          ferminator rescore --profile-path "${{ inputs.profile }}"
-          ferminator discover-audit \
-            --profile-path "${{ inputs.profile }}" \
-            --minimum-visible 1
+          # The corpus is fetched once and every selected profile is scored
+          # against it. No ATS boards are contacted.
+          if [ "${{ inputs.slug }}" = "all" ]; then
+            ferminator rescore
+          else
+            ferminator rescore --slug "${{ inputs.slug }}"
+          fi
