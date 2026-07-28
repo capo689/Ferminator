@@ -16,6 +16,14 @@ on:
         required: true
         default: profiles/adam-cagle.md
         type: string
+      scope:
+        description: discover mirrors the page; all-eligible keeps every unrated match
+        required: true
+        default: discover
+        type: choice
+        options:
+          - discover
+          - all-eligible
 
 concurrency:
   group: ferminator-export-unrated
@@ -48,11 +56,13 @@ jobs:
           # Through env, never interpolated into the shell, because
           # inputs.profile is attacker-controlled on workflow_dispatch.
           PROFILE: ${{ inputs.profile }}
+          SCOPE: ${{ inputs.scope }}
         run: |
           set -euo pipefail
           python scripts/export_unrated_discover_xml.py \
             --database-url "$DATABASE_URL" \
             --profile "$PROFILE" \
+            --scope "$SCOPE" \
             --output export/unrated-full-jds.md
 
       - name: Summarise
