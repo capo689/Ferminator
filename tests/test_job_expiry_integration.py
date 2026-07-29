@@ -46,8 +46,12 @@ def repository():
     repo.close()
 
 
-def _record_success(board_id, when: str) -> None:
-    """Record a succeeded ingestion run, which is what expiry measures against."""
+def _record_success(board_id, when: str, withheld: str | None = None) -> None:
+    """Record a succeeded ingestion run, which is what expiry measures against.
+
+    `withheld` marks the run as guarded by the mass-removal protection, which
+    makes it a non-authoritative snapshot of the board.
+    """
     import uuid as _uuid
 
     import psycopg
@@ -55,9 +59,10 @@ def _record_success(board_id, when: str) -> None:
     with psycopg.connect(LOCAL_DB_URL, autocommit=True) as conn:
         conn.execute(
             "insert into public.ingestion_runs "
-            "(board_id, provider, idempotency_key, status, started_at, finished_at) "
-            f"values (%s, 'greenhouse', %s, 'succeeded', {when}, {when})",
-            (board_id, f"test-{_uuid.uuid4().hex}"),
+            "(board_id, provider, idempotency_key, status, started_at, finished_at, "
+            " removal_withheld) "
+            f"values (%s, 'greenhouse', %s, 'succeeded', {when}, {when}, %s)",
+            (board_id, f"test-{_uuid.uuid4().hex}", withheld),
         )
 
 
@@ -177,3 +182,69 @@ def test_expiry_respects_the_grace_period(repository, board_with_a_dropped_job):
     repository.expire_unseen_jobs(stale_after_days=30)
 
     assert _active(stale_id), "9 days old must survive a 30 day grace period"
+
+
+def test_a_guarded_run_does_not_expire_what_the_guard_protected(
+    repository, board_with_a_dropped_job
+):
+    """Regression: the guard blocked the delete, expiry did it three days later.
+
+    A run that tripped the mass-removal guard finishes successfully, so it used
+    to advance the same clock expiry measures against. The jobs the bad
+    response omitted never had last_seen_at refreshed, so expiry deactivated
+    exactly the set the guard had just refused to remove.
+    """
+    fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
+    _record_success(board_id, "now()", withheld="Empty response would remove every active job")
+
+    expired = repository.expire_unseen_jobs(stale_after_days=3, trust_withheld_after=3)
+
+    assert expired == [], "a single guarded run must not expire anything"
+    assert _active(stale_id)
+    assert _active(fresh_id)
+
+
+def test_a_persistently_guarded_board_is_eventually_believed(
+    repository, board_with_a_dropped_job
+):
+    """A board that keeps reporting the same guarded result is telling the truth.
+
+    Ignoring guarded runs forever would freeze a genuinely emptied board, which
+    is the failure MeanPug sat in. After enough consecutive guarded runs the
+    latest one becomes the reference and the board converges.
+    """
+    _fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
+    for _ in range(3):
+        _record_success(board_id, "now()", withheld="Empty response would remove every active job")
+
+    expired = repository.expire_unseen_jobs(stale_after_days=3, trust_withheld_after=3)
+
+    assert stale_id in {row["id"] for row in expired}
+    assert not _active(stale_id)
+
+
+def test_one_clean_run_resets_the_guarded_streak(repository, board_with_a_dropped_job):
+    """A clean run breaks the streak, so the reference stays the trusted run.
+
+    The arithmetic here is deliberate. The job was last seen 4 days ago, the
+    last clean run was 10 days ago, and a guarded run just finished. Measuring
+    against the clean run leaves the job alone; measuring against the guarded
+    run would expire it. Only the first is correct.
+    """
+    import psycopg
+
+    _fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
+    with psycopg.connect(LOCAL_DB_URL, autocommit=True) as conn:
+        conn.execute(
+            "update public.jobs set last_seen_at = now() - interval '4 days' where id = %s",
+            (stale_id,),
+        )
+    _record_success(board_id, "now() - interval '10 days'")
+    _record_success(board_id, "now()", withheld="guarded")
+
+    repository.expire_unseen_jobs(stale_after_days=3, trust_withheld_after=3)
+
+    assert _active(stale_id), (
+        "one guarded run does not meet the streak, so the 10-day-old clean run "
+        "is the reference and a job seen 4 days ago is not yet stale against it"
+    )
