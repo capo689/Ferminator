@@ -349,6 +349,11 @@ search:
       # roles he wants.
       - pharma
       - HCP
+      # Not a social media manager, and never wants to be. "Social" alone is
+      # not excluded: it still appears in strategist roles he does want.
+      - Social Media Manager
+      - Social Media Coordinator
+      - Social Media Specialist
       - AI Enablement Engineer
       - AI Deployment Engineer
       - Agentic AI Engineer
