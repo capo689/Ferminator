@@ -368,6 +368,9 @@ def _scan_repository_stub(board_count: int):
         def finish_scan(self, *_a, **_k):
             return None
 
+        def expire_unseen_jobs(self, *_a, **_k):
+            return []
+
         def sync_profile(self, *_a, **_k):
             return "profile-id"
 
@@ -385,7 +388,12 @@ def _run_scan(monkeypatch, *, board_count, failures, extra_args=()):
     repository, boards = _scan_repository_stub(board_count)
 
     class Bulk:
-        succeeded = boards[failures:]
+        # Successes are IngestionResults, not BoardRefs: the run reports any
+        # board whose removals were withheld, and that lives on the result.
+        succeeded = [
+            type("Res", (), {"board": board, "removal_withheld": None})()
+            for board in boards[failures:]
+        ]
         failed = [
             type("Item", (), {"board": board, "error_code": "UnsafeRemovalError"})()
             for board in boards[:failures]

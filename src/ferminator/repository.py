@@ -412,6 +412,44 @@ class PostgresRepository:
             ).fetchone()
         return str(row["id"])
 
+    def expire_unseen_jobs(self, *, stale_after_days: int = 3) -> list[dict]:
+        """Deactivate active jobs their own board has stopped returning.
+
+        The mass-removal guard withholds deletions when a board shrinks hard,
+        which protects against a bad fetch but leaves the dropped jobs active.
+        This closes that loop: once a board has been fetched successfully more
+        recently than a job was last seen, and the gap is wide enough that the
+        job has missed several pulls, the job is gone.
+
+        Scoped to boards that are currently being fetched successfully. A board
+        that is failing outright never expires anything, because absence of a
+        fetch is not evidence that its jobs disappeared.
+        """
+        with self.connection() as conn, conn.transaction():
+            rows = conn.execute(
+                """
+                with board_freshness as (
+                  select j.ats_board_id, max(j.last_seen_at) as board_last_seen
+                  from public.jobs j
+                  group by j.ats_board_id
+                )
+                update public.jobs j
+                set active = false,
+                    removed_at = now(),
+                    updated_at = now()
+                from board_freshness f, public.ats_boards b
+                where f.ats_board_id = j.ats_board_id
+                  and b.id = j.ats_board_id
+                  and j.active
+                  and j.last_seen_at < f.board_last_seen
+                  and j.last_seen_at < now() - make_interval(days => %s)
+                returning j.id, j.title, j.company_name, b.provider::text as provider,
+                          b.board_key, j.last_seen_at
+                """,
+                (stale_after_days,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def enabled_boards(self) -> list[BoardRef]:
         """Load the private scan registry from Postgres without exposing it to clients."""
         with self.connection() as conn:
@@ -2141,6 +2179,7 @@ class PostgresRepository:
                     removed=0,
                     reactivated=0,
                     run_id=str(existing_run["id"]),
+                    removal_withheld=plan.removal_withheld,
                 )
             run = conn.execute(
                 """
@@ -2355,4 +2394,5 @@ class PostgresRepository:
             removed=len(plan.removed),
             reactivated=len(plan.reactivated),
             run_id=str(run["id"]),
+            removal_withheld=plan.removal_withheld,
         )

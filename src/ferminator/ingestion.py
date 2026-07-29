@@ -28,6 +28,10 @@ class LifecyclePlan:
     present: frozenset[str]
     removed: frozenset[str]
     reactivated: frozenset[str]
+    # Set when the safety limit blocked removals. The jobs the board *did*
+    # return are still recorded, so the ones it dropped simply stop being seen
+    # and age out later, rather than the board freezing forever.
+    removal_withheld: str | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +49,9 @@ class IngestionResult:
     removed: int
     reactivated: int
     run_id: str
+    # Carries the guard's reason up to the caller so a board that keeps
+    # withholding removals is visible in the run rather than silent.
+    removal_withheld: str | None = None
 
 
 @dataclass(frozen=True)
@@ -102,16 +109,31 @@ def plan_lifecycle(
 ) -> LifecyclePlan:
     """Plan additions, removals, and reactivations with mass-removal protection."""
     policy = policy or IngestionPolicy()
-    if active_ids and not incoming_ids and not policy.allow_empty_board:
-        raise UnsafeRemovalError("Empty response would remove every active job")
     removed = active_ids - incoming_ids
-    if active_ids:
+    withheld: str | None = None
+
+    if active_ids and not incoming_ids and not policy.allow_empty_board:
+        withheld = "Empty response would remove every active job"
+    elif active_ids:
         removal_fraction = len(removed) / len(active_ids)
         if removal_fraction > policy.max_removal_fraction:
-            raise UnsafeRemovalError(
+            withheld = (
                 f"Removal fraction {removal_fraction:.1%} exceeds "
                 f"{policy.max_removal_fraction:.1%} safety limit"
             )
+
+    # Withholding blocks the deletion, not the observation. Aborting the whole
+    # board used to leave last_seen_at frozen, so a company that culled most of
+    # its listings kept every dead job alive indefinitely. Jerry.ai replaced 36
+    # of 48 postings and all 36 stayed visible, three of them rated Great.
+    if withheld:
+        return LifecyclePlan(
+            added=frozenset(incoming_ids - known_ids),
+            present=frozenset(incoming_ids),
+            removed=frozenset(),
+            reactivated=frozenset((known_ids - active_ids) & incoming_ids),
+            removal_withheld=withheld,
+        )
     return LifecyclePlan(
         added=frozenset(incoming_ids - known_ids),
         present=frozenset(incoming_ids),

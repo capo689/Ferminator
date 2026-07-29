@@ -8,7 +8,6 @@ from ferminator.ingestion import (
     IngestionPolicy,
     IngestionResult,
     InvalidBoardResponseError,
-    UnsafeRemovalError,
     plan_lifecycle,
     run_board_ingestion,
     run_bulk_ingestion,
@@ -29,22 +28,60 @@ def test_lifecycle_classifies_add_remove_and_reactivate() -> None:
     assert plan.present == {"active", "returning", "new"}
 
 
-def test_lifecycle_rejects_empty_response_for_active_board() -> None:
-    with pytest.raises(UnsafeRemovalError, match="Empty response"):
-        plan_lifecycle(
-            active_ids={"one"},
-            known_ids={"one"},
-            incoming_ids=set(),
-        )
+def test_lifecycle_withholds_removals_for_an_empty_response() -> None:
+    """An empty board is not evidence that its jobs are gone, so nothing is
+    removed. The board is still observed, which is what lets the jobs age out."""
+    plan = plan_lifecycle(
+        active_ids={"one"},
+        known_ids={"one"},
+        incoming_ids=set(),
+    )
+
+    assert plan.removed == frozenset()
+    assert plan.removal_withheld and "Empty response" in plan.removal_withheld
 
 
-def test_lifecycle_rejects_suspicious_mass_removal() -> None:
-    with pytest.raises(UnsafeRemovalError, match="Removal fraction"):
-        plan_lifecycle(
-            active_ids={"one", "two", "three"},
-            known_ids={"one", "two", "three"},
-            incoming_ids={"one"},
-        )
+def test_lifecycle_withholds_removals_on_suspicious_mass_removal() -> None:
+    plan = plan_lifecycle(
+        active_ids={"one", "two", "three"},
+        known_ids={"one", "two", "three"},
+        incoming_ids={"one"},
+    )
+
+    assert plan.removed == frozenset()
+    assert plan.removal_withheld and "Removal fraction" in plan.removal_withheld
+
+
+def test_withholding_still_records_what_the_board_returned() -> None:
+    """Regression: Jerry.ai replaced 36 of its 48 postings.
+
+    The guard refused the removal and the whole board was abandoned, so
+    last_seen_at froze and all 36 dead jobs stayed active, three of them rated
+    Great. Withholding must block the deletion only, never the observation,
+    because it is the observation that lets the dropped jobs expire later.
+    """
+    plan = plan_lifecycle(
+        active_ids={"kept", "dropped_a", "dropped_b", "dropped_c"},
+        known_ids={"kept", "dropped_a", "dropped_b", "dropped_c"},
+        incoming_ids={"kept", "brand_new"},
+    )
+
+    assert plan.removal_withheld, "this shrink should trip the guard"
+    assert plan.removed == frozenset(), "the guard blocks deletion"
+    assert plan.present == {"kept", "brand_new"}, "what it returned is still recorded"
+    assert plan.added == {"brand_new"}, "new postings still land"
+
+
+def test_a_normal_shrink_still_removes() -> None:
+    """The guard must not become a blanket refusal to ever delete anything."""
+    plan = plan_lifecycle(
+        active_ids={"a", "b", "c", "d"},
+        known_ids={"a", "b", "c", "d"},
+        incoming_ids={"a", "b", "c"},
+    )
+
+    assert plan.removal_withheld is None
+    assert plan.removed == {"d"}
 
 
 def test_duplicate_provider_ids_are_recorded_as_failure(monkeypatch) -> None:
