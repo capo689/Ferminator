@@ -46,6 +46,21 @@ def repository():
     repo.close()
 
 
+def _record_success(board_id, when: str) -> None:
+    """Record a succeeded ingestion run, which is what expiry measures against."""
+    import uuid as _uuid
+
+    import psycopg
+
+    with psycopg.connect(LOCAL_DB_URL, autocommit=True) as conn:
+        conn.execute(
+            "insert into public.ingestion_runs "
+            "(board_id, provider, idempotency_key, status, started_at, finished_at) "
+            f"values (%s, 'greenhouse', %s, 'succeeded', {when}, {when})",
+            (board_id, f"test-{_uuid.uuid4().hex}"),
+        )
+
+
 @pytest.fixture
 def board_with_a_dropped_job():
     """One board: a job seen just now, and one last seen well before that.
@@ -82,6 +97,7 @@ def board_with_a_dropped_job():
             )
     yield ids[0], ids[1], board_id, company_id
     with psycopg.connect(LOCAL_DB_URL, autocommit=True) as conn:
+        conn.execute("delete from public.ingestion_runs where board_id = %s", (board_id,))
         conn.execute("delete from public.jobs where ats_board_id = %s", (board_id,))
         conn.execute("delete from public.ats_boards where id = %s", (board_id,))
         conn.execute("delete from public.companies where id = %s", (company_id,))
@@ -100,7 +116,8 @@ def test_a_job_its_board_stopped_returning_is_expired(repository, board_with_a_d
     The removal guard withheld the deletion, correctly, but nothing ever closed
     the loop afterwards, so the dead listings were served as live matches.
     """
-    fresh_id, stale_id, _board, _co = board_with_a_dropped_job
+    fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
+    _record_success(board_id, "now()")
 
     expired = repository.expire_unseen_jobs(stale_after_days=3)
 
@@ -109,33 +126,53 @@ def test_a_job_its_board_stopped_returning_is_expired(repository, board_with_a_d
     assert _active(fresh_id), "a job the board still returns must survive"
 
 
-def test_expiry_leaves_a_board_that_is_merely_stale_alone(repository, board_with_a_dropped_job):
-    """A board nobody has fetched recently must not lose its jobs.
+def test_a_board_nobody_has_fetched_keeps_its_jobs(repository, board_with_a_dropped_job):
+    """Absence of a fetch is not evidence the listings disappeared.
 
-    Absence of a fetch is not evidence that the listings disappeared, so expiry
-    keys on a job being older than its own board's most recent sighting.
+    A board whose last success is itself old must lose nothing, or an outage on
+    our side would quietly empty the corpus.
     """
-    import psycopg
-
     fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
-    # Push the whole board into the past: now nothing was seen more recently
-    # than anything else, so there is no evidence any single job was dropped.
-    with psycopg.connect(LOCAL_DB_URL, autocommit=True) as conn:
-        conn.execute(
-            "update public.jobs set last_seen_at = now() - interval '30 days' "
-            "where ats_board_id = %s",
-            (board_id,),
-        )
+    _record_success(board_id, "now() - interval '30 days'")
 
     repository.expire_unseen_jobs(stale_after_days=3)
 
     assert _active(fresh_id)
-    assert _active(stale_id), "a uniformly stale board must not be gutted"
+    assert _active(stale_id), "a board we have not fetched must not be gutted"
+
+
+def test_an_empty_board_still_expires_its_jobs(repository, board_with_a_dropped_job):
+    """Regression: MeanPug. This is the case the first version could not reach.
+
+    When a board returns nothing, every job keeps the same last_seen_at, so a
+    rule comparing a job against its newest sibling never fires and the board
+    holds dead listings forever. Measuring against the board's last successful
+    fetch is what makes an empty board converge.
+    """
+    import psycopg
+
+    fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
+    # Nothing came back, so no job was refreshed: they all share one timestamp.
+    with psycopg.connect(LOCAL_DB_URL, autocommit=True) as conn:
+        conn.execute(
+            "update public.jobs set last_seen_at = now() - interval '9 days' "
+            "where ats_board_id = %s",
+            (board_id,),
+        )
+    _record_success(board_id, "now()")
+
+    expired = repository.expire_unseen_jobs(stale_after_days=3)
+
+    expired_ids = {row["id"] for row in expired}
+    assert fresh_id in expired_ids and stale_id in expired_ids, (
+        "an empty board that keeps fetching successfully must expire everything"
+    )
 
 
 def test_expiry_respects_the_grace_period(repository, board_with_a_dropped_job):
     """A job dropped only moments ago is not yet evidence of anything."""
-    _fresh_id, stale_id, _board, _co = board_with_a_dropped_job
+    _fresh_id, stale_id, board_id, _co = board_with_a_dropped_job
+    _record_success(board_id, "now()")
 
     repository.expire_unseen_jobs(stale_after_days=30)
 
