@@ -195,14 +195,24 @@ def test_web_matches_keeps_fuzzy_prior_application_visible_with_warning() -> Non
     sql = connection.execute.call_args.args[0]
     assert "history_candidates" in sql
     assert "(h.permanent or h.suppress_until > now())" in sql
-    # Discover is sticky: a job that already qualified must stay visible until
-    # the user deals with it, so the query must NOT scope to the newest
-    # profile_version -- doing that rebuilt the list on every rescore and made
-    # untouched jobs silently disappear.
+    # A job that already qualified stays visible while the user deals with it,
+    # so the query must not simply scope to the newest profile_version --
+    # doing that rebuilt the list on every rescore and made untouched jobs
+    # disappear mid-review.
     assert "p.match_version = m.profile_version" not in sql
     assert "bool_or(m.eligible) as ever_eligible" in sql
-    assert "max(m.score) as best_score" in sql
-    assert "where m.ever_eligible and m.best_score >= %s" in sql
+    # Stability is a bounded grace window, not an unbounded historical maximum.
+    # Ranking and display use the current score: taking max() across every past
+    # profile version left an excluded job in the feed showing a number it no
+    # longer earned.
+    assert "last_eligible_at" in sql
+    assert "make_interval(days => %s)" in sql
+    assert "m.score, m.component_scores" in sql, "the feed must select the current score"
+    assert "m.best_score as score" not in sql
+    assert "order by m.score desc" in sql
+    assert "feedback.verdict in ('great', 'maybe')" in sql, (
+        "a rated keeper must survive the score gate"
+    )
     assert "deduplicated_matches" in sql
     assert "public.normalize_job_part(j.company_name)" in sql
     assert "m.duplicate_rank = 1" in sql
