@@ -1,6 +1,6 @@
 name: Scheduled ATS scan
 
-# Two pulls a day. Each pull fans out into four parallel shards that only
+# Two pulls a day. Each pull fans out into parallel shards that only
 # ingest, then a single scoring pass runs once every shard has finished.
 #
 # Scoring is deliberately separated from ingestion. `ferminator scan` used to
@@ -40,28 +40,39 @@ jobs:
       fail-fast: false
       matrix:
         shard:
-          # Balanced by measured wall clock, not board count. Workday paginates
-          # 20 jobs per request, so one 2,000-job board is ~100 sequential round
-          # trips. Its 77 boards took over 53 minutes and hit the timeout, while
-          # Greenhouse fetched 262 boards in 32 seconds.
+          # Balanced by measured wall clock, not board count. Workday
+          # paginates 20 jobs per request, so one 2,000-job board is ~100
+          # sequential round trips. Its boards took over 53 minutes unsharded
+          # and hit the timeout, while Greenhouse fetched 262 boards in 32s.
           #
-          # So Workday gets shards to itself and every other provider fits in
-          # one. Two Workday shards did pass, at 32m36s and 45m26s, but boards
-          # are split by identity rather than by job volume, so the halves come
-          # out uneven and the slow one sat too close to the timeout to absorb
-          # any growth. Three brings the worst case back near 30 minutes.
+          # Sizing comes from the measurement: 26 Workday boards per shard ran
+          # 32m36s and 45m26s. The directory grew Workday from 77 boards to
+          # 143, which at three shards projects past the 60 minute timeout, so
+          # it now gets six. Every other provider fits comfortably in one.
           - name: workday-a
             providers: workday
             index: 1
-            count: 3
+            count: 6
           - name: workday-b
             providers: workday
             index: 2
-            count: 3
+            count: 6
           - name: workday-c
             providers: workday
             index: 3
-            count: 3
+            count: 6
+          - name: workday-d
+            providers: workday
+            index: 4
+            count: 6
+          - name: workday-e
+            providers: workday
+            index: 5
+            count: 6
+          - name: workday-f
+            providers: workday
+            index: 6
+            count: 6
           - name: everything-else
             providers: greenhouse,ashby,lever,smartrecruiters,rippling,breezy,workable,bamboohr
             index: 1
@@ -107,7 +118,7 @@ jobs:
             echo "::group::$provider"
             # Each provider and sub-shard takes its own advisory lock, so these
             # do not block one another. Board identities are split
-            # deterministically, so the two Workday shards never overlap.
+            # deterministically, so the Workday shards never overlap.
             # A provider with no enabled boards is not an error.
             ferminator scan --workers 16 --ingest-only --provider "$provider" \
               --shard-index "$SHARD_INDEX" --shard-count "$SHARD_COUNT" || failed=1
