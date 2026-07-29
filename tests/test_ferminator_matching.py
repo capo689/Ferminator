@@ -594,3 +594,48 @@ def test_direct_to_consumer_titles_survive_the_pharma_exclusion():
         assert not _matched_title_exclusions(title, excluded), (
             f"{title} must not be caught by the pharma exclusion"
         )
+
+
+def test_a_posting_marked_hybrid_is_rejected_without_prose():
+    """Regression: Happyrobot "Content Strategist", San Francisco | New York.
+
+    The provider stamped it `hybrid` and we stored that, but the gate only read
+    cadence phrases out of the description. The description had none, so a
+    plainly hybrid job reached the feed and cost a completed application.
+    The structured field settles it; the prose is the fallback.
+    """
+    for workplace in (WorkplaceType.HYBRID, WorkplaceType.ON_SITE):
+        job = make_job(
+            title="Content Strategist",
+            workplace_type=workplace,
+            locations=[JobLocation(label="San Francisco | New York", is_primary=True)],
+            description_text=(
+                "Own the content strategy, brand voice, and editorial systems. "
+                "No mention here of how many days anyone sits anywhere."
+            ),
+        )
+        result = score_job(_adam(), job)
+        assert not result.eligible, f"{workplace.value} must be rejected"
+        assert "on-site presence" in " ".join(result.concerns)
+
+
+def test_hybrid_within_commuting_distance_is_kept():
+    """Hybrid is only disqualifying because the office is unreachable."""
+    job = make_job(
+        title="Content Strategist",
+        workplace_type=WorkplaceType.HYBRID,
+        locations=[JobLocation(label="Bend, OR", is_primary=True)],
+    )
+
+    assert "on-site presence" not in " ".join(score_job(_adam(), job).concerns)
+
+
+def test_hybrid_listing_that_also_offers_remote_is_kept():
+    """"San Francisco | Remote" is a remote option with an office attached."""
+    job = make_job(
+        title="Content Strategist",
+        workplace_type=WorkplaceType.HYBRID,
+        locations=[JobLocation(label="San Francisco | Remote - US", is_primary=True)],
+    )
+
+    assert "on-site presence" not in " ".join(score_job(_adam(), job).concerns)

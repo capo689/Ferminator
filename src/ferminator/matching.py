@@ -753,7 +753,15 @@ def score_job(profile: CareerProfile, job: NormalizedJob) -> MatchResult:
     # cannot reach. These used to pass on the strength of a "…, United States"
     # label and then had to be rejected by hand, one at a time.
     if profile.search.default_location_mode in {"remote", "remote_or_near"}:
-        onsite = _requires_onsite_presence(text)
+        # The provider's own field settles it when it is set. Reading cadence
+        # out of the prose was the fallback, not the primary test, and treating
+        # it as primary let a job stamped `hybrid`, in San Francisco and New
+        # York, through to a completed application.
+        if job.workplace_type in {WorkplaceType.HYBRID, WorkplaceType.ON_SITE}:
+            declared = f"The posting is marked {job.workplace_type.value}"
+        else:
+            declared = None
+        onsite = declared or _requires_onsite_presence(text)
         if (
             onsite
             and job.workplace_type != WorkplaceType.REMOTE
