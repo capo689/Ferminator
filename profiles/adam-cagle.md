@@ -89,7 +89,6 @@ search:
         - Conversational AI Manager
         - AI Knowledge Base
         - Knowledge Base & Conversational AI
-        - AI Editorial
     - id: creative-ai-technology
       label: Creative AI & Technology
       tier: primary
@@ -157,22 +156,18 @@ search:
       label: Content & Brand Strategy
       tier: adjacent
       threshold: 50
-      description: Brand voice, messaging, editorial direction, and content strategy.
+      description: Brand voice, messaging, and content strategy.
       aliases:
         - Content Strategy
         - Content Strategist
         - Senior Content Strategist
         - Content Director
         - Director of Content
-        - Editorial Director
         - Brand Strategist
         - Brand Strategy
         - Messaging Strategist
         - Brand Voice
         - Product Narrative
-        - Editorial Content
-        - Editorial Lead
-        - Head of Editorial
         - Head of Content
         - Content Marketing Manager
         - Content Marketing Director
@@ -237,7 +232,6 @@ search:
         - Creative Producer
         - Creative Production
         - Campaign Operations
-        - Editorial Operations
         - Knowledge Base Manager
     - id: consulting-transformation
       label: AI & Digital Consulting
@@ -354,6 +348,10 @@ search:
       - Social Media Manager
       - Social Media Coordinator
       - Social Media Specialist
+      # Editorial is out entirely. Dropping the aliases stops it being a
+      # target; this stops a JD-body match dragging one back in through
+      # another family.
+      - Editorial
       - AI Enablement Engineer
       - AI Deployment Engineer
       - Agentic AI Engineer

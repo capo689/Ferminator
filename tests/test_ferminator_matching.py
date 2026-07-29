@@ -8,7 +8,7 @@ from ferminator.domain import (
     NormalizedJob,
     WorkplaceType,
 )
-from ferminator.matching import matched_role_family, score_job
+from ferminator.matching import _matched_title_exclusions, matched_role_family, score_job
 from ferminator.profiles import load_profile
 
 
@@ -639,3 +639,40 @@ def test_hybrid_listing_that_also_offers_remote_is_kept():
     )
 
     assert "on-site presence" not in " ".join(score_job(_adam(), job).concerns)
+
+
+def test_editorial_titles_are_excluded():
+    """Editorial is not the work. Dropped as a target and blocked as a title.
+
+    The alias removal alone was not enough: a JD-body match could still assign
+    one of these to Content & Brand Strategy and pull it back into the feed.
+    """
+    profile = _adam()
+    excluded = profile.search.exclude.get("title_phrases", [])
+    for title in (
+        "Head of Editorial Content",
+        "Manager, Editorial Lead",
+        "Senior Manager, Editorial (Remote)",
+        "Editorial Director",
+        "Brand Editorial Lead",
+    ):
+        assert _matched_title_exclusions(title, excluded), f"{title} should be excluded"
+
+
+def test_content_and_brand_titles_survive_the_editorial_cut():
+    """The neighbouring content and brand work is still wanted."""
+    from ferminator.matching import matched_role_family
+
+    profile = _adam()
+    excluded = profile.search.exclude.get("title_phrases", [])
+    for title in (
+        "Content Strategist",
+        "Senior Content Strategist",
+        "Content Director",
+        "Director of Content",
+        "Brand Strategist",
+        "Brand Voice Lead",
+        "Head of Content",
+    ):
+        assert not _matched_title_exclusions(title, excluded), f"{title} must survive"
+        assert matched_role_family(profile, title) is not None, f"{title} lost its family"
