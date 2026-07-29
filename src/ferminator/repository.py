@@ -38,6 +38,27 @@ STICKY_SCORE_FLOOR = 40
 # since abandoned. Jobs rated great or maybe ignore this entirely.
 VISIBILITY_GRACE_DAYS = 7
 
+# The single definition of "Adam has already dealt with this job."
+#
+# Every path that shows jobs to a user must apply this. It exists as a shared
+# constant because it was previously inlined in `web_matches` only, and an
+# ad-hoc export written against `job_matches` bypassed it and shipped four
+# already-applied roles, one of which had been shipped in error once before.
+# A second copy of this logic is a second chance to forget it.
+#
+# Requires `p` (profiles) and `j` (jobs) aliases in the enclosing query, and is
+# meant to be wrapped in `not exists (...)`.
+SUPPRESSED_BY_HISTORY_SQL = """
+                    select 1 from public.job_history h
+                    where h.profile_id = p.id
+                      and (h.permanent or h.suppress_until > now())
+                      and (
+                        h.source_job_key = j.source_key
+                        or h.fingerprint = public.normalize_job_part(j.company_name)
+                          || '::' || public.normalize_job_part(j.title)
+                      )
+"""
+
 if TYPE_CHECKING:
     from ferminator.registry import CompanyRegistry
 
@@ -791,25 +812,30 @@ class PostgresRepository:
                   from latest_match l
                   join job_level jl on jl.job_id = l.job_id
                   cross join effective_profile p
-                  where jl.ever_eligible
+                  -- A great/maybe verdict overrides machine judgment entirely:
+                  -- eligibility, the grace window, and the floor. The matcher
+                  -- rejected 40 of 47 reviewer-approved keepers (geography and
+                  -- role-family inference, both known-wrong on remote jobs),
+                  -- and a rating the user cannot see is not a rating.
+                  --
+                  -- The floor on the machine path is a real filter, not
+                  -- decoration: without it this pulls thousands of rows
+                  -- through the per-row lateral joins below, which is what
+                  -- once made the page take over a minute.
+                  where (
+                    jl.ever_eligible
                     and (
                       l.eligible
                       or jl.last_eligible_at > now() - make_interval(days => %s)
                     )
-                    -- The floor is a real filter, not decoration: without it
-                    -- this pulls thousands of rows through the per-row lateral
-                    -- joins below, which is what once made the page take over
-                    -- a minute. A rated keeper is exempt, since the user has
-                    -- already said it belongs here.
-                    and (
-                      l.score >= %s
-                      or exists (
-                        select 1 from public.match_feedback f
-                        where f.profile_id = p.id
-                          and f.job_id = l.job_id
-                          and f.verdict in ('great', 'maybe')
-                      )
-                    )
+                    and l.score >= %s
+                  )
+                  or exists (
+                    select 1 from public.match_feedback f
+                    where f.profile_id = p.id
+                      and f.job_id = l.job_id
+                      and f.verdict in ('great', 'maybe')
+                  )
                 ),
                 deduplicated_matches as (
                   select m.*, row_number() over (
@@ -907,20 +933,16 @@ class PostgresRepository:
                   from public.job_revisions history
                   where history.job_id = j.id
                 ) revision_history on true
-                where m.ever_eligible
-                  and (
-                    m.score >= %s
+                where (
+                    (m.ever_eligible and m.score >= %s)
+                    -- Same keeper override as effective_matches above: a
+                    -- rated job renders regardless of what scoring thought.
                     or feedback.verdict in ('great', 'maybe')
                   )
                   and (%s or not exists (
-                    select 1 from public.job_history h
-                    where h.profile_id = p.id
-                      and (h.permanent or h.suppress_until > now())
-                      and (
-                        h.source_job_key = j.source_key
-                        or h.fingerprint = public.normalize_job_part(j.company_name)
-                          || '::' || public.normalize_job_part(j.title)
-                      )
+                    """
+                + SUPPRESSED_BY_HISTORY_SQL
+                + """
                   ))
                 order by m.score desc, j.first_seen_at desc
                 limit %s
@@ -1975,6 +1997,58 @@ class PostgresRepository:
                     scored_jobs,
                     json.dumps(sorted(set(error_codes))),
                     scan_id,
+                ),
+            )
+
+    def suppress_job(
+        self,
+        profile_slug: str,
+        *,
+        company: str,
+        title: str,
+        category: str,
+        status: str,
+        suppress_until: datetime,
+        permanent: bool = False,
+    ) -> None:
+        """Suppress one company/title from every user-facing surface.
+
+        Same conflict semantics as the ledger import: an existing permanent
+        suppression is never weakened, and an existing window is only ever
+        extended. This is the mechanism for "seen it, done with it"; it leaves
+        match_feedback untouched so calibration keeps its signal.
+        """
+        with self.connection() as conn, conn.transaction():
+            profile = conn.execute(
+                "select id from public.profiles where slug = %s",
+                (profile_slug,),
+            ).fetchone()
+            if profile is None:
+                raise LookupError("Profile not found")
+            fingerprint = f"{normalize_job_part(company)}::{normalize_job_part(title)}"
+            conn.execute(
+                """
+                insert into public.job_history (
+                  profile_id, company_name, title, normalized_company,
+                  normalized_title, fingerprint, category, status, source,
+                  first_recorded_at, suppress_until, permanent
+                )
+                values (%s, %s, %s, %s, %s, %s, %s, %s, 'discover-reset',
+                        now(), %s, %s)
+                on conflict (profile_id, fingerprint) do update set
+                  category = excluded.category,
+                  status = excluded.status,
+                  suppress_until = case
+                    when job_history.permanent then null
+                    else greatest(job_history.suppress_until, excluded.suppress_until)
+                  end,
+                  permanent = job_history.permanent or excluded.permanent,
+                  updated_at = now()
+                """,
+                (
+                    profile["id"], company, title,
+                    normalize_job_part(company), normalize_job_part(title),
+                    fingerprint, category, status, suppress_until, permanent,
                 ),
             )
 

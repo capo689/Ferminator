@@ -164,3 +164,47 @@ def test_newest_sort_remains_a_true_date_sort():
     ranked = sort_discover_matches(matches, "newest")
 
     assert [item["title"] for item in ranked] == ["New Maybe", "Older Great"]
+
+
+def test_rated_keeper_overrides_every_machine_filter():
+    """A great/maybe verdict outranks role-family, threshold, and location.
+
+    The 2026-07-29 reviewer pass approved 47 jobs; 40 could not render because
+    the matcher had judged them ineligible, no role family claimed their title
+    ("Product Manager", "Solutions Engineer"), or the provider never set a
+    remote flag. A rating the user cannot see is not a rating.
+    """
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    keepers = [
+        # No role family matches this title.
+        _job("Product Manager", score=20, verdict="great"),
+        # Family matches but the score is under every threshold.
+        _job("Senior Copywriter", score=5, verdict="maybe"),
+        # Provider flags say on-site; the reviewer read the listing.
+        _job("Solutions Engineer, AI Agent", score=20, verdict="maybe", remote=False),
+    ]
+    unrated_noise = _job("Product Manager", score=20)
+
+    thresholded = apply_role_thresholds(profile, keepers + [unrated_noise], {})
+    visible = apply_default_discover_filters(profile, thresholded)
+
+    assert [item["id"] for item in visible] == [
+        "Product Manager",
+        "Senior Copywriter",
+        "Solutions Engineer, AI Agent",
+    ]
+    families = {item["id"]: item["role_family_id"] for item in visible}
+    assert families["Product Manager"] == "rated"
+
+
+def test_wrong_and_duplicate_still_beat_the_keeper_override():
+    """The override is for great/maybe only; rejections still hide jobs."""
+    profile = load_profile(Path("profiles/adam-cagle.md"))
+    candidates = [
+        _job("Senior Copywriter", score=90, verdict="wrong"),
+        _job("Copy Lead", score=90, verdict="duplicate"),
+    ]
+
+    visible = apply_default_discover_filters(profile, candidates)
+
+    assert visible == []
