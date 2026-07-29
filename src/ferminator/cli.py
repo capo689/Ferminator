@@ -589,10 +589,42 @@ def scan(
                     f"[yellow]{len(bulk.failed)} of {len(boards)} boards failed "
                     f"({failure_rate:.1%}); tolerating up to {allowed}[/yellow]"
                 )
+                # Tolerated is not the same as unnoticed. Without this, a board
+                # failing every run for days stayed under the threshold and
+                # never showed up anywhere.
+                for item in bulk.failed:
+                    console.print(
+                        f"::warning::Board failed: {item.board.provider.value}"
+                        f"/{item.board.board_key} ({item.error_code})"
+                    )
+            withheld = [item for item in bulk.succeeded if item.removal_withheld]
+            for item in withheld:
+                console.print(
+                    f"::warning::Removals withheld for {item.board.provider.value}"
+                    f"/{item.board.board_key}: {item.removal_withheld}"
+                )
             console.print(
                 f"[cyan]Parallel fetch phase: {bulk.fetch_duration_ms / 1000:.1f}s "
                 f"with {workers} workers[/cyan]"
             )
+            # Close the loop the removal guard opens. Jobs their own board has
+            # stopped returning are deactivated here, so a board that shrinks
+            # past the safety limit still converges instead of holding dead
+            # listings forever.
+            expired = repository.expire_unseen_jobs()
+            if expired:
+                console.print(
+                    f"[yellow]Expired {len(expired)} job(s) no longer on "
+                    f"their board[/yellow]"
+                )
+                for item in expired[:20]:
+                    console.print(
+                        f"  {item['provider']}/{item['board_key']}: "
+                        f"{item['company_name']} — {item['title']}"
+                    )
+                if len(expired) > 20:
+                    console.print(f"  ... and {len(expired) - 20} more")
+
             # Sharded pulls run ingest-only: scoring every profile inside each
             # shard would re-score the whole corpus once per shard, against a
             # half-updated set of jobs. One rescore after all shards finish.
