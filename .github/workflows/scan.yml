@@ -40,28 +40,25 @@ jobs:
       fail-fast: false
       matrix:
         shard:
-          # Balanced by measured wall clock, not board count. Workday paginates
-          # 20 jobs per request, so one 2,000-job board is ~100 sequential round
-          # trips. Its 77 boards took over 53 minutes and hit the timeout, while
-          # Greenhouse fetched 262 boards in 32 seconds.
+          # Balanced by measured wall clock, not board count. Workday
+          # paginates 20 jobs per request, so one 2,000-job board is ~100
+          # sequential round trips, which is why it gets its own shards at all.
           #
-          # So Workday gets shards to itself and every other provider fits in
-          # one. Two Workday shards did pass, at 32m36s and 45m26s, but boards
-          # are split by identity rather than by job volume, so the halves come
-          # out uneven and the slow one sat too close to the timeout to absorb
-          # any growth. Three brings the worst case back near 30 minutes.
+          # The Workday directory was cut from 143 boards to 38 on evidence:
+          # across 26,782 Workday jobs it produced 21 eligible matches, three
+          # scoring 50 or better, and none at 60. Greenhouse and Ashby produce
+          # 8.7% and 17.3% eligible against Workday's 0.08%. What survived is
+          # the AI, robotics, EdTech and media names plus the three boards that
+          # ever cleared 50. Two shards cover 38 boards at the 26-per-shard
+          # ratio that measured 32m36s and 45m26s.
           - name: workday-a
             providers: workday
             index: 1
-            count: 3
+            count: 2
           - name: workday-b
             providers: workday
             index: 2
-            count: 3
-          - name: workday-c
-            providers: workday
-            index: 3
-            count: 3
+            count: 2
           - name: everything-else
             providers: greenhouse,ashby,lever,smartrecruiters,rippling,breezy,workable,bamboohr
             index: 1
