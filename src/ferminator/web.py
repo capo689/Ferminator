@@ -181,11 +181,14 @@ async def request_observability(request: Request, call_next):
                 response = HTMLResponse("Account unavailable.", status_code=403)
                 return _security_headers(response, request_id)
             request.state.account = account
-            if request.url.path.startswith("/admin") and account.role != "sysadmin":
+            # /ops publishes the private board registry. It is deliberately
+            # kept out of the public repo, so it must not be readable by every
+            # signed-in beta user either.
+            if request.url.path.startswith(("/admin", "/ops")) and account.role != "sysadmin":
                 response = HTMLResponse("Administrator access required.", status_code=403)
                 return _security_headers(response, request_id)
             if account.role == "sysadmin" and not request.url.path.startswith(
-                ("/admin", "/logout")
+                ("/admin", "/logout", "/ops")
             ):
                 response = RedirectResponse("/admin", status_code=303)
                 return _security_headers(response, request_id)

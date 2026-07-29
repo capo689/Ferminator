@@ -412,46 +412,76 @@ class PostgresRepository:
             ).fetchone()
         return str(row["id"])
 
-    def expire_unseen_jobs(self, *, stale_after_days: int = 3) -> list[dict]:
+    def expire_unseen_jobs(
+        self,
+        *,
+        stale_after_days: int = 3,
+        trust_withheld_after: int = 3,
+    ) -> list[dict]:
         """Deactivate active jobs their own board has stopped returning.
 
-        The mass-removal guard withholds deletions when a board shrinks hard or
-        comes back empty, which protects the corpus from a bad fetch but leaves
-        the dropped jobs active. This closes that loop.
+        Staleness is measured against the board's most recent *trusted*
+        ingestion, not simply its most recent success. A run that tripped the
+        mass-removal guard finished cleanly but is not an authoritative
+        snapshot: the jobs the bad response omitted never had last_seen_at
+        refreshed, so trusting it would execute the very deletion the guard
+        just blocked, three days later.
 
-        Staleness is measured against the board's most recent *successful
-        ingestion*, not against the newest surviving job. Those differ in the
-        case that matters: when a board returns nothing at all, every job keeps
-        the same last_seen_at, so no job is older than its neighbours and an
-        age-relative-to-siblings rule can never fire. MeanPug sat in exactly
-        that state. It also rules out a board nobody has fetched lately losing
-        its jobs, because absence of a fetch is not evidence of absence.
+        A board that keeps reporting the same guarded result is eventually
+        believed. After `trust_withheld_after` consecutive guarded runs the
+        latest one becomes the reference, so a genuinely emptied board still
+        converges instead of freezing forever. That balance is the whole point:
+        a transient bad response is ignored, a persistent truth is accepted.
 
-        ingestion_runs is the source rather than ats_boards.updated_at, which a
-        registry import also touches and would turn into a mass expiry.
+        Boards nobody has fetched lately lose nothing, because absence of a
+        fetch is not evidence that listings disappeared.
         """
         with self.connection() as conn, conn.transaction():
             rows = conn.execute(
                 """
-                with last_success as (
-                  select board_id, max(finished_at) as fetched_at
+                with ranked as (
+                  select board_id, finished_at, removal_withheld,
+                         row_number() over (
+                           partition by board_id order by finished_at desc
+                         ) as recency
                   from public.ingestion_runs
                   where status = 'succeeded' and finished_at is not null
-                  group by board_id
+                ),
+                consecutive_withheld as (
+                  -- How many of the most recent runs, without interruption,
+                  -- were guarded. A single clean run resets this to zero.
+                  select board_id,
+                         coalesce(min(recency) filter (
+                           where removal_withheld is null
+                         ) - 1, count(*)) as streak
+                  from ranked group by board_id
+                ),
+                reference as (
+                  select r.board_id,
+                         case
+                           when c.streak >= %s then max(r.finished_at)
+                           else max(r.finished_at) filter (
+                             where r.removal_withheld is null
+                           )
+                         end as trusted_at
+                  from ranked r
+                  join consecutive_withheld c on c.board_id = r.board_id
+                  group by r.board_id, c.streak
                 )
                 update public.jobs j
                 set active = false,
                     removed_at = now(),
                     updated_at = now()
-                from last_success s, public.ats_boards b
+                from reference s, public.ats_boards b
                 where s.board_id = j.ats_board_id
                   and b.id = j.ats_board_id
+                  and s.trusted_at is not null
                   and j.active
-                  and j.last_seen_at < s.fetched_at - make_interval(days => %s)
+                  and j.last_seen_at < s.trusted_at - make_interval(days => %s)
                 returning j.id, j.title, j.company_name, b.provider::text as provider,
                           b.board_key, j.last_seen_at
                 """,
-                (stale_after_days,),
+                (trust_withheld_after, stale_after_days),
             ).fetchall()
         return [dict(row) for row in rows]
 
@@ -2367,7 +2397,7 @@ class PostgresRepository:
                 update public.ingestion_runs
                 set status = 'succeeded', finished_at = %s, duration_ms = %s,
                     fetched_count = %s, inserted_count = %s, updated_count = %s,
-                    removed_count = %s
+                    removed_count = %s, removal_withheld = %s
                 where id = %s
                 """,
                 (
@@ -2377,6 +2407,9 @@ class PostgresRepository:
                     len(plan.added),
                     updated_count,
                     len(plan.removed),
+                    # A guarded run finished cleanly but is not an authoritative
+                    # snapshot of the board, and expiry must not trust it.
+                    plan.removal_withheld,
                     run["id"],
                 ),
             )
