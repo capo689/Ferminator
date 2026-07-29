@@ -52,6 +52,9 @@ ferminator = ["templates/*.html", "templates/partials/*.html", "static/**/*", "d
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+# Parked work, kept for reference and deliberately not linted or imported.
+# See archive/near-search/README.md.
+extend-exclude = ["archive"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP"]

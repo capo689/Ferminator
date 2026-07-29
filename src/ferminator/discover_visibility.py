@@ -66,10 +66,24 @@ def apply_role_thresholds(
             item["title"],
             item.get("compensation_text") or item.get("description_text") or "",
         )
+        rated_keeper = item.get("feedback_verdict") in {"great", "maybe"}
         if family is None:
+            # A rated keeper stays even when no family claims its title.
+            # Family inference is title-pattern matching, and most of the
+            # reviewer-approved pool ("Product Manager", "Solutions Engineer")
+            # matches no pattern; a rating outranks the inference.
+            if rated_keeper:
+                result.append(
+                    {
+                        **item,
+                        "role_family_id": "rated",
+                        "role_family": "Rated keeper",
+                        "role_threshold": 0,
+                    }
+                )
             continue
         threshold = overrides.get(family.id, family.threshold)
-        if item["score"] < threshold:
+        if item["score"] < threshold and not rated_keeper:
             continue
         result.append(
             {
@@ -98,6 +112,13 @@ def apply_default_discover_filters(
     origin = lookup_zip(rules.default_zip)
     result = []
     for item in visible:
+        # A great/maybe rating overrides location inference. is_remote_job
+        # only trusts provider flags, which are absent on many genuinely
+        # remote postings ("Remote" in the title, remote stated in the body),
+        # and a reviewer has already read the actual listing.
+        if item.get("feedback_verdict") in {"great", "maybe"}:
+            result.append(item)
+            continue
         distance = job_distance_miles(item, origin) if origin else None
         remote = is_remote_job(item)
         near = distance is not None and distance <= rules.default_radius_miles
