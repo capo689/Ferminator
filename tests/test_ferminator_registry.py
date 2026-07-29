@@ -53,8 +53,11 @@ def test_scheduled_scan_pulls_twice_daily_and_scores_once() -> None:
 
     assert "timeout-minutes: 60" in workflow
     assert "timezone: America/Los_Angeles" in workflow
-    assert 'cron: "0 6 * * *"' in workflow
-    assert 'cron: "0 15 * * *"' in workflow
+    # Off the hour on purpose: the top of the hour is GitHub's documented
+    # high-load window, and both slots were routinely delayed or dropped there.
+    assert 'cron: "11 6 * * *"' in workflow
+    assert 'cron: "41 15 * * *"' in workflow
+    assert '"0 6 * * *"' not in workflow and '"0 15 * * *"' not in workflow
     # Shards must not score. Scoring inside every shard would re-score the whole
     # corpus once per shard, each against a half-updated set of jobs.
     assert "--ingest-only" in workflow

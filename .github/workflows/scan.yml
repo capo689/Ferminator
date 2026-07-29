@@ -17,11 +17,16 @@ on:
         default: all
         type: string
   schedule:
-    # 06:00 and 15:00 Pacific. America/Los_Angeles tracks the PST/PDT
+    # 06:11 and 15:41 Pacific. America/Los_Angeles tracks the PST/PDT
     # transition, so these hold their local time year round.
-    - cron: "0 6 * * *"
+    #
+    # Deliberately off the hour. GitHub documents the top of the hour as a
+    # high-load window where scheduled runs are delayed or dropped, and this
+    # workflow was living it: the 06:00 slot fired 2h08m late on 28 July, the
+    # 15:00 slot 1h01m late, and the 06:00 slot on 29 July never fired at all.
+    - cron: "11 6 * * *"
       timezone: America/Los_Angeles
-    - cron: "0 15 * * *"
+    - cron: "41 15 * * *"
       timezone: America/Los_Angeles
 
 concurrency:
