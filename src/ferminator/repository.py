@@ -32,6 +32,12 @@ from ferminator.profiles import CareerProfile, load_compiled_profile, load_profi
 # going to clear the role thresholds downstream anyway.
 STICKY_SCORE_FLOOR = 40
 
+# How long a job keeps its place after scoring stops finding it eligible.
+# Bounded on purpose: it exists so an untouched job does not vanish out from
+# under a review in progress, not so a job can ride a profile the user has
+# since abandoned. Jobs rated great or maybe ignore this entirely.
+VISIBILITY_GRACE_DAYS = 7
+
 if TYPE_CHECKING:
     from ferminator.registry import CompanyRegistry
 
@@ -748,15 +754,28 @@ class PostgresRepository:
                   from public.profiles p
                   where p.slug = %s
                 ),
-                -- Discover is sticky: once a job qualifies it stays visible
-                -- until the user actually deals with it. Scoping to the newest
-                -- profile_version rebuilt the list on every rescore, so an
-                -- untouched job silently vanished because a later pass ranked
-                -- it lower. Aggregate across versions instead.
+                -- Discover holds a job steady while the user deals with it,
+                -- without letting it ride a score it no longer earns.
+                --
+                -- The score shown and ranked on is the *current* one. Taking
+                -- the maximum across every historical profile version meant a
+                -- job the user had deliberately excluded stayed in the feed
+                -- displaying its old number: after editorial was removed from
+                -- the profile, Zeta Global's Manager, Editorial Lead was still
+                -- listed at 71 while currently scoring 0.
+                --
+                -- Stability now comes from a bounded window instead. A job
+                -- that scoring found eligible within the grace period stays
+                -- visible even if the latest pass dropped it, which is what
+                -- stops an untouched job vanishing mid-review. Anything the
+                -- user rated great or maybe is kept regardless, because that
+                -- is what a rating is for.
                 job_level as (
                   select m.job_id,
                          bool_or(m.eligible) as ever_eligible,
-                         max(m.score) as best_score
+                         max(m.score) as best_score,
+                         max(m.updated_at) filter (where m.eligible)
+                           as last_eligible_at
                   from public.job_matches m
                   join effective_profile p on p.id = m.profile_id
                   group by m.job_id
@@ -768,17 +787,35 @@ class PostgresRepository:
                   order by m.job_id, m.profile_version desc, m.updated_at desc
                 ),
                 effective_matches as (
-                  select l.*, jl.best_score, jl.ever_eligible
+                  select l.*, jl.best_score, jl.ever_eligible, jl.last_eligible_at
                   from latest_match l
                   join job_level jl on jl.job_id = l.job_id
+                  cross join effective_profile p
                   where jl.ever_eligible
-                    and jl.best_score >= %s
+                    and (
+                      l.eligible
+                      or jl.last_eligible_at > now() - make_interval(days => %s)
+                    )
+                    -- The floor is a real filter, not decoration: without it
+                    -- this pulls thousands of rows through the per-row lateral
+                    -- joins below, which is what once made the page take over
+                    -- a minute. A rated keeper is exempt, since the user has
+                    -- already said it belongs here.
+                    and (
+                      l.score >= %s
+                      or exists (
+                        select 1 from public.match_feedback f
+                        where f.profile_id = p.id
+                          and f.job_id = l.job_id
+                          and f.verdict in ('great', 'maybe')
+                      )
+                    )
                 ),
                 deduplicated_matches as (
                   select m.*, row_number() over (
                     partition by public.normalize_job_part(j.company_name),
                                  public.normalize_job_part(j.title)
-                    order by m.best_score desc,
+                    order by m.score desc,
                              (j.workplace_type = 'remote') desc,
                              (j.salary_min is not null) desc,
                              j.published_at desc nulls last,
@@ -792,7 +829,7 @@ class PostgresRepository:
                        j.department, j.workplace_type, j.salary_min, j.salary_max,
                        j.salary_currency, j.salary_interval, j.job_url, j.apply_url,
                        j.published_at, j.source_updated_at, j.first_seen_at,
-                       j.last_seen_at, b.provider, m.best_score as score, m.component_scores,
+                       j.last_seen_at, b.provider, m.score, m.component_scores,
                        m.matched_evidence, m.concerns, m.explanation,
                        feedback.verdict as feedback_verdict,
                        feedback.wrong_reason_code as feedback_reason_code,
@@ -870,7 +907,11 @@ class PostgresRepository:
                   from public.job_revisions history
                   where history.job_id = j.id
                 ) revision_history on true
-                where m.ever_eligible and m.best_score >= %s
+                where m.ever_eligible
+                  and (
+                    m.score >= %s
+                    or feedback.verdict in ('great', 'maybe')
+                  )
                   and (%s or not exists (
                     select 1 from public.job_history h
                     where h.profile_id = p.id
@@ -881,10 +922,17 @@ class PostgresRepository:
                           || '::' || public.normalize_job_part(j.title)
                       )
                   ))
-                order by m.best_score desc, j.first_seen_at desc
+                order by m.score desc, j.first_seen_at desc
                 limit %s
                 """,
-                (profile_slug, STICKY_SCORE_FLOOR, minimum_score, include_suppressed, limit),
+                (
+                    profile_slug,
+                    VISIBILITY_GRACE_DAYS,
+                    STICKY_SCORE_FLOOR,
+                    minimum_score,
+                    include_suppressed,
+                    limit,
+                ),
             ).fetchall()
         now = datetime.now(UTC)
         result = []
