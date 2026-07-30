@@ -52,11 +52,12 @@ def test_scheduled_scan_pulls_twice_daily_and_scores_once() -> None:
     workflow = Path(".github/workflows/scan.yml").read_text(encoding="utf-8")
 
     assert "timeout-minutes: 60" in workflow
-    assert "timezone: America/Los_Angeles" in workflow
-    # Off the hour on purpose: the top of the hour is GitHub's documented
-    # high-load window, and both slots were routinely delayed or dropped there.
-    assert 'cron: "11 6 * * *"' in workflow
-    assert 'cron: "41 15 * * *"' in workflow
+    # Plain UTC crons, off the hour. The cron `timezone:` key silently killed
+    # the schedule outright (zero fires after the 2026-07-29 edit), and the
+    # on-the-hour slots before it were routinely delayed or dropped.
+    assert 'cron: "11 13 * * *"' in workflow
+    assert 'cron: "41 22 * * *"' in workflow
+    assert "timezone: America/Los_Angeles" not in workflow
     assert '"0 6 * * *"' not in workflow and '"0 15 * * *"' not in workflow
     # Shards must not score. Scoring inside every shard would re-score the whole
     # corpus once per shard, each against a half-updated set of jobs.
