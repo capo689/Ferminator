@@ -208,7 +208,8 @@ def main() -> None:
     print(f"rejected on title: {len(rejected)}")
     print(f"KEPT: {len(kept)}")
 
-    stamp = datetime.now(UTC).strftime("%Y-%m-%d")
+    # Local date, not UTC: an evening run in Oregon is not tomorrow's file.
+    stamp = datetime.now().astimezone().strftime("%Y-%m-%d")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     parts = max(1, args.parts)
     size = -(-len(kept) // parts)
