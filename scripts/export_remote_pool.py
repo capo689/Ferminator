@@ -167,7 +167,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", default="adam-cagle")
     parser.add_argument("--out-dir", type=Path, required=True)
-    parser.add_argument("--parts", type=int, default=2)
+    # One file is the default. The split existed for the 721-job backlog
+    # pass; a daily pool of a few dozen jobs never needs it.
+    parser.add_argument("--parts", type=int, default=1)
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
     args = parser.parse_args()
 
