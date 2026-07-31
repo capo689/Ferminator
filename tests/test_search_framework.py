@@ -147,3 +147,22 @@ def test_history_suppression_has_exactly_one_definition() -> None:
     assert "job_history" in SUPPRESSED_BY_HISTORY_SQL
     assert "h.permanent or h.suppress_until > now()" in SUPPRESSED_BY_HISTORY_SQL
     assert "normalize_job_part" in SUPPRESSED_BY_HISTORY_SQL
+
+
+class TestForeignRemoteGate:
+    def test_remote_uk_label_is_not_us_remote(self) -> None:
+        """"Remote-UK&I" reached review on the strength of the word remote."""
+        verdict = _remote(location_labels="Remote-UK&I")
+        assert not verdict.is_remote
+        assert "restricted" in verdict.reason
+
+    @pytest.mark.parametrize("label", ["Remote - EMEA", "Canada - Remote", "Remote (Europe)"])
+    def test_foreign_region_labels_fail(self, label: str) -> None:
+        assert not _remote(location_labels=label).is_remote
+
+    @pytest.mark.parametrize(
+        "label",
+        ["Remote - US or Canada", "Remote, North America", "United States - Remote", "Remote"],
+    )
+    def test_us_or_unscoped_labels_pass(self, label: str) -> None:
+        assert _remote(location_labels=label).is_remote

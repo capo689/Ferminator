@@ -70,12 +70,18 @@ left join public.job_revisions r on r.id = j.current_revision_id
 where j.active
   and j.title ~* %s
   and not exists ({SUPPRESSED_BY_HISTORY_SQL})
-  -- Reviewed means reviewed: any recorded verdict, keeper or rejection,
-  -- keeps a job out of every future pool. The 2026-07-29 backlog pass
-  -- recorded all 721, so from here each run is new arrivals only.
+  -- Reviewed means reviewed, and it sticks to the company+title, not the
+  -- job id. Providers repost identical listings under fresh ids, one per
+  -- region: INFUSE alone re-entered the pool 27 times the day after its
+  -- verdict, eating 27 of 38 review slots. A verdict on any job with this
+  -- fingerprint keeps every past and future repost out.
   and not exists (
     select 1 from public.match_feedback f
-    where f.profile_id = p.id and f.job_id = j.id
+    join public.jobs jf on jf.id = f.job_id
+    where f.profile_id = p.id
+      and public.normalize_job_part(jf.company_name)
+        = public.normalize_job_part(j.company_name)
+      and public.normalize_job_part(jf.title) = public.normalize_job_part(j.title)
   )
 order by j.company_name, j.title
 """
@@ -135,6 +141,8 @@ def render(jobs: list[dict], part: int, total_parts: int) -> str:
             f"{escape(job['_matched'] or '')}</title_match>",
             f"  <remote_evidence>{escape(job['_remote_reason'])}</remote_evidence>",
             f"  <location>{escape(job['location_labels'] or 'not stated')}</location>",
+            *([f"  <also_posted_for>{escape('; '.join(job['_variant_locations']))}"
+               f"</also_posted_for>"] if job.get("_variant_locations") else []),
             f"  <salary_structured>{escape(salary_line(job))}</salary_structured>",
             f"  <url>{escape(job['url'] or '')}</url>",
             "  <complete_job_description><![CDATA[",
@@ -205,6 +213,20 @@ def main() -> None:
         row["_matched"] = title.matched
         row["_remote_reason"] = remote.reason
         kept.append(row)
+
+    # Collapse same-day regional copies: one company+title appears once, with
+    # its location variants listed, instead of once per regional requisition.
+    collapsed: dict[tuple[str, str], dict] = {}
+    for row in kept:
+        key = ((row["company_name"] or "").strip().casefold(),
+               (row["title"] or "").strip().casefold())
+        if key in collapsed:
+            first = collapsed[key]
+            first["_variant_locations"].append(row["location_labels"] or "unlabelled")
+        else:
+            row["_variant_locations"] = []
+            collapsed[key] = row
+    kept = list(collapsed.values())
 
     print(f"remote: {len(kept) + len(rejected)}")
     print(f"rejected on title: {len(rejected)}")
