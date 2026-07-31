@@ -252,13 +252,80 @@ def test_digest_skips_a_profile_with_no_recipient_instead_of_failing(monkeypatch
     assert "0 of 1 digest(s) sent" in result.output
 
 
-def test_rescore_covers_every_active_profile_and_fetches_the_corpus_once(monkeypatch):
+def _pending_job():
+    from ferminator.domain import NormalizedJob
+
+    return (
+        "job-1",
+        "rev-1",
+        NormalizedJob.model_validate(
+            {
+                "provider": "greenhouse",
+                "board_key": "sample",
+                "source_job_id": "1",
+                "company_slug": "sample",
+                "company_name": "Sample",
+                "title": "Senior Copywriter",
+                "job_url": "https://example.com/1",
+                "description_text": "Fully remote within the United States.",
+            }
+        ),
+    )
+
+
+def test_rescore_is_incremental_by_default(monkeypatch):
+    """The default pass reads each profile's pending jobs, never the corpus.
+
+    The full-corpus read pulled ~63k descriptions out of the database twice a
+    day and consumed the entire free-tier egress allowance in one cycle.
+    """
+    from click.testing import CliRunner
+
+    from ferminator import cli as cli_module
+    from ferminator.profiles import load_profile
+
+    profile = load_profile("profiles/adam-cagle.md")
+    calls = {"active_jobs": 0, "pending": [], "stored": []}
+
+    class Repository:
+        def scannable_profiles(self):
+            return [("id-a", profile), ("id-b", profile)]
+
+        def active_jobs(self):
+            calls["active_jobs"] += 1
+            return []
+
+        def pending_jobs(self, profile_id, profile_version):
+            calls["pending"].append(profile_id)
+            return [_pending_job()] if profile_id == "id-a" else []
+
+        def profile_version(self, _profile_id):
+            return 1
+
+        def store_matches(self, *, profile_id, profile_version, matches):
+            calls["stored"].append(profile_id)
+
+        def close(self):
+            pass
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
+    monkeypatch.setattr(cli_module, "PostgresRepository", lambda *_a, **_k: Repository())
+
+    result = CliRunner().invoke(cli_module.cli, ["rescore"])
+
+    assert result.exit_code == 0, result.output
+    assert calls["active_jobs"] == 0, "incremental mode must never fetch the corpus"
+    assert calls["pending"] == ["id-a", "id-b"], "every active profile is asked"
+    assert calls["stored"] == ["id-a"], "a profile with nothing pending writes nothing"
+
+
+def test_rescore_full_covers_every_active_profile_and_fetches_the_corpus_once(monkeypatch):
     """Regression: `ferminator rescore` defaulted to profiles/adam-cagle.md and
     read it from disk, so an /admin-provisioned account could not be rescored
     at all -- the third command with this same assumption.
 
-    It must also fetch the shared corpus once, not once per person: one pool of
-    jobs, many people drawing from it.
+    Under --full it must also fetch the shared corpus once, not once per
+    person: one pool of jobs, many people drawing from it.
     """
     from click.testing import CliRunner
 
@@ -288,7 +355,7 @@ def test_rescore_covers_every_active_profile_and_fetches_the_corpus_once(monkeyp
     monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
     monkeypatch.setattr(cli_module, "PostgresRepository", lambda *_a, **_k: Repository())
 
-    result = CliRunner().invoke(cli_module.cli, ["rescore"])
+    result = CliRunner().invoke(cli_module.cli, ["rescore", "--full"])
 
     assert result.exit_code == 0, result.output
     assert calls["stored"] == ["id-a", "id-b"], "every active profile must be scored"
@@ -326,7 +393,9 @@ def test_rescore_can_target_a_single_slug(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql://x/y")
     monkeypatch.setattr(cli_module, "PostgresRepository", lambda *_a, **_k: Repository())
 
-    hit = CliRunner().invoke(cli_module.cli, ["rescore", "--slug", profile.profile.slug])
+    hit = CliRunner().invoke(
+        cli_module.cli, ["rescore", "--full", "--slug", profile.profile.slug]
+    )
     assert hit.exit_code == 0, hit.output
     assert stored == ["id-a"]
 
