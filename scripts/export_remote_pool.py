@@ -219,7 +219,10 @@ def main() -> None:
         chunk = kept[index * size : (index + 1) * size]
         if not chunk:
             continue
-        path = args.out_dir / f"ferminator-review-pool-{stamp}-part{index + 1}.md"
+        # A single-part export gets no part suffix; the daily file is just
+        # ferminator-review-pool-YYYY-MM-DD.md.
+        suffix = f"-part{index + 1}" if parts > 1 else ""
+        path = args.out_dir / f"ferminator-review-pool-{stamp}{suffix}.md"
         path.write_text(render(chunk, index + 1, parts), encoding="utf-8")
         print(f"wrote {path} ({len(chunk)} jobs, {path.stat().st_size // 1024} KB)")
 
