@@ -569,6 +569,55 @@ class PostgresRepository:
             )
         return jobs
 
+    def pending_jobs(
+        self, profile_id: str, profile_version: int
+    ) -> list[tuple[str, str, NormalizedJob]]:
+        """Return only the jobs this profile has not scored at its current version.
+
+        A job qualifies when no match row exists for (profile, job, current
+        revision, current profile version): new jobs, jobs whose description
+        changed, and, after a profile edit, every job at once, because the
+        version bump invalidates all rows. That last case is what keeps a
+        profile edit meaning a full rescore with no special-casing.
+
+        This exists for egress: the full corpus is ~63k descriptions and the
+        scheduled scan pulled all of it out of the database twice a day, which
+        is what blew through the free tier's 5 GB egress allowance (13 GB in
+        one cycle). A typical incremental pass reads a few hundred rows.
+        """
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                select j.id as job_id, r.id as revision_id, r.normalized_payload,
+                       r.description_text
+                from public.jobs j
+                join public.job_revisions r on r.id = j.current_revision_id
+                where j.active
+                  and not exists (
+                    select 1 from public.job_matches m
+                    where m.profile_id = %s
+                      and m.job_id = j.id
+                      and m.job_revision_id = j.current_revision_id
+                      and m.profile_version = %s
+                  )
+                order by j.first_seen_at desc
+                """,
+                (profile_id, profile_version),
+            ).fetchall()
+        jobs = []
+        for row in rows:
+            payload = dict(row["normalized_payload"])
+            payload["description_text"] = row["description_text"]
+            payload["description_html"] = None
+            jobs.append(
+                (
+                    str(row["job_id"]),
+                    str(row["revision_id"]),
+                    NormalizedJob.model_validate(payload),
+                )
+            )
+        return jobs
+
     def store_match(
         self,
         *,

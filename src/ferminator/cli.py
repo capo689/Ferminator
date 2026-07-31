@@ -362,13 +362,21 @@ def _rescore_one(repository, career_profile, profile_id: str, active_jobs) -> No
     help="Rescore one on-disk profile. Omit to cover every active account.",
 )
 @click.option("--slug", default=None, help="Rescore only this profile slug.")
-def rescore(profile_path: Path | None, slug: str | None) -> None:
-    """Refresh matches from the shared job corpus without fetching ATS boards.
+@click.option(
+    "--full",
+    is_flag=True,
+    default=False,
+    help="Score every active job instead of only new and changed ones.",
+)
+def rescore(profile_path: Path | None, slug: str | None, full: bool) -> None:
+    """Refresh matches without fetching ATS boards.
 
-    The corpus is fetched once and every profile is scored against it, which is
-    the whole point: one pool of jobs, many people drawing from it. Defaults to
-    every active account, sourced from the database, so accounts provisioned
-    through /admin are covered.
+    Incremental by default: each profile scores only jobs it has not seen at
+    its current profile version, which is new jobs, changed descriptions, and,
+    after a profile edit, everything (the version bump invalidates every row).
+    The full-corpus read was pulling ~63k descriptions out of the database
+    twice a day and consumed the entire free-tier egress allowance. --full
+    forces the old exhaustive pass.
     """
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -399,14 +407,33 @@ def rescore(profile_path: Path | None, slug: str | None) -> None:
         if not targets:
             console.print("[yellow]No active profiles to rescore[/yellow]")
             return
-        # Fetch the shared corpus once, not once per person.
-        active_jobs = repository.active_jobs()
-        console.print(
-            f"[cyan]Scoring {len(targets)} profile(s) against "
-            f"{len(active_jobs):,} active jobs[/cyan]"
-        )
-        for profile_id, career_profile in targets:
-            _rescore_one(repository, career_profile, profile_id, active_jobs)
+        if full:
+            # Exhaustive pass: fetch the shared corpus once, not once per person.
+            active_jobs = repository.active_jobs()
+            console.print(
+                f"[cyan]Scoring {len(targets)} profile(s) against "
+                f"{len(active_jobs):,} active jobs (full)[/cyan]"
+            )
+            for profile_id, career_profile in targets:
+                _rescore_one(repository, career_profile, profile_id, active_jobs)
+        else:
+            # Incremental: each profile fetches only what it has not scored.
+            # Fetching per profile is deliberate; the point is that this reads
+            # hundreds of rows, not the 63k-description corpus.
+            for profile_id, career_profile in targets:
+                version = repository.profile_version(profile_id)
+                pending = repository.pending_jobs(profile_id, version)
+                if not pending:
+                    console.print(
+                        f"[green]{career_profile.profile.display_name}: "
+                        "nothing new to score[/green]"
+                    )
+                    continue
+                console.print(
+                    f"[cyan]{career_profile.profile.display_name}: scoring "
+                    f"{len(pending):,} new or changed job(s)[/cyan]"
+                )
+                _rescore_one(repository, career_profile, profile_id, pending)
     finally:
         repository.close()
 
