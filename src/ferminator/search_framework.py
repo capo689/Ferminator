@@ -39,6 +39,19 @@ _REMOTE_BODY = re.compile(
 # answer there constantly ("United States - Remote", "ACD, Copy (Remote)").
 _REMOTE_LABEL = re.compile(r"\bremote\b", re.I)
 
+# Remote somewhere else is not remote for a US search. "Remote-UK&I" passed
+# the gate on the strength of the word "remote" and reached review. A label
+# naming only a foreign region fails unless a US signal appears beside it.
+_FOREIGN_REGION = re.compile(
+    r"\b(?:uk|u\.k\.|united kingdom|ireland|emea|europe(?:an)?|apac|latam"
+    r"|canada(?:\s*only)?|australia|india|germany|france|spain|poland"
+    r"|netherlands|portugal|brazil|mexico|philippines)\b",
+    re.I,
+)
+_US_SIGNAL = re.compile(
+    r"\b(?:us|u\.s\.|usa|united states|north america|americas|anywhere)\b", re.I
+)
+
 # On-site evidence strong enough to override a remote claim. Ordered by how
 # unambiguous they are.
 _ONSITE = [
@@ -114,6 +127,11 @@ def classify_remote(
     for pattern, label in _ONSITE:
         if pattern.search(description):
             return RemoteVerdict(False, f"{label} in the description")
+
+    scope = f"{title} {location_labels}"
+    foreign = _FOREIGN_REGION.search(scope)
+    if foreign and not _US_SIGNAL.search(scope):
+        return RemoteVerdict(False, f"remote restricted to {foreign.group(0)}")
 
     return RemoteVerdict(True, "; ".join(positives))
 
