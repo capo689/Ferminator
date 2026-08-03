@@ -235,6 +235,17 @@ def main() -> None:
     # Local date, not UTC: an evening run in Oregon is not tomorrow's file.
     stamp = datetime.now().astimezone().strftime("%Y-%m-%d")
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    # A second run on the same day must not silently overwrite the first:
+    # the reviewer ingests files by name, and replacing content under a name
+    # it already processed made it re-serve the morning's review as if it
+    # were the new batch. Suffix instead.
+    run = 2
+    while (args.out_dir / f"ferminator-review-pool-{stamp}.md").exists() and run < 20:
+        candidate = f"{stamp}-run{run}"
+        if not (args.out_dir / f"ferminator-review-pool-{candidate}.md").exists():
+            stamp = candidate
+            break
+        run += 1
     parts = max(1, args.parts)
     size = -(-len(kept) // parts)
     for index in range(parts):
