@@ -39,6 +39,12 @@ _REMOTE_BODY = re.compile(
 # answer there constantly ("United States - Remote", "ACD, Copy (Remote)").
 _REMOTE_LABEL = re.compile(r"\bremote\b", re.I)
 
+# LinkedIn's remote tag, the positive twin of #LI-Hybrid. DEPT's copywriting
+# role (rated GREAT) was tagged #LI-Remote in its body and still rejected as
+# "no remote evidence", because we detected the hybrid tag but never the
+# remote one.
+_LI_REMOTE = re.compile(r"#LI-Remote\b", re.I)
+
 # Remote somewhere else is not remote for a US search. "Remote-UK&I" passed
 # the gate on the strength of the word "remote" and reached review. A label
 # naming only a foreign region fails unless a US signal appears beside it.
@@ -52,12 +58,17 @@ _US_SIGNAL = re.compile(
     r"\b(?:us|u\.s\.|usa|united states|north america|americas|anywhere)\b", re.I
 )
 
-# On-site evidence strong enough to override a remote claim. Ordered by how
-# unambiguous they are.
-_ONSITE = [
+# HARD on-site evidence: an unambiguous, deliberate statement that THIS role is
+# not remote. These reject even when strong remote signals are present, because
+# they are specific and intentional (a LinkedIn tag, a stated schedule, a
+# mileage rule). Adam wants absolute hybrids gone, and this is what enforces it.
+_HARD_ONSITE = [
     (re.compile(r"#LI-Hybrid", re.I), "tagged #LI-Hybrid"),
-    (re.compile(r"\bhybrid\s+(?:role|position|schedule|work|model)\b", re.I), "hybrid role"),
-    (re.compile(r"follows a hybrid work schedule", re.I), "hybrid schedule stated"),
+    (re.compile(r"(?:follows a |this (?:role|position) is (?:a )?)?"
+                r"hybrid (?:work )?schedule", re.I), "hybrid schedule stated"),
+    (re.compile(r"\(hybrid[^)]*on-?site", re.I), "hybrid, on-site required"),
+    (re.compile(r"on-?site (?:is )?required|required to be on-?site", re.I),
+     "on-site required"),
     (
         re.compile(r"\b(?:two|three|four|2|3|4|5)\+?\s*days?\s*(?:per|a)\s*week\s*"
                    r"(?:in|at)\s*(?:the\s*)?office", re.I),
@@ -79,7 +90,18 @@ _ONSITE = [
         "hub radius required",
     ),
     (re.compile(r"relocation (?:is )?required", re.I), "relocation required"),
-    (re.compile(r"\bon-?site\s+(?:role|position)\b", re.I), "on-site role"),
+]
+
+# SOFT on-site evidence: a bare "hybrid" or "on-site" mention in prose. These
+# reject a job ONLY when it has no strong remote signal, because they are
+# constantly boilerplate: Samsara's "whether working on-site, in a hybrid
+# model, or fully remotely" is a culture statement, and it was overriding a
+# provider field of `remote`, a "Remote - US" label, and "this is a remote
+# position" in the same posting. That is a GREAT-rated job the gate was killing.
+_SOFT_ONSITE = [
+    (re.compile(r"\bhybrid\s+(?:role|position|model|work|environment|workplace)\b", re.I),
+     "hybrid mentioned"),
+    (re.compile(r"\bon-?site\s+(?:role|position)\b", re.I), "on-site mentioned"),
 ]
 
 
@@ -103,30 +125,45 @@ def classify_remote(
     and the body, in that order of trust. On-site evidence in the body then
     overrides any of it, because the description beats the title.
     """
-    positives: list[str] = []
-    if (workplace_type or "").casefold() == "remote":
-        positives.append("provider marked it remote")
-    if any_location_flagged_remote:
-        positives.append("location flagged remote")
-    if _REMOTE_LABEL.search(title):
-        positives.append("remote in the title")
-    if _REMOTE_LABEL.search(location_labels):
-        positives.append("remote in the location")
-    if _REMOTE_BODY.search(description):
-        positives.append("remote stated in the description")
-
-    if not positives:
-        return RemoteVerdict(False, "no remote evidence")
-
-    # A provider that positively marked the job hybrid or on-site settles it,
-    # which is the rule that stopped a hybrid San Francisco job reaching a
-    # completed application.
+    # A provider that positively marked the job hybrid or on-site settles it.
+    # This is what keeps genuine hybrids out: Firecrawl, Harvey, and Happyrobot
+    # all carry workplace_type hybrid, and Adam cannot commute weekly to SF.
     if (workplace_type or "").casefold() in {"hybrid", "on-site", "onsite"}:
         return RemoteVerdict(False, f"provider marked it {workplace_type}")
 
-    for pattern, label in _ONSITE:
+    # Strong positives are deliberate, structured claims that the role is
+    # remote. They outrank a bare hybrid mention in prose (a SOFT signal), but
+    # never a HARD one.
+    strong: list[str] = []
+    if (workplace_type or "").casefold() == "remote":
+        strong.append("provider marked it remote")
+    if any_location_flagged_remote:
+        strong.append("location flagged remote")
+    if _LI_REMOTE.search(description):
+        strong.append("#LI-Remote tag")
+    if _REMOTE_BODY.search(description):
+        strong.append("remote stated in the description")
+    if _REMOTE_LABEL.search(location_labels):
+        strong.append("remote in the location")
+
+    weak: list[str] = []
+    if _REMOTE_LABEL.search(title):
+        weak.append("remote in the title")
+
+    positives = strong + weak
+    if not positives:
+        return RemoteVerdict(False, "no remote evidence")
+
+    # HARD on-site signals reject regardless of how remote the job looks.
+    for pattern, label in _HARD_ONSITE:
         if pattern.search(description):
             return RemoteVerdict(False, f"{label} in the description")
+
+    # SOFT signals only bite when nothing strong vouches for the job.
+    if not strong:
+        for pattern, label in _SOFT_ONSITE:
+            if pattern.search(description):
+                return RemoteVerdict(False, f"{label} in the description")
 
     scope = f"{title} {location_labels}"
     foreign = _FOREIGN_REGION.search(scope)
@@ -180,6 +217,20 @@ CONDITIONAL_TITLES = [
     "AI Consultant", "AI Strategist", "Content Strategist", "Technical Writer",
     "Technical Content Writer", "Content Technical Writer", "Product Manager",
     "Customer Success Manager", "Sales Enablement Manager",
+    # Added 2026-08-05 from a recall audit: each of these matched a job Adam
+    # rated GREAT or MAYBE that no keyword in the list above caught. They are
+    # conditional, not primary, so they enter review rather than auto-passing.
+    "Developer Relations",        # Railway (great)
+    "Content Writer",             # Graphite, Technical Digital Content Writer (great)
+    "Growth Workflow",            # Kraken, Growth Workflow Manager (great)
+    "Field Architect",            # Boomi, Lead AI Field Architect (great)
+    "Communications Lead",        # The AI Education Project (great)
+    "Web Technology",             # Grafana Labs (great)
+    "Product Owner",              # Harvey, GTM Technology Product Owner (great)
+    "AI Agents",                  # Jerry.ai, Manager, AI Agents and Automation (great)
+    "Deployment Strategist",      # ElevenLabs (maybe)
+    "Product Marketing Manager",  # Omada, Drata (maybe)
+    "Growth Marketing",           # Infisical (maybe)
 ]
 
 # Title exclusions. Each entry is a regex rather than a literal because

@@ -82,6 +82,44 @@ class TestRemoteGate:
     def test_no_evidence_is_not_remote(self) -> None:
         assert not _remote(title="Senior Copywriter", location_labels="New York, NY").is_remote
 
+    def test_boilerplate_hybrid_does_not_override_a_strong_positive(self) -> None:
+        """Samsara (rated GREAT): provider remote, Remote-US label, "this is a
+        remote position", and a DEI line naming on-site/hybrid/remote flexibility.
+
+        The stray "hybrid model" was overriding three explicit remote signals.
+        """
+        verdict = _remote(
+            workplace_type="remote",
+            location_labels="Remote - US",
+            description=(
+                "All members of our team can contribute whether they are working "
+                "on-site, in a hybrid model, or fully remotely. This is a remote "
+                "position open to candidates residing in the US."
+            ),
+        )
+        assert verdict.is_remote, verdict.reason
+
+    def test_li_remote_tag_is_positive_evidence(self) -> None:
+        """DEPT (rated GREAT) was tagged #LI-Remote and rejected anyway."""
+        assert _remote(
+            location_labels="New York, New York, United States",
+            description="#LI-Remote The anticipated salary range is listed below.",
+        ).is_remote
+
+    def test_stated_hybrid_schedule_still_rejects_with_a_strong_positive(self) -> None:
+        """The HARD signals must survive the SOFT relaxation. Waymo carried
+        provider remote and "follows a hybrid work schedule"; it stays out."""
+        assert not _remote(
+            workplace_type="remote",
+            description="This role follows a hybrid work schedule.",
+        ).is_remote
+
+    def test_hybrid_onsite_required_label_rejects(self) -> None:
+        assert not _remote(
+            description="Location: San Francisco, CA (Hybrid, on-site required).",
+            location_labels="San Francisco, CA",
+        ).is_remote
+
 
 class TestTitleGate:
     @pytest.mark.parametrize(
@@ -94,6 +132,15 @@ class TestTitleGate:
             "Copy Lead, Claude",
             "Applied AI Architect, GTM",
             "Senior Product Manager, Agentic AI",
+            # Recall-audit additions: each is a real GREAT-rated title the old
+            # list missed.
+            "Developer Relations",
+            "Technical Digital Content Writer",
+            "Growth Workflow Manager, Organic Growth",
+            "Lead AI Field Architect",
+            "Senior Manager, AI Agents and Automation",
+            "GTM Technology Product Owner",
+            "Deployment Strategist - North America",
         ],
     )
     def test_included_titles(self, title: str) -> None:
