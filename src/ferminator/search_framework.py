@@ -231,6 +231,18 @@ CONDITIONAL_TITLES = [
     "Deployment Strategist",      # ElevenLabs (maybe)
     "Product Marketing Manager",  # Omada, Drata (maybe)
     "Growth Marketing",           # Infisical (maybe)
+    # Added 2026-09-01 from Adam's tailored-resume history: each is a role he
+    # applied to (cared enough to tailor a resume) that the title gate missed.
+    "Forward Deployed",           # Cresta, Outreach, Hightouch, Mercury (x4)
+    "Product Builder",            # Apollo, Senior Product Builder PM
+    "PMM",                        # YipitData, Senior PMM
+    "Product Marketer",           # OpenRouter, Founding Product Marketer
+    "Growth Marketer",            # Instructure, Full Stack Growth Marketer
+    "AI Ops",                     # Agiloft, Tapcart, Mercury
+    "AI Product",                 # RealPage Director AI Product Systems; Jerry
+    "AI Strategy",                # ButterflyMX Director AI Strategy Transformation
+    "AI Marketing",               # Assured, Zeely
+    "AI Agent",                   # Saviynt AI Agent Engineer
 ]
 
 # Title exclusions. Each entry is a regex rather than a literal because
@@ -326,6 +338,12 @@ def classify_title(title: str) -> TitleVerdict:
     """Apply title exclusions, then title inclusion. Exclusion always wins."""
     for pattern, label in _EXCLUSIONS:
         if pattern.search(title):
+            # A copywriter who also edits is still a copywriter. SnapFinance's
+            # "Senior Copywriter Editor", a role Adam applied to, was dying on
+            # the "editor" token in the editorial exclusion. Copy beats
+            # editorial.
+            if label == "editorial" and re.search(r"\bcopy\w*\b", title, re.I):
+                continue
             return TitleVerdict(False, None, None, label)
 
     # These two families are rejected *unless* the title names an accepted
