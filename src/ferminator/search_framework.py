@@ -231,6 +231,26 @@ CONDITIONAL_TITLES = [
     "Deployment Strategist",      # ElevenLabs (maybe)
     "Product Marketing Manager",  # Omada, Drata (maybe)
     "Growth Marketing",           # Infisical (maybe)
+    # Added 2026-09-02 from the review AI's coverage audit: the senior
+    # copy / brand / narrative / messaging leadership lane was under-covered.
+    # These fell through to semantic recovery (JD-only) or were killed as
+    # generic editorial/content. Conditional, so they enter review, not
+    # auto-pass; seniority and comp are judged in review.
+    "Brand Narrative",            # Director of Brand Narrative
+    "Brand Strategy",             # Brand Strategy and Narrative
+    "Brand Voice",                # Head of Brand Voice
+    "Brand Messaging",
+    "Copy Strategist",            # Creative Copy Strategist (SHIFT Paradigm gem)
+    "Content Strategy",           # Director, Content Strategy
+    "Messaging Strategist",
+    "Messaging Architect",
+    "Director of Messaging",
+    "Head of Messaging",
+    "Head of Brand",
+    "Director of Brand",
+    "Brand & Creative",           # VP, Brand & Creative
+    "Content Director",           # promoted from generic-content reject; JD decides
+    "Editorial Director",         # promoted from editorial reject; JD decides
 ]
 
 # Title exclusions. Each entry is a regex rather than a literal because
@@ -238,7 +258,12 @@ CONDITIONAL_TITLES = [
 # "Marketing Operations", so a literal list silently admits the exact Airtable
 # role the framework means to reject. Interior modifiers have to be allowed for.
 _EXCLUSIONS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(editorial|editor|managing editor|editor.in.chief|newsroom"
+    # "Editorial Director/Lead/Head" are brand-narrative leadership roles the
+    # review AI wants surfaced, so exempt them; a bare "editorial" adjective
+    # (Editorial Calendar Manager, Editorial Assistant) and Editor/newsroom
+    # roles stay rejected.
+    (re.compile(r"\beditorial(?!\s+(?:director|lead|head|strategist))\b"
+                r"|\b(editor|managing editor|editor.in.chief|newsroom"
                 r"|journalis\w*|publisher|publication manager)\b", re.I), "editorial"),
     (re.compile(r"\bsocial media (manager|director|strategist)\b"
                 r"|\bhead of social\b|\bsocial lead\b|\bsocial content manager\b"
@@ -264,6 +289,24 @@ _EXCLUSIONS: list[tuple[re.Pattern[str], str]] = [
                 r"|\btraining manager\b|\borganizational development\b"
                 r"|\bpeople operations\b|\bhr transformation\b", re.I),
      "learning / HR / org development"),
+    # Added 2026-09-01 from the 699-job semantic sweep: professions the fit
+    # model kept surfacing on topical language ("AI-powered", "growth") that
+    # are not Adam's work at all. Adam rated every one of these WRONG. Killing
+    # them at the title gate stops the model relearning the lesson each week.
+    (re.compile(r"\bteacher\b|\bteaching\b|\bfaculty\b|\btutor\b|\bprofessor\b"
+                r"|\beducator\b|\blecturer\b|\bcoach\b|\bparaprofessional\b", re.I),
+     "teaching / education"),
+    (re.compile(r"\b(account|sales)\s+(executive|director|manager|representative|rep)\b"
+                r"|\bbdr\b|\bsdr\b|\bbusiness development\b|\bsales development\b"
+                r"|\bquota\b|\baccount manager\b|\bpartnerships?\s+manager\b", re.I),
+     "sales / business development"),
+    (re.compile(r"\bnurse\b|\brn\b|\bclinician\b|\bclinical\b|\bmedical science\b"
+                r"|\bphysician\b|\bpharmacist\b|\btherapist\b|\bcare\s+(coordinator|manager)\b"
+                r"|\bpatient\b|\bmedical (director|affairs)\b", re.I),
+     "clinical / medical"),
+    (re.compile(r"\brecruiter\b|\brecruiting\b|\btalent acquisition\b"
+                r"|\bpeople partner\b|\bhris\b", re.I),
+     "recruiting / people"),
 ]
 
 # Generic creative leadership is rejected unless the title names Copy, AI, or
@@ -276,8 +319,11 @@ _CREATIVE_RESCUE = re.compile(r"\bcopy\w*\b|\bai\b|\bcreative technolog", re.I)
 
 # Generic content roles are rejected unless the title names an accepted
 # specialism.
+# "Content Director" is promoted out of this reject to a conditional include
+# (the JD decides brand-narrative vs blog-farm); junior/production content
+# roles stay rejected unless they name an accepted specialism.
 _GENERIC_CONTENT = re.compile(
-    r"\bcontent (marketing manager|manager|director|lead|operations|producer)\b"
+    r"\bcontent (marketing manager|manager|lead|operations|producer)\b"
     r"|\bhead of content\b", re.I
 )
 _CONTENT_RESCUE = re.compile(
